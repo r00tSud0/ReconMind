@@ -19,7 +19,7 @@ import xml.etree.ElementTree as ET
 from reconmind.core.authorization import is_authorized
 
 # Service and version detection, reasonable speed. No exploit scripts.
-NMAP_FLAGS = ["-sV", "-T4"]
+NMAP_FLAGS = ["-Pn", "-sV", "-T4"]
 
 
 def _parse_nmap_xml(xml_text):

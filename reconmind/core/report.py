@@ -44,10 +44,14 @@ def _exploits_section(lines, ports):
             version=p.get("version", ""),
         ).strip()
         lines.append("**{h}**".format(h=header))
-        for e in p["exploits"]:
+        exploits = p["exploits"]
+        for e in exploits[:5]:
             edb = e.get("edb_id", "")
             tag = " (EDB-{id})".format(id=edb) if edb else ""
             lines.append("- {title}{tag}".format(title=e.get("title", ""), tag=tag))
+        if len(exploits) > 5:
+            lines.append("- ...and {n} more (version not precisely detected)".format(
+                n=len(exploits) - 5))
         lines.append("")
 
 

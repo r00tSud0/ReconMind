@@ -14,7 +14,7 @@ import ipaddress
 import os
 from datetime import datetime
 
-from reconmind.core.config import ALLOWLIST, LOG_DIR
+from reconmind.core.config import ALLOWLIST, DENYLIST, LOG_DIR
 
 
 def _log(target, decision):
@@ -40,6 +40,17 @@ def is_authorized(target_ip):
         ip = ipaddress.ip_address(str(target_ip).strip())
     except ValueError:
         _log(target_ip, "DENIED (invalid IP)")
+        return False
+
+    # The denylist always wins, even over the allowlist.
+    for cidr in DENYLIST:
+        if ip in ipaddress.ip_network(cidr, strict=False):
+            _log(ip, "DENIED (denylist)")
+            return False
+
+    # Only private RFC1918 addresses are ever in scope.
+    if not ip.is_private:
+        _log(ip, "DENIED (not private)")
         return False
 
     # Check the IP against every allowed network.

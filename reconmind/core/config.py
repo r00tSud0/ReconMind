@@ -16,5 +16,10 @@ ALLOWLIST = [
     "192.168.56.0/24",   # VirtualBox host-only, lab only
 ]
 
+# Networks ReconMind must never scan, checked before the ALLOWLIST.
+DENYLIST = [
+    "10.0.3.0/24",       # Real home network, never scan
+]
+
 # Where the authorization log is written.
 LOG_DIR = "logs"

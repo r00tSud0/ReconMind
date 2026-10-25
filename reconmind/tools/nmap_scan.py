@@ -59,7 +59,8 @@ def run_nmap(target_ip):
     # Write XML to a temp file, then read and parse it.
     with tempfile.NamedTemporaryFile(suffix=".xml") as tmp:
         cmd = ["nmap"] + NMAP_FLAGS + ["-oX", tmp.name, str(target_ip)]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        subprocess.run(cmd, check=True, capture_output=True, text=True,
+                       timeout=300)
         tmp.seek(0)
         xml_text = open(tmp.name).read()
 

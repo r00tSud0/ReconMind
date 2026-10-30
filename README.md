@@ -54,6 +54,23 @@ Every tool is a plug-in module with a fixed input and output, so tools can be ad
 
 ReconMind uses the ReAct pattern (Reason, Act, Observe, repeat). The agent brain reasons about what to do, runs a tool, reads the result, and reasons again, until it has enough to report. It does not run everything blindly. It decides the next tool based on what the last one found.
 
+## Running It
+
+Run from the repo root on the Kali attacker box (nmap and searchsploit come with Kali).
+
+```bash
+pip install -r requirements.txt
+echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env      # .env is gitignored
+
+python3 -m reconmind.agent 10.10.1.100           # LLM agent: ReAct loop picks the tools
+python3 -m reconmind.recon 10.10.1.100           # fixed pipeline, no LLM
+python3 -m unittest tests.test_agent -v          # offline tests, no key or network needed
+```
+
+The agent prints its live trace (THOUGHT, ACTION, OBSERVE) and writes a Markdown report to `reports/` with its analyst summary on top of the raw tool tables.
+
+Safety is layered. The target is checked by the authorization gate before the model is called at all. Inside the run, the model can only request tools from a fixed list, every request is held to the single target the operator typed (scope lock), and each tool runs the gate again before launching anything. The loop has a hard step limit.
+
 ## Data Sources
 
 - MITRE ATT&CK and the MITRE TRAM dataset, used to fine-tune the ATT&CK mapper.

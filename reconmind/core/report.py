@@ -55,8 +55,13 @@ def _exploits_section(lines, ports):
         lines.append("")
 
 
-def build_report(scan):
-    """Write one Markdown report for a scan result. Return the file path."""
+def build_report(scan, analyst_summary=None):
+    """
+    Write one Markdown report for a scan result. Return the file path.
+
+    analyst_summary is optional free text written by the agent brain. When it
+    is present it goes at the top of the report, above the raw tables.
+    """
     os.makedirs(REPORT_DIR, exist_ok=True)
 
     target = scan.get("target", "unknown")
@@ -77,6 +82,12 @@ def build_report(scan):
         "**Generated:** {ts}".format(ts=stamp),
         "",
     ]
+
+    if analyst_summary:
+        lines.append("## Analyst summary (ReconMind agent)")
+        lines.append("")
+        lines.append(analyst_summary.strip())
+        lines.append("")
 
     if status == "refused":
         lines.append("The target was refused by the authorization gate. "

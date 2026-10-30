@@ -16,7 +16,6 @@ import os
 from reconmind.agent.prompts import SYSTEM_PROMPT, first_user_message
 from reconmind.agent.tools import TOOL_SPECS, ToolBox
 
-DEFAULT_MODEL = "claude-sonnet-5-5"
 MAX_STEPS = 12          # hard cap on model turns, so a run can never loop forever
 MAX_TOKENS = 2048
 
@@ -39,10 +38,12 @@ def run_agent(target, client=None, model=None, trace=True):
     Returns (toolbox, summary_text). toolbox.scan holds the structured results
     for the report; summary_text is the model's final analyst summary.
     """
+    model = model or os.environ.get("RECONMIND_MODEL")
+    if not model:
+        raise ValueError("No model set: pass model= or set RECONMIND_MODEL")
     if client is None:
         import anthropic  # imported here so tests don't need the package
         client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY
-    model = model or os.environ.get("RECONMIND_MODEL", DEFAULT_MODEL)
 
     tools = ToolBox(target)
     messages = [{"role": "user", "content": first_user_message(target)}]

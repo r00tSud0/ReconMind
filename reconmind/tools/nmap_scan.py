@@ -11,6 +11,7 @@ Output is a plain dict so the agent and the report builder can read it without
 knowing anything about nmap.
 """
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -19,7 +20,26 @@ import xml.etree.ElementTree as ET
 from reconmind.core.authorization import is_authorized
 
 # Service and version detection, reasonable speed. No exploit scripts.
-NMAP_FLAGS = ["-Pn", "-sV", "-T4"]
+# smb-os-discovery is in the default, discovery and safe categories only; it
+# reads the real Samba version that -sV reports as a vague range ("3.X - 4.X").
+NMAP_FLAGS = ["-Pn", "-sV", "--script", "smb-os-discovery", "-T4"]
+
+SMB_PORTS = (139, 445)
+
+
+def _samba_version(host):
+    """Samba version from the host's smb-os-discovery output, or ""."""
+    script = host.find("./hostscript/script[@id='smb-os-discovery']")
+    if script is None:
+        return ""
+    lanman = script.find("elem[@key='lanmanager']")
+    text = (lanman.text or "") if lanman is not None else ""
+    if not text:
+        # Older nmap only gives the text form: "OS: Unix (Samba 3.0.20-Debian)"
+        found = re.search(r"\((Samba [^)]+)\)", script.get("output", ""))
+        text = found.group(1) if found else ""
+    found = re.match(r"Samba\s+(\S+)", text.strip())
+    return found.group(1) if found else ""
 
 
 def _parse_nmap_xml(xml_text):
@@ -27,18 +47,30 @@ def _parse_nmap_xml(xml_text):
     ports = []
     root = ET.fromstring(xml_text)
     for host in root.findall("host"):
+        host_ports = []
         for port in host.findall("./ports/port"):
             state = port.find("state")
             if state is None or state.get("state") != "open":
                 continue
             svc = port.find("service")
-            ports.append({
+            host_ports.append({
                 "port": int(port.get("portid")),
                 "protocol": port.get("protocol"),
                 "service": (svc.get("name") if svc is not None else "unknown"),
                 "product": (svc.get("product") if svc is not None else ""),
                 "version": (svc.get("version") if svc is not None else ""),
             })
+
+        # Fill the real Samba version into the SMB ports. Leave other
+        # products (a Windows host, say) untouched.
+        samba = _samba_version(host)
+        if samba:
+            for p in host_ports:
+                product = p["product"] or ""
+                if p["port"] in SMB_PORTS and (not product or "samba" in product.lower()):
+                    p["product"] = "Samba smbd"
+                    p["version"] = samba
+        ports.extend(host_ports)
     return ports
 
 

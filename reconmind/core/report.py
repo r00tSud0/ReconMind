@@ -10,7 +10,16 @@ carry an optional "exploits" list added by the exploit lookup tool.
 import os
 from datetime import datetime
 
+from reconmind.tools.exploit_lookup import exploit_url
+
 REPORT_DIR = "reports"
+
+# How each match label is described above a port's exploit list.
+MATCH_WORDING = {
+    "exact_version": "Matched on exact version",
+    "version_family": "Matched on version family only (patch level not confirmed)",
+    "product_only": "Matched on product name only (version unknown, unconfirmed)",
+}
 
 
 def _ports_table(lines, ports):
@@ -45,13 +54,22 @@ def _exploits_section(lines, ports):
         ).strip()
         lines.append("**{h}**".format(h=header))
         exploits = p["exploits"]
+        label = exploits[0].get("match")
+        if label in MATCH_WORDING:
+            lines.append("_{w}. Query: `{q}`_".format(
+                w=MATCH_WORDING[label], q=exploits[0].get("query", "")))
         for e in exploits[:5]:
             edb = e.get("edb_id", "")
-            tag = " (EDB-{id})".format(id=edb) if edb else ""
-            lines.append("- {title}{tag}".format(title=e.get("title", ""), tag=tag))
+            line = "- {title}".format(title=e.get("title", ""))
+            if edb:
+                line += " (EDB-{id})".format(id=edb)
+            if e.get("match"):
+                line += " [{m}]".format(m=e["match"])
+            if edb:
+                line += " Link: {url}".format(url=exploit_url(edb))
+            lines.append(line)
         if len(exploits) > 5:
-            lines.append("- ...and {n} more (version not precisely detected)".format(
-                n=len(exploits) - 5))
+            lines.append("- ...and {n} more".format(n=len(exploits) - 5))
         lines.append("")
 
 
@@ -100,12 +118,18 @@ def build_report(scan, analyst_summary=None):
     else:
         _ports_table(lines, ports)
         _exploits_section(lines, ports)
-        total_exploits = sum(len(p.get("exploits", [])) for p in ports)
+        all_exploits = [e for p in ports for e in p.get("exploits", [])]
+        counts = {k: sum(1 for e in all_exploits if e.get("match") == k)
+                  for k in MATCH_WORDING}
         lines.append("## Notes")
         lines.append("")
         lines.append("{n} open port(s) found, {e} known exploit match(es) across "
-                     "those services. Next stage: map each finding to its MITRE "
-                     "ATT&CK technique.".format(n=len(ports), e=total_exploits))
+                     "those services: {x} exact version, {f} version family "
+                     "(unconfirmed), {o} product only (unconfirmed). Next stage: "
+                     "map each finding to its MITRE ATT&CK technique.".format(
+                         n=len(ports), e=len(all_exploits),
+                         x=counts["exact_version"], f=counts["version_family"],
+                         o=counts["product_only"]))
 
     text = "\n".join(lines) + "\n"
     with open(path, "w") as fh:

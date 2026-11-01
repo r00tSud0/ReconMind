@@ -21,10 +21,19 @@ import json
 
 from reconmind.tools.nmap_scan import run_nmap
 from reconmind.tools.exploit_lookup import search_exploits
+from reconmind.tools.version_normalizer import planned_queries
 
 # How many exploit titles one lookup hands back to the model. Keeps the
 # context small; the full list is still stored for the report.
 MAX_EXPLOITS_TO_MODEL = 8
+
+# What the model is told about each weaker match label.
+MATCH_NOTES = {
+    "version_family": "Matched on major.minor only; the patch level is not "
+                      "confirmed. Treat these matches as unconfirmed.",
+    "product_only": "nmap gave no usable version; matched on product name "
+                    "only. Treat these matches as unconfirmed.",
+}
 
 
 # Tool descriptions in the JSON schema format the LLM API expects.
@@ -52,9 +61,12 @@ TOOL_SPECS = [
         "name": "exploit_lookup",
         "description": (
             "Search the offline Exploit-DB database (searchsploit) for public "
-            "exploits matching one service product and version found by "
-            "nmap_scan. Call it once per interesting service. Use the product "
-            "name exactly as nmap reported it."
+            "exploits matching the service nmap_scan found on one port. The "
+            "tool uses the product and version nmap recorded for that port and "
+            "cleans them itself. Call it once per interesting service. Each "
+            "match is labeled exact_version (full version matched), "
+            "version_family (major.minor only, patch level not confirmed) or "
+            "product_only (version unknown, unconfirmed)."
         ),
         "input_schema": {
             "type": "object",
@@ -63,17 +75,8 @@ TOOL_SPECS = [
                     "type": "integer",
                     "description": "Port number the service was found on.",
                 },
-                "product": {
-                    "type": "string",
-                    "description": "Product name from nmap, e.g. 'vsftpd'.",
-                },
-                "version": {
-                    "type": "string",
-                    "description": "Version string from nmap, e.g. '2.3.4'. "
-                                   "Empty string if nmap gave none.",
-                },
             },
-            "required": ["port", "product"],
+            "required": ["port"],
         },
     },
 ]
@@ -140,7 +143,9 @@ class ToolBox:
         }
         return json.dumps(observation), False
 
-    def _exploit_lookup(self, port, product, version=""):
+    def _exploit_lookup(self, port, product=None, version=None):
+        # product and version from the model are accepted but ignored: the
+        # search always uses what nmap recorded for the port.
         if self.scan.get("status") != "ok":
             return self._err("Run nmap_scan first; there are no scan results yet.")
 
@@ -148,15 +153,33 @@ class ToolBox:
         if match is None:
             return self._err("Port {p} was not found open in the scan.".format(p=port))
 
+        product = (match.get("product") or "").strip()
+        version = (match.get("version") or "").strip()
+        if not product:
+            match["exploits"] = []
+            observation = {
+                "port": int(port),
+                "match": "none",
+                "note": "nmap recorded no product for port {p}; nothing to "
+                        "search.".format(p=port),
+            }
+            return json.dumps(observation), False
+
         exploits = search_exploits(product, version)
         match["exploits"] = exploits  # stored in full for the report
 
-        observation = {
-            "port": int(port),
-            "query": "{p} {v}".format(p=product, v=version).strip(),
-            "total_matches": len(exploits),
-            "exploits": exploits[:MAX_EXPLOITS_TO_MODEL],
-        }
+        observation = {"port": int(port), "product": product, "version": version}
+        if exploits:
+            label = exploits[0].get("match")
+            observation["match"] = label
+            observation["query"] = exploits[0].get("query")
+            if label in MATCH_NOTES:
+                observation["note"] = MATCH_NOTES[label]
+        else:
+            observation["match"] = "none"
+            observation["queries_tried"] = [q for q, _ in planned_queries(product, version)]
+        observation["total_matches"] = len(exploits)
+        observation["exploits"] = exploits[:MAX_EXPLOITS_TO_MODEL]
         return json.dumps(observation), False
 
     # ---- helpers --------------------------------------------------------

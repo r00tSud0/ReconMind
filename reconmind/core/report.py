@@ -109,15 +109,45 @@ def _exploits_section(lines, ports):
 
 SUMMARY_LABEL = "_AI interpretation. The tables below are the verified tool results._"
 SUMMARY_UNAVAILABLE = "Analyst summary unavailable: the model output failed validation."
+SUMMARY_RATE_LIMITED = "Analyst summary unavailable: the model was busy (rate limited)."
+NO_TECHNIQUES = "No ATT&CK technique IDs found in the summary."
 
 
-def _summary_section(lines, analyst_summary, unverified_refs, summary_failed):
-    if not analyst_summary and not summary_failed:
+def _cell(text):
+    return str(text or "").replace("|", "\\|").replace("\n", " ")
+
+
+def _attack_section(lines, attack_check):
+    """The ATT&CK check table under the summary. Never raises."""
+    if attack_check is None:
+        return
+    lines.append("**ATT&CK check**")
+    lines.append("")
+    if attack_check.skipped:
+        lines.append(attack_check.skipped)
+        lines.append("")
+        return
+    if not attack_check.rows:
+        lines.append(NO_TECHNIQUES)
+        lines.append("")
+        return
+    lines.append("| ID | Name given | Official name | Result |")
+    lines.append("|----|------------|---------------|--------|")
+    for row in attack_check.rows:
+        lines.append("| {i} | {g} | {o} | {r} |".format(
+            i=_cell(row.id), g=_cell(row.given) or "(none)",
+            o=_cell(row.official) or "(not in MITRE data)", r=_cell(row.result)))
+    lines.append("")
+
+
+def _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
+                     rate_limited=False, attack_check=None):
+    if not analyst_summary and not summary_failed and not rate_limited:
         return
     lines.append("## Analyst summary (ReconMind agent)")
     lines.append("")
     if not analyst_summary:
-        lines.append(SUMMARY_UNAVAILABLE)
+        lines.append(SUMMARY_RATE_LIMITED if rate_limited else SUMMARY_UNAVAILABLE)
         lines.append("")
         return
     lines.append(SUMMARY_LABEL)
@@ -131,9 +161,11 @@ def _summary_section(lines, analyst_summary, unverified_refs, summary_failed):
         for ref in unverified_refs:
             lines.append("- {r}".format(r=ref))
         lines.append("")
+    _attack_section(lines, attack_check)
 
 
-def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=False):
+def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=False,
+                 rate_limited=False, attack_check=None):
     """
     Write one Markdown report for a scan result. Return the file path.
 
@@ -141,7 +173,10 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     checked by summary_check. It goes at the top, labeled as AI interpretation,
     with any unverified_refs listed under it. summary_failed means the model
     output failed validation: no model text is shown, only a notice. The fact
-    sections render the same either way.
+    sections render the same either way. rate_limited means the repair call
+    hit a provider rate limit: same as summary_failed, with its own notice.
+    attack_check is an attack_check.AttackCheck, shown as a table under the
+    summary.
     """
     os.makedirs(REPORT_DIR, exist_ok=True)
 
@@ -164,7 +199,8 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         "",
     ]
 
-    _summary_section(lines, analyst_summary, unverified_refs, summary_failed)
+    _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
+                     rate_limited, attack_check)
 
     if status == "refused":
         lines.append("The target was refused by the authorization gate. "

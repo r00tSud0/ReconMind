@@ -17,6 +17,11 @@ Settings come from the environment or a .env file in the repo root. The
     OPENROUTER_API_KEY   key for openrouter
     ANTHROPIC_API_KEY    key for anthropic
     HF_TOKEN             key for huggingface (ollama needs no key)
+
+On a provider rate limit (429) the client waits and retries once. If the main
+loop is still rate limited, the run stops with exit 1 and no report. If only
+the repair call is, the report is still written with every fact section and a
+"model was busy" notice, then the run stops with exit 1.
 """
 
 import argparse
@@ -25,6 +30,7 @@ import os
 import sys
 
 from reconmind.agent import llm
+from reconmind.core.attack_check import check_attack
 from reconmind.core.authorization import is_authorized
 from reconmind.core.report import build_report
 from reconmind.core.summary_check import check_summary
@@ -68,7 +74,8 @@ def _final_summary(client, model, target, scan, draft):
     """
     Check the model's draft. If it fails, make ONE repair call (no tools) and
     check again. Returns (text, unverified_refs); text is None when both fail,
-    so the raw draft is never published.
+    so the raw draft is never published. llm.RateLimited from the repair call
+    is raised to the caller.
     """
     from reconmind.agent.brain import MAX_TOKENS
     from reconmind.agent.prompts import REPAIR_SYSTEM_PROMPT, repair_message
@@ -90,7 +97,9 @@ def _final_summary(client, model, target, scan, draft):
         )
         repaired = "\n".join(b.text for b in response.content
                              if getattr(b, "type", "") == "text")
-    except Exception as exc:  # any failure here just means no repair
+    except llm.RateLimited:
+        raise
+    except Exception as exc:  # any other failure here just means no repair
         print("summary:     repair call failed: {e}".format(e=exc))
         return None, []
 
@@ -134,12 +143,33 @@ def main(argv):
     print("ReconMind agent  target={t}  provider={p}  model={m}".format(
         t=target, p=config.name, m=config.model))
     print("-" * 60)
-    tools, draft = run_agent(target, client=client, model=config.model)
+    try:
+        tools, draft = run_agent(target, client=client, model=config.model)
+    except llm.RateLimited as exc:
+        print(exc)
+        return 1
     print("-" * 60)
 
-    summary, refs = _final_summary(client, config.model, target, tools.scan, draft)
+    try:
+        summary, refs = _final_summary(client, config.model, target, tools.scan, draft)
+    except llm.RateLimited as exc:
+        # The scan and lookups finished, so the facts are still worth a report.
+        path = build_report(tools.scan, rate_limited=True)
+        print("report:     ", path)
+        print(exc)
+        return 1
+
+    attack = None
+    if summary is not None:
+        attack = check_attack(summary)
+        if attack.skipped:
+            print(attack.skipped)
+        else:
+            ok = sum(1 for r in attack.rows if r.result == "verified")
+            print("attack:      {v} verified, {f} flagged".format(
+                v=ok, f=len(attack.rows) - ok))
     path = build_report(tools.scan, analyst_summary=summary, unverified_refs=refs,
-                        summary_failed=summary is None)
+                        summary_failed=summary is None, attack_check=attack)
     ports = tools.scan.get("ports", [])
     print("status:     ", tools.scan.get("status"))
     print("open ports: ", len(ports))

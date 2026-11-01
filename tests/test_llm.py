@@ -179,10 +179,16 @@ class ConfigTests(TmpDirTest):
         os.environ["ANTHROPIC_API_KEY"] = "a"
         cfg = llm.load_config(provider="anthropic", model="m")
         self.assertEqual(cfg.kind, "anthropic")
-        fake_sdk = NS(Anthropic=mock.Mock(return_value="native-client"))
+        native = NS(messages=NS(create=mock.Mock(return_value="native-response")))
+        fake_sdk = NS(Anthropic=mock.Mock(return_value=native))
         with mock.patch.dict(sys.modules, {"anthropic": fake_sdk}):
-            self.assertEqual(llm.make_client(cfg), "native-client")
+            client = llm.make_client(cfg)
         fake_sdk.Anthropic.assert_called_once_with(api_key="a")
+        self.assertIsInstance(client, llm.AnthropicClient)
+        self.assertIs(client.native, native)
+        # requests and responses pass through untouched
+        self.assertEqual(client.messages.create(model="m", messages=[]), "native-response")
+        native.messages.create.assert_called_once_with(model="m", messages=[])
 
     def test_openai_kind_is_wrapped_in_translator(self):
         fake_sdk = NS(OpenAI=mock.Mock(return_value=FakeOpenAI([])))
@@ -265,6 +271,116 @@ class RunnerFlagTests(TmpDirTest):
         code, agent, out = self.run_main("--provider", "nope", "10.0.3.15")
         self.assertEqual(code, 2)
         agent.assert_not_called()
+
+
+class HTTPError(Exception):
+    """Stands in for an SDK error: both SDKs put the HTTP status on status_code."""
+
+    def __init__(self, status):
+        super().__init__("HTTP {s}".format(s=status))
+        self.status_code = status
+
+
+class ResponseStatusError(Exception):
+    """An error that only carries the status on .response."""
+
+    def __init__(self, status):
+        super().__init__("HTTP {s}".format(s=status))
+        self.response = NS(status_code=status)
+
+
+class Scripted:
+    """create(**kw) raises or returns the next scripted outcome."""
+
+    def __init__(self, *outcomes):
+        self.outcomes = list(outcomes)
+        self.calls = 0
+
+    def __call__(self, **kwargs):
+        self.calls += 1
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+OK_TURN = turn("fine")
+
+
+class RateLimitTests(TmpDirTest):
+
+    def openai_client(self, *outcomes):
+        create = Scripted(*outcomes)
+        return llm.OpenAICompatClient(NS(chat=NS(completions=NS(create=create)))), create
+
+    def anthropic_client(self, *outcomes):
+        create = Scripted(*outcomes)
+        return llm.AnthropicClient(NS(messages=NS(create=create))), create
+
+    def send(self, client):
+        out = io.StringIO()
+        with mock.patch.object(llm.time, "sleep") as sleep, contextlib.redirect_stdout(out):
+            try:
+                return client.messages.create(model="m", messages=[{"role": "user",
+                                                                    "content": "hi"}]), sleep
+            except Exception as exc:
+                return exc, sleep
+
+    def test_openai_429_then_success_waits_20s_once(self):
+        client, create = self.openai_client(HTTPError(429), OK_TURN)
+        response, sleep = self.send(client)
+        self.assertEqual(response.content[0].text, "fine")
+        sleep.assert_called_once_with(20)
+        self.assertEqual(create.calls, 2)
+
+    def test_openai_429_twice_raises_rate_limited(self):
+        client, create = self.openai_client(HTTPError(429), HTTPError(429))
+        exc, sleep = self.send(client)
+        self.assertIsInstance(exc, llm.RateLimited)
+        self.assertEqual(str(exc), "Model busy (rate limited). Try again in a minute or use "
+                                   "--model with another model.")
+        sleep.assert_called_once_with(20)
+        self.assertEqual(create.calls, 2)
+
+    def test_openai_other_error_is_not_retried(self):
+        client, create = self.openai_client(HTTPError(500))
+        exc, sleep = self.send(client)
+        self.assertIsInstance(exc, HTTPError)
+        sleep.assert_not_called()
+        self.assertEqual(create.calls, 1)
+
+    def test_anthropic_429_then_success(self):
+        client, create = self.anthropic_client(ResponseStatusError(429), "native-response")
+        response, sleep = self.send(client)
+        self.assertEqual(response, "native-response")
+        sleep.assert_called_once_with(20)
+
+    def test_anthropic_429_twice_raises_rate_limited(self):
+        client, create = self.anthropic_client(HTTPError(429), HTTPError(429))
+        exc, sleep = self.send(client)
+        self.assertIsInstance(exc, llm.RateLimited)
+        self.assertEqual(create.calls, 2)
+
+    def test_anthropic_other_error_after_429_passes_through(self):
+        client, _ = self.anthropic_client(HTTPError(429), HTTPError(401))
+        exc, sleep = self.send(client)
+        self.assertIsInstance(exc, HTTPError)
+        self.assertEqual(exc.status_code, 401)
+
+    def test_main_loop_rate_limit_exits_1_without_traceback_or_report(self):
+        os.environ["OPENROUTER_API_KEY"] = "k"
+        fake_sdk = NS(OpenAI=mock.Mock(return_value=FakeOpenAI([])))
+        out = io.StringIO()
+        with mock.patch.object(brain, "run_agent",
+                               side_effect=llm.RateLimited(llm.RATE_LIMIT_MESSAGE)), \
+             mock.patch.dict(sys.modules, {"openai": fake_sdk}), \
+             contextlib.redirect_stdout(out):
+            code = main(["reconmind.agent", TARGET])
+        self.assertEqual(code, 1)
+        self.assertIn("Model busy (rate limited). Try again in a minute or use --model "
+                      "with another model.", out.getvalue())
+        self.assertNotIn("Traceback", out.getvalue())
+        self.assertFalse(os.path.isdir("reports") and os.listdir("reports"))
 
 
 class MissingPackageTests(TmpDirTest):

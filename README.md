@@ -69,6 +69,14 @@ python3 -m unittest tests.test_agent -v          # offline tests, no key or netw
 
 The agent prints its live trace (THOUGHT, ACTION, OBSERVE) and writes a Markdown report to `reports/` with its analyst summary on top of the raw tool tables.
 
+The analyst summary must end with the line `END OF SUMMARY`. A summary without it is treated as cut off and repaired once. ATT&CK technique IDs in the summary are checked against MITRE's official data, shown as an "ATT&CK check" table under the summary. Download that data once (and again to refresh it):
+
+```bash
+python3 scripts/update_attack_data.py           # writes reconmind/data/attack_techniques.json
+```
+
+Without the file the report says "ATT&CK check skipped: MITRE data file missing". If the provider is rate limited (HTTP 429), the call waits 20 seconds and retries once, then stops with a short message.
+
 Safety is layered. The target is checked by the authorization gate before the model is called at all. Inside the run, the model can only request tools from a fixed list, every request is held to the single target the operator typed (scope lock), and each tool runs the gate again before launching anything. The loop has a hard step limit.
 
 ## Data Sources

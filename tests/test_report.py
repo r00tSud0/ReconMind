@@ -6,6 +6,7 @@ import os
 import tempfile
 import unittest
 
+from reconmind.core.attack_check import SKIPPED_MISSING, AttackCheck, AttackRow
 from reconmind.core.report import build_report
 
 
@@ -182,12 +183,59 @@ class SummarySectionTests(unittest.TestCase):
         self.assertIn("## Known exploits (Exploit-DB)", report)
         self.assertIn("## Notes", report)
 
+    def test_rate_limited_notice_and_all_facts(self):
+        report = self.build(rate_limited=True)
+        self.assertIn("Analyst summary unavailable: the model was busy (rate limited).", report)
+        self.assertNotIn("failed validation", report)
+        self.assertNotIn("AI interpretation", report)
+        self.assertIn("## Open ports", report)
+        self.assertIn("## Known exploits (Exploit-DB)", report)
+
+    def test_attack_check_table(self):
+        check = AttackCheck(None, [
+            AttackRow("T1190", "Exploit Public-Facing Application",
+                      "Exploit Public-Facing Application", "verified"),
+            AttackRow("T1021.004", "Pass the Hash", "Remote Services: SSH", "name_mismatch"),
+            AttackRow("T9999", "a|b", "", "unknown_id"),
+            AttackRow("T1190", "", "Exploit Public-Facing Application", "name_mismatch"),
+        ])
+        report = self.build(analyst_summary="### Key findings\nx",
+                            unverified_refs=["EDB-1"], attack_check=check)
+        self.assertIn("**ATT&CK check**", report)
+        self.assertIn("| ID | Name given | Official name | Result |", report)
+        self.assertIn("| T1021.004 | Pass the Hash | Remote Services: SSH | name_mismatch |",
+                      report)
+        self.assertIn("| T9999 | a\\|b | (not in MITRE data) | unknown_id |", report)
+        self.assertIn("| T1190 | (none) | Exploit Public-Facing Application | name_mismatch |",
+                      report)
+        # under the summary and its references, above the fact tables
+        self.assertLess(report.index("- EDB-1"), report.index("**ATT&CK check**"))
+        self.assertLess(report.index("**ATT&CK check**"), report.index("## Open ports"))
+
+    def test_attack_check_skipped_message(self):
+        report = self.build(analyst_summary="### Key findings\nx",
+                            attack_check=AttackCheck(SKIPPED_MISSING, []))
+        self.assertIn("ATT&CK check skipped: MITRE data file missing", report)
+        self.assertNotIn("| ID | Name given", report)
+
+    def test_attack_check_without_ids(self):
+        report = self.build(analyst_summary="### Key findings\nx",
+                            attack_check=AttackCheck(None, []))
+        self.assertIn("No ATT&CK technique IDs found in the summary.", report)
+
     def test_no_summary_section_without_summary(self):
         self.assertNotIn("Analyst summary", self.build())
 
     def test_summary_text_has_no_em_dashes_or_dash_separators(self):
-        report = self.build(analyst_summary="### Key findings\nx", unverified_refs=["EDB-1"],)
+        check = AttackCheck(None, [AttackRow("T1190", "x", "y", "verified")])
+        report = self.build(analyst_summary="### Key findings\nx", unverified_refs=["EDB-1"],
+                            attack_check=check)
+        report += self.build(analyst_summary="### Key findings\nx",
+                             attack_check=AttackCheck(SKIPPED_MISSING, []))
+        report += self.build(analyst_summary="### Key findings\nx",
+                             attack_check=AttackCheck(None, []))
         report += self.build(summary_failed=True)
+        report += self.build(rate_limited=True)
         for p in SCAN["ports"]:
             for e in p["exploits"]:
                 report = report.replace(e["title"], "")

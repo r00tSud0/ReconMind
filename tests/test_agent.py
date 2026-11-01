@@ -8,6 +8,7 @@ no network, no nmap and no searchsploit:
 """
 
 import contextlib
+from functools import partial
 import io
 import os
 import tempfile
@@ -16,10 +17,14 @@ from types import SimpleNamespace as NS
 from unittest import mock
 
 from reconmind.agent import brain, llm, tools as toolmod
+from reconmind.agent import __main__ as runner
 from reconmind.agent.__main__ import main
+from reconmind.core.attack_check import check_attack
 from reconmind.core.report import build_report
 
 TARGET = "10.10.1.100"
+ATTACK_FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "fixtures", "attack_techniques.json")
 
 FAKE_SCAN = {
     "target": TARGET, "status": "ok",
@@ -137,7 +142,11 @@ VALID_SUMMARY = (
     "See also EDB-99999 and CVE-2007-2447.\n"
     "### Likely attack path\nBackdoor shell on 21/tcp.\n"
     "### MITRE ATT&CK (preliminary)\nT1190 Exploit Public-Facing Application\n"
-    "### Recommended fixes\nUpgrade vsftpd.\n")
+    "### Recommended fixes\nUpgrade vsftpd.\nEND OF SUMMARY\n")
+class RateLimitError(Exception):
+    status_code = 429
+
+
 THINKING_TRUNCATED = ("Let me think about this. Port 21 looks bad.\n"
                       "### Key findings\n- vsftpd backdoor\n### Likely attack")
 
@@ -154,8 +163,8 @@ class SummaryValidationRunnerTests(unittest.TestCase):
         os.chdir(self._cwd)
         self._tmp.cleanup()
 
-    def run_main(self, draft, repair_turns, target=TARGET):
-        client = FakeClient(repair_turns)
+    def run_main(self, draft, repair_turns, target=TARGET, client=None, attack_path=None):
+        client = client or FakeClient(repair_turns)
         tb = toolmod.ToolBox(TARGET)
         tb.scan = dict(FAKE_SCAN, ports=[dict(FAKE_SCAN["ports"][0], exploits=FAKE_EXPLOITS),
                                          dict(FAKE_SCAN["ports"][1], exploits=[])])
@@ -165,6 +174,9 @@ class SummaryValidationRunnerTests(unittest.TestCase):
         with mock.patch.object(llm, "load_config", return_value=config) as load, \
              mock.patch.object(llm, "make_client", return_value=client) as make, \
              mock.patch.object(brain, "run_agent", return_value=(tb, draft)) as agent, \
+             mock.patch.object(runner, "check_attack", partial(
+                 check_attack, path=attack_path or ATTACK_FIXTURE)), \
+             mock.patch.object(llm.time, "sleep") as self.sleep, \
              contextlib.redirect_stdout(out):
             code = main(["reconmind.agent", target])
         report = ""
@@ -216,6 +228,47 @@ class SummaryValidationRunnerTests(unittest.TestCase):
         self.assertEqual(client.requests, [])
         self.assertIn("Upgrade vsftpd.", report)
         self.assertNotIn("Preamble.", report)
+
+    def test_attack_check_table_in_report(self):
+        draft = VALID_SUMMARY.replace("T1190 Exploit Public-Facing Application",
+                                      "T1190 Exploit Public-Facing Application\n"
+                                      "T1021.004 Pass the Hash")
+        code, _, report, out, _ = self.run_main(draft, [])
+        self.assertEqual(code, 0)
+        self.assertIn("| T1190 | Exploit Public-Facing Application | "
+                      "Exploit Public-Facing Application | verified |", report)
+        self.assertIn("| T1021.004 | Pass the Hash | Remote Services: SSH | name_mismatch |",
+                      report)
+        self.assertIn("attack:      1 verified, 1 flagged", out)
+
+    def test_attack_check_skipped_without_data_file(self):
+        code, _, report, out, _ = self.run_main(VALID_SUMMARY, [],
+                                                attack_path=os.path.join("nope", "x.json"))
+        self.assertEqual(code, 0)
+        self.assertIn("ATT&CK check skipped: MITRE data file missing", report)
+        self.assertIn("ATT&CK check skipped: MITRE data file missing", out)
+
+    def test_end_marker_is_not_published(self):
+        _, _, report, _, _ = self.run_main(VALID_SUMMARY, [])
+        self.assertNotIn("END OF SUMMARY", report)
+
+    def test_repair_rate_limited_still_writes_fact_report(self):
+        def rate_limited(**_):
+            raise RateLimitError()
+        client = llm.AnthropicClient(NS(messages=NS(create=rate_limited)))
+        code, _, report, out, _ = self.run_main(THINKING_TRUNCATED, [], client=client)
+        self.assertEqual(code, 1)
+        self.sleep.assert_called_once_with(20)
+        self.assertIn("Analyst summary unavailable: the model was busy (rate limited).", report)
+        self.assertNotIn("failed validation", report)
+        self.assertNotIn("vsftpd backdoor", report)  # the bad draft is never published
+        self.assertIn("## Open ports", report)
+        self.assertIn("## Known exploits (Exploit-DB)", report)
+        self.assertIn("EDB-49757", report)
+        self.assertIn("## Notes", report)
+        self.assertIn("Model busy (rate limited). Try again in a minute or use --model "
+                      "with another model.", out)
+        self.assertNotIn("Traceback", out)
 
     def test_gate_runs_before_config_client_or_model(self):
         code, client, report, _, (load, make, agent) = self.run_main(

@@ -4,8 +4,14 @@ ReconMind summary checker.
 The analyst summary is written by a model, so it is checked by plain code
 before it reaches a report:
 
+    - Unicode dashes are cleaned first: a spaced en or em dash becomes ", "
+      and every other Unicode hyphen or dash (U+2010 to U+2015, U+2212)
+      becomes an ASCII "-", so IDs written with non breaking hyphens (U+2011)
+      are still found
     - everything before the first "### " heading is dropped (thinking text,
       introductions)
+    - the last non empty line must be exactly END OF SUMMARY, so a summary
+      that was cut off is caught; the marker is removed from the published text
     - it is valid only if its headings are exactly the four required ones,
       in order, and each section has some text under it
     - any EDB-ID that is not in the scan results, and any CVE ID (no tool
@@ -23,6 +29,7 @@ REQUIRED_HEADINGS = (
     "### MITRE ATT&CK (preliminary)",
     "### Recommended fixes",
 )
+END_MARKER = "END OF SUMMARY"
 
 SummaryCheck = namedtuple("SummaryCheck", "valid text problems unverified_refs")
 
@@ -31,12 +38,32 @@ _FIRST_SECTION = re.compile(r"^###\s", re.M)
 _EDB = re.compile(r"\bEDB(?:[\s-]*ID)?[\s:#-]*(\d+)\b"
                   r"|exploit-db\.com/exploits/(\d+)", re.I)
 _CVE = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.I)
+_UNICODE_DASHES = re.compile("[\u2010-\u2015\u2212]")
+_SPACED_DASH = re.compile("[ \t\u00a0]+[\u2013\u2014][ \t\u00a0]+")
+
+
+def normalize_dashes(text):
+    """Every Unicode hyphen or dash (U+2010 to U+2015, U+2212) becomes ASCII "-"."""
+    return _UNICODE_DASHES.sub("-", text or "")
+
+
+def clean_published(text):
+    """A spaced en or em dash becomes ", ", then every other dash becomes "-"."""
+    return normalize_dashes(_SPACED_DASH.sub(", ", text or ""))
 
 
 def strip_preamble(text):
     """The text from the first line starting with "### ", or "" if none."""
     match = _FIRST_SECTION.search(text or "")
     return text[match.start():].strip() if match else ""
+
+
+def strip_end_marker(text):
+    """(text without the marker line, True) or (text, False) if the marker is missing."""
+    lines = (text or "").rstrip().splitlines()
+    if lines and lines[-1].strip() == END_MARKER:
+        return "\n".join(lines[:-1]).rstrip(), True
+    return text, False
 
 
 def known_edb_ids(scan):
@@ -52,13 +79,14 @@ def known_edb_ids(scan):
 
 def find_unverified_refs(text, scan):
     """EDB-IDs not in the scan results and every CVE ID, in order, no repeats."""
+    text = normalize_dashes(text)
     known = known_edb_ids(scan)
     found = []
-    for match in _EDB.finditer(text or ""):
+    for match in _EDB.finditer(text):
         edb = match.group(1) or match.group(2)
         if edb not in known:
             found.append((match.start(), "EDB-" + edb))
-    for match in _CVE.finditer(text or ""):
+    for match in _CVE.finditer(text):
         found.append((match.start(), match.group(0).upper()))
     refs = []
     for _, ref in sorted(found):
@@ -79,12 +107,15 @@ def _sections(text):
 
 
 def check_summary(text, scan):
-    """Strip the preamble and check the structure. Returns a SummaryCheck."""
-    body = strip_preamble(text)
+    """Clean dashes, strip the preamble and marker, check the structure."""
+    body = strip_preamble(clean_published(text))
     problems = []
     if not body:
         problems.append("no '### ' section heading found")
     else:
+        body, has_marker = strip_end_marker(body)
+        if not has_marker:
+            problems.append("missing {m} marker (summary may be cut off)".format(m=END_MARKER))
         sections = _sections(body)
         headings = tuple(h for h, _ in sections)
         if headings != REQUIRED_HEADINGS:

@@ -1,0 +1,13 @@
+{
+ "attack_version": "test-fixture",
+ "downloaded": "2026-11-01",
+ "source": "tests/fixtures (small hand-written subset, not the full MITRE data)",
+ "techniques": {
+  "T1021": {"name": "Remote Services", "short_name": "Remote Services", "deprecated": false, "revoked": false},
+  "T1021.004": {"name": "Remote Services: SSH", "short_name": "SSH", "deprecated": false, "revoked": false},
+  "T1059": {"name": "Command and Scripting Interpreter", "short_name": "Command and Scripting Interpreter", "deprecated": false, "revoked": false},
+  "T1086": {"name": "PowerShell", "short_name": "PowerShell", "deprecated": true, "revoked": false},
+  "T1173": {"name": "Dynamic Data Exchange", "short_name": "Dynamic Data Exchange", "deprecated": false, "revoked": true},
+  "T1190": {"name": "Exploit Public-Facing Application", "short_name": "Exploit Public-Facing Application", "deprecated": false, "revoked": false}
+ }
+}

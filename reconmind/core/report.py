@@ -10,7 +10,8 @@ carry an optional "exploits" list added by the exploit lookup tool.
 import os
 from datetime import datetime
 
-from reconmind.tools.exploit_lookup import exploit_url
+from reconmind.tools.exploit_lookup import exploit_url, primary_label
+from reconmind.tools.risky_services import flag_ports
 
 REPORT_DIR = "reports"
 
@@ -19,6 +20,8 @@ MATCH_WORDING = {
     "exact_version": "Matched on exact version",
     "version_family": "Matched on version family only (patch level not confirmed)",
     "product_only": "Matched on product name only (version unknown, unconfirmed)",
+    "unverified": "Version range could not be checked against the scanned "
+                  "version (unconfirmed)",
 }
 
 
@@ -38,9 +41,34 @@ def _ports_table(lines, ports):
     lines.append("")
 
 
+def _lookup_failed(port):
+    return port.get("exploit_status") == "lookup_failed"
+
+
+def _risky_section(lines, ports):
+    """Only runs if at least one port matches a risky service rule."""
+    flagged = flag_ports(ports)
+    if not flagged:
+        return
+    lines.append("## Exposed risky services")
+    lines.append("")
+    lines.append("| Port | Service | Product | Severity | Reason |")
+    lines.append("|------|---------|---------|----------|--------|")
+    for p, flag in flagged:
+        lines.append("| {port}/{protocol} | {service} | {product} | {sev} | {reason} |".format(
+            port=p.get("port", ""),
+            protocol=p.get("protocol", ""),
+            service=p.get("service", ""),
+            product=p.get("product", "") or "",
+            sev=flag["severity"],
+            reason=flag["reason"],
+        ))
+    lines.append("")
+
+
 def _exploits_section(lines, ports):
-    """Only runs if at least one port carries exploit matches."""
-    hits = [p for p in ports if p.get("exploits")]
+    """Only runs if at least one port carries exploit matches or a failed lookup."""
+    hits = [p for p in ports if p.get("exploits") or _lookup_failed(p)]
     if not hits:
         return
     lines.append("## Known exploits (Exploit-DB)")
@@ -53,8 +81,14 @@ def _exploits_section(lines, ports):
             version=p.get("version", ""),
         ).strip()
         lines.append("**{h}**".format(h=header))
+        if _lookup_failed(p) and not p.get("exploits"):
+            error = (p.get("lookup_error") or "unknown error").rstrip(".")
+            lines.append("_Exploit lookup failed: {e}. Not checked. This does not "
+                         "mean there are no exploits._".format(e=error))
+            lines.append("")
+            continue
         exploits = p["exploits"]
-        label = exploits[0].get("match")
+        label = primary_label(exploits)
         if label in MATCH_WORDING:
             lines.append("_{w}. Query: `{q}`_".format(
                 w=MATCH_WORDING[label], q=exploits[0].get("query", "")))
@@ -117,19 +151,28 @@ def build_report(scan, analyst_summary=None):
         lines.append("The scan ran but found no open ports.")
     else:
         _ports_table(lines, ports)
+        _risky_section(lines, ports)
         _exploits_section(lines, ports)
         all_exploits = [e for p in ports for e in p.get("exploits", [])]
         counts = {k: sum(1 for e in all_exploits if e.get("match") == k)
                   for k in MATCH_WORDING}
         lines.append("## Notes")
         lines.append("")
-        lines.append("{n} open port(s) found, {e} known exploit match(es) across "
-                     "those services: {x} exact version, {f} version family "
-                     "(unconfirmed), {o} product only (unconfirmed). Next stage: "
-                     "map each finding to its MITRE ATT&CK technique.".format(
-                         n=len(ports), e=len(all_exploits),
-                         x=counts["exact_version"], f=counts["version_family"],
-                         o=counts["product_only"]))
+        failed = sum(1 for p in ports if _lookup_failed(p))
+        risky = len(flag_ports(ports))
+        note = ("{n} open port(s) found, {e} known exploit match(es) across "
+                "those services: {x} exact version, {f} version family "
+                "(unconfirmed), {o} product only (unconfirmed). {u} match(es) "
+                "unverified because the version range could not be checked "
+                "(unconfirmed). {r} risky service(s) flagged.".format(
+                    n=len(ports), e=len(all_exploits),
+                    x=counts["exact_version"], f=counts["version_family"],
+                    o=counts["product_only"], u=counts["unverified"], r=risky))
+        if failed:
+            note += (" Exploit lookup failed for {k} port(s), so those services "
+                     "were not checked.".format(k=failed))
+        note += " Next stage: map each finding to its MITRE ATT&CK technique."
+        lines.append(note)
 
     text = "\n".join(lines) + "\n"
     with open(path, "w") as fh:

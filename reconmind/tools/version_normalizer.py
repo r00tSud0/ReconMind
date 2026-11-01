@@ -19,7 +19,8 @@ import re
 # Exclusions drop titles that share the search name but are another product.
 PRODUCTS = {
     "apache httpd": ("Apache", ["Tomcat", "Struts", "Solr", "ActiveMQ", "Axis",
-                                "OFBiz", "CouchDB", "Spark", "Kafka", "OpenOffice"]),
+                                "OFBiz", "CouchDB", "Spark", "Kafka", "OpenOffice",
+                                "CXF"]),
     "postgresql db": ("PostgreSQL", []),
     "samba smbd": ("Samba", []),
     "postfix smtpd": ("Postfix", []),

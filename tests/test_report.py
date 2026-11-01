@@ -77,5 +77,72 @@ class ReportTests(unittest.TestCase):
         self.assertNotIn("Matched on", report)
 
 
+class RiskAndFailureReportTests(unittest.TestCase):
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    SCAN = {
+        "target": "10.10.1.100", "status": "ok",
+        "ports": [
+            {"port": 80, "protocol": "tcp", "service": "http", "product": "Apache httpd",
+             "version": "2.2.8", "exploits": [], "exploit_status": "lookup_failed",
+             "lookup_error": "searchsploit exited with code 1"},
+            {"port": 5900, "protocol": "tcp", "service": "vnc", "product": "VNC",
+             "version": "protocol 3.3", "exploits": []},
+            {"port": 23, "protocol": "tcp", "service": "telnet", "product": "Linux telnetd",
+             "version": "", "exploits": []},
+            {"port": 1524, "protocol": "tcp", "service": "bindshell",
+             "product": "Metasploitable root shell", "version": "", "exploits": []},
+            {"port": 8180, "protocol": "tcp", "service": "http", "product": "Apache httpd",
+             "version": "2.2.8", "exploits": [
+                 exploit("Apache + PHP < 5.3.12 / < 5.4.2 - cgi-bin Remote Code Execution",
+                         "29290", "unverified", "Apache 2.2.8")]},
+        ],
+    }
+
+    def test_risky_section_most_severe_first(self):
+        report = read_report(self.SCAN)
+        self.assertIn("## Exposed risky services", report)
+        section = report.split("## Exposed risky services")[1].split("## ")[0]
+        rows = [line for line in section.splitlines() if line.startswith("| ") and "/tcp" in line]
+        self.assertEqual([r.split(" | ")[0] for r in rows], ["| 1524/tcp", "| 23/tcp", "| 5900/tcp"])
+        self.assertIn("| critical | Unauthenticated root shell.", rows[0])
+        self.assertLess(report.index("## Exposed risky services"),
+                        report.index("## Known exploits"))
+
+    def test_no_risky_section_without_flags(self):
+        self.assertNotIn("## Exposed risky services", read_report(SCAN))
+
+    def test_lookup_failed_wording(self):
+        report = read_report(self.SCAN)
+        self.assertIn("_Exploit lookup failed: searchsploit exited with code 1. Not checked. "
+                      "This does not mean there are no exploits._", report)
+        self.assertIn("Exploit lookup failed for 1 port(s), so those services were not checked.",
+                      report)
+
+    def test_unverified_label_and_count(self):
+        report = read_report(self.SCAN)
+        self.assertIn("_Version range could not be checked against the scanned version "
+                      "(unconfirmed). Query: `Apache 2.2.8`_", report)
+        self.assertIn("[unverified]", report)
+        self.assertIn("1 match(es) unverified", report)
+        self.assertIn("3 risky service(s) flagged.", report)
+
+    def test_no_dash_separators_or_em_dashes_in_written_text(self):
+        report = read_report(self.SCAN)
+        titles = [e["title"] for p in self.SCAN["ports"] for e in p["exploits"]]
+        for title in titles:
+            report = report.replace(title, "")
+        self.assertNotIn("\u2014", report)
+        self.assertNotIn(" - ", report)
+
+
 if __name__ == "__main__":
     unittest.main()

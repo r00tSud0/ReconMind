@@ -20,9 +20,11 @@ import xml.etree.ElementTree as ET
 from reconmind.core.authorization import is_authorized
 
 # Service and version detection, reasonable speed. No exploit scripts.
-# smb-os-discovery is in the default, discovery and safe categories only; it
-# reads the real Samba version that -sV reports as a vague range ("3.X - 4.X").
-NMAP_FLAGS = ["-Pn", "-sV", "--script", "smb-os-discovery", "-T4"]
+# Both scripts are in the default, discovery and safe categories only.
+# smb-os-discovery reads the real Samba version that -sV reports as a vague
+# range ("3.X - 4.X"); irc-info reads the IRC server's version line
+# ("Unreal3.2.8.1"), which -sV usually leaves empty.
+NMAP_FLAGS = ["-Pn", "-sV", "--script", "smb-os-discovery,irc-info", "-T4"]
 
 SMB_PORTS = (139, 445)
 
@@ -42,6 +44,21 @@ def _samba_version(host):
     return found.group(1) if found else ""
 
 
+def _unreal_version(port):
+    """UnrealIRCd version from the port's irc-info output, or ""."""
+    script = port.find("script[@id='irc-info']")
+    if script is None:
+        return ""
+    elem = script.find("elem[@key='version']")
+    text = (elem.text or "") if elem is not None else ""
+    if not text:
+        # Text form: "  version: Unreal3.2.8.1. irc.Metasploitable.LAN"
+        found = re.search(r"version:\s*(.+)", script.get("output", ""))
+        text = found.group(1) if found else ""
+    found = re.search(r"Unreal(?:IRCd)?\s*v?(\d+(?:\.\d+)+)", text, re.IGNORECASE)
+    return found.group(1) if found else ""
+
+
 def _parse_nmap_xml(xml_text):
     """Turn nmap -oX output into a list of open-port dicts."""
     ports = []
@@ -53,13 +70,19 @@ def _parse_nmap_xml(xml_text):
             if state is None or state.get("state") != "open":
                 continue
             svc = port.find("service")
-            host_ports.append({
+            entry = {
                 "port": int(port.get("portid")),
                 "protocol": port.get("protocol"),
                 "service": (svc.get("name") if svc is not None else "unknown"),
                 "product": (svc.get("product") if svc is not None else ""),
                 "version": (svc.get("version") if svc is not None else ""),
-            })
+            }
+            # Fill the real UnrealIRCd version in when irc-info found one.
+            unreal = _unreal_version(port)
+            if unreal:
+                entry["product"] = "UnrealIRCd"
+                entry["version"] = unreal
+            host_ports.append(entry)
 
         # Fill the real Samba version into the SMB ports. Leave other
         # products (a Windows host, say) untouched.

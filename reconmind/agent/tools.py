@@ -20,12 +20,14 @@ does not change.
 import json
 
 from reconmind.tools.nmap_scan import run_nmap
-from reconmind.tools.exploit_lookup import search_exploits
+from reconmind.tools.exploit_lookup import (
+    STATUS_FAILED, STATUS_NO_PRODUCT, lookup_port, primary_label, search_exploits)
+from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
 
-# How many exploit titles one lookup hands back to the model. Keeps the
-# context small; the full list is still stored for the report.
-MAX_EXPLOITS_TO_MODEL = 8
+# How many titles each port shows in the compact nmap_scan summary. The full
+# list comes from exploit_lookup and is always stored for the report.
+TOP_MATCHES_IN_SUMMARY = 3
 
 # What the model is told about each weaker match label.
 MATCH_NOTES = {
@@ -33,7 +35,12 @@ MATCH_NOTES = {
                       "confirmed. Treat these matches as unconfirmed.",
     "product_only": "nmap gave no usable version; matched on product name "
                     "only. Treat these matches as unconfirmed.",
+    "unverified": "The title's version range could not be checked against the "
+                  "scanned version. Treat these matches as unconfirmed.",
 }
+
+LOOKUP_FAILED_NOTE = ("The exploit lookup failed, so this service was not "
+                      "checked. This does not mean there are no exploits.")
 
 
 # Tool descriptions in the JSON schema format the LLM API expects.
@@ -43,8 +50,12 @@ TOOL_SPECS = [
         "description": (
             "Run an nmap service and version scan (-sV) against the authorized "
             "target. Returns every open port with its service, product and "
-            "version. Run this first; other tools need its results. Only the "
-            "target given by the operator is allowed."
+            "version. The Exploit-DB lookup then runs automatically for every "
+            "port with a product, and each port carries a compact summary: "
+            "exploit_label, match_count and the top 3 titles with EDB-IDs. "
+            "Ports that are risky just by being exposed carry a risk flag "
+            "with severity and reason. Run this first. Only the target given "
+            "by the operator is allowed."
         ),
         "input_schema": {
             "type": "object",
@@ -60,13 +71,15 @@ TOOL_SPECS = [
     {
         "name": "exploit_lookup",
         "description": (
-            "Search the offline Exploit-DB database (searchsploit) for public "
-            "exploits matching the service nmap_scan found on one port. The "
-            "tool uses the product and version nmap recorded for that port and "
-            "cleans them itself. Call it once per interesting service. Each "
-            "match is labeled exact_version (full version matched), "
-            "version_family (major.minor only, patch level not confirmed) or "
-            "product_only (version unknown, unconfirmed)."
+            "Return the full Exploit-DB (searchsploit) results for one port. "
+            "nmap_scan already ran the lookup for every port, so this only "
+            "returns the stored list, without searching again. Use it when the "
+            "top 3 titles in the nmap_scan summary are not enough. Each match "
+            "is labeled exact_version (full version matched), version_family "
+            "(major.minor only, patch level not confirmed), product_only "
+            "(version unknown, unconfirmed) or unverified (version range could "
+            "not be checked, unconfirmed). match lookup_failed means the "
+            "service was not checked, not that it has no exploits."
         ),
         "input_schema": {
             "type": "object",
@@ -134,18 +147,20 @@ class ToolBox:
         if result["status"] != "ok":
             return self._err("Scan did not run: status={s}".format(s=result["status"]))
 
+        # Completeness: every open port is looked up, not just the ones the
+        # model would have picked.
+        for port in result["ports"]:
+            self._lookup_port(port)
+
         observation = {
             "target": result["target"],
-            "open_ports": [
-                {k: p.get(k, "") for k in ("port", "protocol", "service", "product", "version")}
-                for p in result["ports"]
-            ],
+            "open_ports": [self._port_summary(p) for p in result["ports"]],
         }
         return json.dumps(observation), False
 
     def _exploit_lookup(self, port, product=None, version=None):
         # product and version from the model are accepted but ignored: the
-        # search always uses what nmap recorded for the port.
+        # results always come from what nmap recorded for the port.
         if self.scan.get("status") != "ok":
             return self._err("Run nmap_scan first; there are no scan results yet.")
 
@@ -153,10 +168,12 @@ class ToolBox:
         if match is None:
             return self._err("Port {p} was not found open in the scan.".format(p=port))
 
-        product = (match.get("product") or "").strip()
-        version = (match.get("version") or "").strip()
-        if not product:
-            match["exploits"] = []
+        # Normally nmap_scan already looked the port up. Search only if not.
+        if "exploit_status" not in match:
+            self._lookup_port(match)
+
+        status = match.get("exploit_status")
+        if status == STATUS_NO_PRODUCT:
             observation = {
                 "port": int(port),
                 "match": "none",
@@ -165,22 +182,67 @@ class ToolBox:
             }
             return json.dumps(observation), False
 
-        exploits = search_exploits(product, version)
-        match["exploits"] = exploits  # stored in full for the report
-
+        product = (match.get("product") or "").strip()
+        version = (match.get("version") or "").strip()
+        exploits = match.get("exploits", [])
         observation = {"port": int(port), "product": product, "version": version}
-        if exploits:
-            label = exploits[0].get("match")
+
+        if status == STATUS_FAILED:
+            observation["match"] = STATUS_FAILED
+            observation["error"] = match.get("lookup_error", "")
+            observation["note"] = LOOKUP_FAILED_NOTE
+            observation["queries_tried"] = self._queries_tried(match)
+        elif exploits:
+            label = primary_label(exploits)
             observation["match"] = label
             observation["query"] = exploits[0].get("query")
             if label in MATCH_NOTES:
                 observation["note"] = MATCH_NOTES[label]
+            if label != "unverified" and any(e.get("match") == "unverified" for e in exploits):
+                observation["unverified_note"] = MATCH_NOTES["unverified"]
         else:
             observation["match"] = "none"
-            observation["queries_tried"] = [q for q, _ in planned_queries(product, version)]
+            observation["queries_tried"] = self._queries_tried(match)
         observation["total_matches"] = len(exploits)
-        observation["exploits"] = exploits[:MAX_EXPLOITS_TO_MODEL]
+        observation["exploits"] = exploits
         return json.dumps(observation), False
+
+    # ---- lookup helpers -------------------------------------------------
+
+    @staticmethod
+    def _lookup_port(port):
+        # search_exploits is looked up here at call time, so tests can
+        # replace this module's reference with a fake.
+        lookup_port(port, search=search_exploits)
+
+    @staticmethod
+    def _queries_tried(port):
+        return port.get("queries_tried") or [
+            q for q, _ in planned_queries(port.get("product", ""), port.get("version", ""))]
+
+    @staticmethod
+    def _port_summary(port):
+        """Compact per port line for the nmap_scan observation."""
+        summary = {k: port.get(k, "") for k in ("port", "protocol", "service", "product", "version")}
+        status = port.get("exploit_status")
+        exploits = port.get("exploits", [])
+        if status in (STATUS_FAILED, STATUS_NO_PRODUCT):
+            summary["exploit_label"] = status
+        elif exploits:
+            summary["exploit_label"] = primary_label(exploits)
+        else:
+            summary["exploit_label"] = "none"
+        if status == STATUS_FAILED:
+            summary["lookup_error"] = port.get("lookup_error", "")
+        summary["match_count"] = len(exploits)
+        summary["top_matches"] = [
+            {"title": e.get("title", ""), "edb_id": e.get("edb_id", ""), "match": e.get("match")}
+            for e in exploits[:TOP_MATCHES_IN_SUMMARY]
+        ]
+        risk = flag_port(port)
+        if risk:
+            summary["risk"] = risk
+        return summary
 
     # ---- helpers --------------------------------------------------------
 

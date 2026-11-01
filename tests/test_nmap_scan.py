@@ -72,11 +72,60 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(ports[139]["version"], "3.0.20-Debian")
 
 
+IRC_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" args="nmap -Pn -sV --script smb-os-discovery,irc-info -T4 10.10.1.100">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="6667">
+        <state state="open"/>
+        <service name="irc" product="UnrealIRCd"/>
+        <script id="irc-info" output="&#xa;  users: 1&#xa;  servers: 1&#xa;  lusers: 1&#xa;  lservers: 0&#xa;  server: irc.Metasploitable.LAN&#xa;  version: Unreal3.2.8.1. irc.Metasploitable.LAN &#xa;  uptime: 0 days, 0:12:34&#xa;  source ident: nmap&#xa;">
+          <elem key="users">1</elem>
+          <elem key="server">irc.Metasploitable.LAN</elem>
+          <elem key="version">Unreal3.2.8.1. irc.Metasploitable.LAN </elem>
+        </script>
+      </port>
+      <port protocol="tcp" portid="6697">
+        <state state="open"/>
+        <service name="irc" product="UnrealIRCd"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>
+"""
+
+
+class IrcInfoTests(unittest.TestCase):
+
+    def test_irc_info_fills_unrealircd_version(self):
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(IRC_XML)}
+        self.assertEqual(ports[6667]["product"], "UnrealIRCd")
+        self.assertEqual(ports[6667]["version"], "3.2.8.1")
+
+    def test_irc_info_text_output_fallback(self):
+        xml = IRC_XML.replace('<elem key="version">Unreal3.2.8.1. irc.Metasploitable.LAN </elem>', "")
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(xml)}
+        self.assertEqual(ports[6667]["version"], "3.2.8.1")
+
+    def test_port_without_script_output_is_untouched(self):
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(IRC_XML)}
+        self.assertEqual(ports[6697]["product"], "UnrealIRCd")
+        self.assertIsNone(ports[6697]["version"])
+
+    def test_empty_script_output_is_untouched(self):
+        start = IRC_XML.index("<script")
+        end = IRC_XML.index("</script>") + len("</script>")
+        xml = IRC_XML[:start] + '<script id="irc-info" output=""/>' + IRC_XML[end:]
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(xml)}
+        self.assertIsNone(ports[6667]["version"])
+
+
 class RunTests(unittest.TestCase):
 
-    def test_flags_name_only_smb_os_discovery(self):
+    def test_flags_name_only_safe_discovery_scripts(self):
         flags = nmap_scan.NMAP_FLAGS
-        self.assertEqual(flags[flags.index("--script") + 1], "smb-os-discovery")
+        self.assertEqual(flags[flags.index("--script") + 1], "smb-os-discovery,irc-info")
         self.assertEqual(sum(1 for f in flags if f.startswith("--script")), 1)
 
     def test_gate_refusal_never_runs_nmap(self):

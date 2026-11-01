@@ -144,5 +144,58 @@ class RiskAndFailureReportTests(unittest.TestCase):
         self.assertNotIn(" - ", report)
 
 
+class SummarySectionTests(unittest.TestCase):
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    def build(self, **kwargs):
+        with open(build_report(SCAN, **kwargs)) as fh:
+            return fh.read()
+
+    def test_summary_is_labeled_as_ai_interpretation(self):
+        report = self.build(analyst_summary="### Key findings\nx")
+        self.assertIn("## Analyst summary (ReconMind agent)", report)
+        self.assertIn("_AI interpretation. The tables below are the verified tool "
+                      "results._", report)
+        self.assertNotIn("Unverified references", report)
+
+    def test_unverified_references_are_listed(self):
+        report = self.build(analyst_summary="### Key findings\nx",
+                            unverified_refs=["EDB-99999", "CVE-2007-2447"])
+        self.assertIn("**Unverified references**", report)
+        self.assertIn("- EDB-99999", report)
+        self.assertIn("- CVE-2007-2447", report)
+
+    def test_failed_summary_shows_notice_and_all_facts(self):
+        report = self.build(summary_failed=True)
+        self.assertIn("Analyst summary unavailable: the model output failed "
+                      "validation.", report)
+        self.assertNotIn("AI interpretation", report)
+        self.assertIn("## Open ports", report)
+        self.assertIn("## Known exploits (Exploit-DB)", report)
+        self.assertIn("## Notes", report)
+
+    def test_no_summary_section_without_summary(self):
+        self.assertNotIn("Analyst summary", self.build())
+
+    def test_summary_text_has_no_em_dashes_or_dash_separators(self):
+        report = self.build(analyst_summary="### Key findings\nx", unverified_refs=["EDB-1"],)
+        report += self.build(summary_failed=True)
+        for p in SCAN["ports"]:
+            for e in p["exploits"]:
+                report = report.replace(e["title"], "")
+        for p in SCAN["ports"]:
+            report = report.replace(p["version"], "")  # nmap data, not our text
+        self.assertNotIn("\u2014", report)
+        self.assertNotIn(" - ", report)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -267,5 +267,32 @@ class RunnerFlagTests(TmpDirTest):
         agent.assert_not_called()
 
 
+class MissingPackageTests(TmpDirTest):
+
+    def run_main(self, modules, *args):
+        out = io.StringIO()
+        with mock.patch.object(brain, "run_agent") as agent, \
+             mock.patch.dict(sys.modules, modules), \
+             contextlib.redirect_stdout(out):
+            code = main(["reconmind.agent"] + list(args))
+        return code, agent, out.getvalue()
+
+    def test_missing_openai_package(self):
+        code, agent, out = self.run_main({"openai": None}, "--provider", "ollama",
+                                         "--model", "llama3.1", TARGET)
+        self.assertEqual(code, 1)
+        agent.assert_not_called()
+        self.assertIn("Missing package. Activate your venv and run:", out)
+        self.assertIn("pip install -r requirements.txt", out)
+        self.assertNotIn("Traceback", out)
+
+    def test_missing_anthropic_package(self):
+        os.environ.update(ANTHROPIC_API_KEY="k", RECONMIND_MODEL="m")
+        code, agent, out = self.run_main({"anthropic": None}, "--provider", "anthropic", TARGET)
+        self.assertEqual(code, 1)
+        agent.assert_not_called()
+        self.assertIn("Missing package.", out)
+
+
 if __name__ == "__main__":
     unittest.main()

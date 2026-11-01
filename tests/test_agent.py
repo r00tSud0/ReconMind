@@ -7,13 +7,15 @@ no network, no nmap and no searchsploit:
     python3 -m unittest discover -s tests -v
 """
 
+import contextlib
+import io
 import os
 import tempfile
 import unittest
 from types import SimpleNamespace as NS
 from unittest import mock
 
-from reconmind.agent import brain, tools as toolmod
+from reconmind.agent import brain, llm, tools as toolmod
 from reconmind.agent.__main__ import main
 from reconmind.core.report import build_report
 
@@ -128,6 +130,101 @@ class AgentTests(unittest.TestCase):
         tb, summary = brain.run_agent(TARGET, client=FakeClient(looping), model="fake", trace=False)
         self.assertEqual(len(tb.calls), brain.MAX_STEPS)
         self.assertIn("step limit", summary)
+
+
+VALID_SUMMARY = (
+    "### Key findings\n1. vsftpd 2.3.4 backdoor on 21/tcp (EDB-49757), confirmed. "
+    "See also EDB-99999 and CVE-2007-2447.\n"
+    "### Likely attack path\nBackdoor shell on 21/tcp.\n"
+    "### MITRE ATT&CK (preliminary)\nT1190 Exploit Public-Facing Application\n"
+    "### Recommended fixes\nUpgrade vsftpd.\n")
+THINKING_TRUNCATED = ("Let me think about this. Port 21 looks bad.\n"
+                      "### Key findings\n- vsftpd backdoor\n### Likely attack")
+
+
+class SummaryValidationRunnerTests(unittest.TestCase):
+    """main() validates the model's summary and repairs it at most once."""
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    def run_main(self, draft, repair_turns, target=TARGET):
+        client = FakeClient(repair_turns)
+        tb = toolmod.ToolBox(TARGET)
+        tb.scan = dict(FAKE_SCAN, ports=[dict(FAKE_SCAN["ports"][0], exploits=FAKE_EXPLOITS),
+                                         dict(FAKE_SCAN["ports"][1], exploits=[])])
+        config = llm.ProviderConfig("anthropic", "anthropic", None, "ANTHROPIC_API_KEY",
+                                    "k", "fake-model")
+        out = io.StringIO()
+        with mock.patch.object(llm, "load_config", return_value=config) as load, \
+             mock.patch.object(llm, "make_client", return_value=client) as make, \
+             mock.patch.object(brain, "run_agent", return_value=(tb, draft)) as agent, \
+             contextlib.redirect_stdout(out):
+            code = main(["reconmind.agent", target])
+        report = ""
+        if os.path.isdir("reports"):
+            name = sorted(os.listdir("reports"))[-1]
+            with open(os.path.join("reports", name)) as fh:
+                report = fh.read()
+        return code, client, report, out.getvalue(), (load, make, agent)
+
+    def test_thinking_then_truncated_draft_is_repaired_once(self):
+        code, client, report, out, _ = self.run_main(THINKING_TRUNCATED, [[text(VALID_SUMMARY)]])
+        self.assertEqual(code, 0)
+        self.assertEqual(len(client.requests), 1)
+        repair = client.requests[0]
+        self.assertNotIn("tools", repair)
+        self.assertEqual(repair["model"], "fake-model")
+        self.assertIn("49757", repair["messages"][0]["content"])  # scan facts were sent
+        self.assertIn("AI interpretation. The tables below are the verified tool results.",
+                      report)
+        self.assertIn("Upgrade vsftpd.", report)
+        self.assertNotIn("Let me think", report)
+        refs = report.split("**Unverified references**", 1)[1].split("## Open ports", 1)[0]
+        self.assertIn("- EDB-99999", refs)
+        self.assertIn("- CVE-2007-2447", refs)
+        self.assertNotIn("EDB-49757", refs)
+        self.assertIn("repaired", out)
+
+    def test_two_failures_publish_no_model_text(self):
+        code, client, report, out, _ = self.run_main(
+            THINKING_TRUNCATED, [[text("Sorry, here is my thinking again.\n### Key findings\nx")]])
+        self.assertEqual(code, 0)
+        self.assertEqual(len(client.requests), 1)
+        self.assertIn("Analyst summary unavailable: the model output failed validation.", report)
+        self.assertNotIn("Let me think", report)
+        self.assertNotIn("vsftpd backdoor", report)
+        self.assertNotIn("Sorry", report)
+        self.assertNotIn("AI interpretation", report)
+        self.assertIn("## Open ports", report)
+        self.assertIn("EDB-49757", report)  # fact sections still render
+
+    def test_repair_call_error_publishes_no_model_text(self):
+        code, client, report, _, _ = self.run_main(THINKING_TRUNCATED, [])  # no turns: raises
+        self.assertEqual(code, 0)
+        self.assertIn("Analyst summary unavailable", report)
+
+    def test_valid_summary_needs_no_repair(self):
+        code, client, report, _, _ = self.run_main("Preamble.\n" + VALID_SUMMARY, [])
+        self.assertEqual(code, 0)
+        self.assertEqual(client.requests, [])
+        self.assertIn("Upgrade vsftpd.", report)
+        self.assertNotIn("Preamble.", report)
+
+    def test_gate_runs_before_config_client_or_model(self):
+        code, client, report, _, (load, make, agent) = self.run_main(
+            VALID_SUMMARY, [], target="10.0.3.15")
+        self.assertEqual(code, 2)
+        load.assert_not_called()
+        make.assert_not_called()
+        agent.assert_not_called()
+        self.assertEqual(client.requests, [])
 
 
 if __name__ == "__main__":

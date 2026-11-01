@@ -20,12 +20,17 @@ Settings come from the environment or a .env file in the repo root. The
 """
 
 import argparse
+import json
 import os
 import sys
 
 from reconmind.agent import llm
 from reconmind.core.authorization import is_authorized
 from reconmind.core.report import build_report
+from reconmind.core.summary_check import check_summary
+
+MISSING_PACKAGE = ("Missing package. Activate your venv and run:\n"
+                   "    pip install -r requirements.txt")
 
 
 def _load_dotenv(path=".env"):
@@ -47,6 +52,55 @@ def _parse_args(args):
     parser.add_argument("--provider", help="one of: " + ", ".join(sorted(llm.PROVIDERS)))
     parser.add_argument("--model", help="model id for this run")
     return parser.parse_args(args)
+
+
+def _scan_facts(target, scan):
+    """Compact JSON of the verified tool results, for the repair call."""
+    from reconmind.agent.tools import ToolBox
+    return json.dumps({
+        "target": target,
+        "scan_status": scan.get("status"),
+        "open_ports": [ToolBox._port_summary(p) for p in scan.get("ports", [])],
+    }, indent=1)
+
+
+def _final_summary(client, model, target, scan, draft):
+    """
+    Check the model's draft. If it fails, make ONE repair call (no tools) and
+    check again. Returns (text, unverified_refs); text is None when both fail,
+    so the raw draft is never published.
+    """
+    from reconmind.agent.brain import MAX_TOKENS
+    from reconmind.agent.prompts import REPAIR_SYSTEM_PROMPT, repair_message
+
+    result = check_summary(draft, scan)
+    if result.valid:
+        print("summary:     ok")
+        return result.text, result.unverified_refs
+
+    print("summary:     draft failed validation ({p}), asking for one repair".format(
+        p="; ".join(result.problems)))
+    try:
+        response = client.messages.create(
+            model=model,
+            max_tokens=MAX_TOKENS,
+            system=REPAIR_SYSTEM_PROMPT,
+            messages=[{"role": "user",
+                       "content": repair_message(_scan_facts(target, scan), draft)}],
+        )
+        repaired = "\n".join(b.text for b in response.content
+                             if getattr(b, "type", "") == "text")
+    except Exception as exc:  # any failure here just means no repair
+        print("summary:     repair call failed: {e}".format(e=exc))
+        return None, []
+
+    result = check_summary(repaired, scan)
+    if result.valid:
+        print("summary:     repaired")
+        return result.text, result.unverified_refs
+    print("summary:     repair failed validation ({p}), no model text published".format(
+        p="; ".join(result.problems)))
+    return None, []
 
 
 def main(argv):
@@ -72,14 +126,20 @@ def main(argv):
 
     from reconmind.agent.brain import run_agent
 
-    client = llm.make_client(config)
+    try:
+        client = llm.make_client(config)
+    except ImportError:
+        print(MISSING_PACKAGE)
+        return 1
     print("ReconMind agent  target={t}  provider={p}  model={m}".format(
         t=target, p=config.name, m=config.model))
     print("-" * 60)
-    tools, summary = run_agent(target, client=client, model=config.model)
+    tools, draft = run_agent(target, client=client, model=config.model)
     print("-" * 60)
 
-    path = build_report(tools.scan, analyst_summary=summary)
+    summary, refs = _final_summary(client, config.model, target, tools.scan, draft)
+    path = build_report(tools.scan, analyst_summary=summary, unverified_refs=refs,
+                        summary_failed=summary is None)
     ports = tools.scan.get("ports", [])
     print("status:     ", tools.scan.get("status"))
     print("open ports: ", len(ports))

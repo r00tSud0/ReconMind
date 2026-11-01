@@ -47,6 +47,31 @@ Concrete remediation for each finding.
 """
 
 
+REPAIR_SYSTEM_PROMPT = """You are ReconMind, a security analyst. A previous draft \
+of an analyst summary was cut off or badly formatted. Rewrite it using only the \
+scan facts you are given.
+
+Reply with only these four sections, in this order, each with text under it. \
+Nothing before the first heading and nothing after the last section.
+### Key findings
+### Likely attack path
+### MITRE ATT&CK (preliminary)
+### Recommended fixes
+
+Use only facts, exploit titles and EDB-IDs that appear in the scan facts. Never \
+invent CVE numbers, EDB-IDs, versions or services. exact_version is the only \
+confirmed match label; describe every other label as unconfirmed. Do not write \
+exploit code or step by step exploitation commands.
+"""
+
+
+def repair_message(facts, draft):
+    """The single user message for the repair call."""
+    return ("Scan facts (verified tool results, JSON):\n{f}\n\n"
+            "Previous draft (may be cut off; use it only as a guide):\n{d}\n\n"
+            "Write only the four sections.".format(f=facts, d=(draft or "").strip()))
+
+
 def first_user_message(target):
     return ("Authorized target: {t}\n"
             "Perform reconnaissance on this target and write the analyst "

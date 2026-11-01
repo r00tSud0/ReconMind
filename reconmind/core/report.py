@@ -107,12 +107,41 @@ def _exploits_section(lines, ports):
         lines.append("")
 
 
-def build_report(scan, analyst_summary=None):
+SUMMARY_LABEL = "_AI interpretation. The tables below are the verified tool results._"
+SUMMARY_UNAVAILABLE = "Analyst summary unavailable: the model output failed validation."
+
+
+def _summary_section(lines, analyst_summary, unverified_refs, summary_failed):
+    if not analyst_summary and not summary_failed:
+        return
+    lines.append("## Analyst summary (ReconMind agent)")
+    lines.append("")
+    if not analyst_summary:
+        lines.append(SUMMARY_UNAVAILABLE)
+        lines.append("")
+        return
+    lines.append(SUMMARY_LABEL)
+    lines.append("")
+    lines.append(analyst_summary.strip())
+    lines.append("")
+    if unverified_refs:
+        lines.append("**Unverified references**")
+        lines.append("")
+        lines.append("_Not found in any tool result for this scan:_")
+        for ref in unverified_refs:
+            lines.append("- {r}".format(r=ref))
+        lines.append("")
+
+
+def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=False):
     """
     Write one Markdown report for a scan result. Return the file path.
 
-    analyst_summary is optional free text written by the agent brain. When it
-    is present it goes at the top of the report, above the raw tables.
+    analyst_summary is optional text written by the agent brain, already
+    checked by summary_check. It goes at the top, labeled as AI interpretation,
+    with any unverified_refs listed under it. summary_failed means the model
+    output failed validation: no model text is shown, only a notice. The fact
+    sections render the same either way.
     """
     os.makedirs(REPORT_DIR, exist_ok=True)
 
@@ -135,11 +164,7 @@ def build_report(scan, analyst_summary=None):
         "",
     ]
 
-    if analyst_summary:
-        lines.append("## Analyst summary (ReconMind agent)")
-        lines.append("")
-        lines.append(analyst_summary.strip())
-        lines.append("")
+    _summary_section(lines, analyst_summary, unverified_refs, summary_failed)
 
     if status == "refused":
         lines.append("The target was refused by the authorization gate. "

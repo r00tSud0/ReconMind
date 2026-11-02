@@ -1,0 +1,5209 @@
+{
+ "attack_version": "20.0",
+ "downloaded": "2026-11-01",
+ "source": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json",
+ "techniques": {
+  "T1001": {
+   "deprecated": false,
+   "name": "Data Obfuscation",
+   "revoked": false,
+   "short_name": "Data Obfuscation"
+  },
+  "T1001.001": {
+   "deprecated": false,
+   "name": "Data Obfuscation: Junk Data",
+   "revoked": false,
+   "short_name": "Junk Data"
+  },
+  "T1001.002": {
+   "deprecated": false,
+   "name": "Data Obfuscation: Steganography",
+   "revoked": false,
+   "short_name": "Steganography"
+  },
+  "T1001.003": {
+   "deprecated": false,
+   "name": "Data Obfuscation: Protocol or Service Impersonation",
+   "revoked": false,
+   "short_name": "Protocol or Service Impersonation"
+  },
+  "T1002": {
+   "deprecated": false,
+   "name": "Data Compressed",
+   "revoked": true,
+   "short_name": "Data Compressed"
+  },
+  "T1003": {
+   "deprecated": false,
+   "name": "OS Credential Dumping",
+   "revoked": false,
+   "short_name": "OS Credential Dumping"
+  },
+  "T1003.001": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: LSASS Memory",
+   "revoked": false,
+   "short_name": "LSASS Memory"
+  },
+  "T1003.002": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: Security Account Manager",
+   "revoked": false,
+   "short_name": "Security Account Manager"
+  },
+  "T1003.003": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: NTDS",
+   "revoked": false,
+   "short_name": "NTDS"
+  },
+  "T1003.004": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: LSA Secrets",
+   "revoked": false,
+   "short_name": "LSA Secrets"
+  },
+  "T1003.005": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: Cached Domain Credentials",
+   "revoked": false,
+   "short_name": "Cached Domain Credentials"
+  },
+  "T1003.006": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: DCSync",
+   "revoked": false,
+   "short_name": "DCSync"
+  },
+  "T1003.007": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: Proc Filesystem",
+   "revoked": false,
+   "short_name": "Proc Filesystem"
+  },
+  "T1003.008": {
+   "deprecated": false,
+   "name": "OS Credential Dumping: /etc/passwd and /etc/shadow",
+   "revoked": false,
+   "short_name": "/etc/passwd and /etc/shadow"
+  },
+  "T1004": {
+   "deprecated": false,
+   "name": "Winlogon Helper DLL",
+   "revoked": true,
+   "short_name": "Winlogon Helper DLL"
+  },
+  "T1005": {
+   "deprecated": false,
+   "name": "Data from Local System",
+   "revoked": false,
+   "short_name": "Data from Local System"
+  },
+  "T1006": {
+   "deprecated": false,
+   "name": "Direct Volume Access",
+   "revoked": false,
+   "short_name": "Direct Volume Access"
+  },
+  "T1007": {
+   "deprecated": false,
+   "name": "System Service Discovery",
+   "revoked": false,
+   "short_name": "System Service Discovery"
+  },
+  "T1008": {
+   "deprecated": false,
+   "name": "Fallback Channels",
+   "revoked": false,
+   "short_name": "Fallback Channels"
+  },
+  "T1009": {
+   "deprecated": false,
+   "name": "Binary Padding",
+   "revoked": true,
+   "short_name": "Binary Padding"
+  },
+  "T1010": {
+   "deprecated": false,
+   "name": "Application Window Discovery",
+   "revoked": false,
+   "short_name": "Application Window Discovery"
+  },
+  "T1011": {
+   "deprecated": false,
+   "name": "Exfiltration Over Other Network Medium",
+   "revoked": false,
+   "short_name": "Exfiltration Over Other Network Medium"
+  },
+  "T1011.001": {
+   "deprecated": false,
+   "name": "Exfiltration Over Other Network Medium: Exfiltration Over Bluetooth",
+   "revoked": false,
+   "short_name": "Exfiltration Over Bluetooth"
+  },
+  "T1012": {
+   "deprecated": false,
+   "name": "Query Registry",
+   "revoked": false,
+   "short_name": "Query Registry"
+  },
+  "T1013": {
+   "deprecated": false,
+   "name": "Port Monitors",
+   "revoked": true,
+   "short_name": "Port Monitors"
+  },
+  "T1014": {
+   "deprecated": false,
+   "name": "Rootkit",
+   "revoked": false,
+   "short_name": "Rootkit"
+  },
+  "T1015": {
+   "deprecated": false,
+   "name": "Accessibility Features",
+   "revoked": true,
+   "short_name": "Accessibility Features"
+  },
+  "T1016": {
+   "deprecated": false,
+   "name": "System Network Configuration Discovery",
+   "revoked": false,
+   "short_name": "System Network Configuration Discovery"
+  },
+  "T1016.001": {
+   "deprecated": false,
+   "name": "System Network Configuration Discovery: Internet Connection Discovery",
+   "revoked": false,
+   "short_name": "Internet Connection Discovery"
+  },
+  "T1016.002": {
+   "deprecated": false,
+   "name": "System Network Configuration Discovery: Wi-Fi Discovery",
+   "revoked": false,
+   "short_name": "Wi-Fi Discovery"
+  },
+  "T1017": {
+   "deprecated": false,
+   "name": "Application Deployment Software",
+   "revoked": true,
+   "short_name": "Application Deployment Software"
+  },
+  "T1018": {
+   "deprecated": false,
+   "name": "Remote System Discovery",
+   "revoked": false,
+   "short_name": "Remote System Discovery"
+  },
+  "T1019": {
+   "deprecated": false,
+   "name": "System Firmware",
+   "revoked": true,
+   "short_name": "System Firmware"
+  },
+  "T1020": {
+   "deprecated": false,
+   "name": "Automated Exfiltration",
+   "revoked": false,
+   "short_name": "Automated Exfiltration"
+  },
+  "T1020.001": {
+   "deprecated": false,
+   "name": "Automated Exfiltration: Traffic Duplication",
+   "revoked": false,
+   "short_name": "Traffic Duplication"
+  },
+  "T1021": {
+   "deprecated": false,
+   "name": "Remote Services",
+   "revoked": false,
+   "short_name": "Remote Services"
+  },
+  "T1021.001": {
+   "deprecated": false,
+   "name": "Remote Services: Remote Desktop Protocol",
+   "revoked": false,
+   "short_name": "Remote Desktop Protocol"
+  },
+  "T1021.002": {
+   "deprecated": false,
+   "name": "Remote Services: SMB/Windows Admin Shares",
+   "revoked": false,
+   "short_name": "SMB/Windows Admin Shares"
+  },
+  "T1021.003": {
+   "deprecated": false,
+   "name": "Remote Services: Distributed Component Object Model",
+   "revoked": false,
+   "short_name": "Distributed Component Object Model"
+  },
+  "T1021.004": {
+   "deprecated": false,
+   "name": "Remote Services: SSH",
+   "revoked": false,
+   "short_name": "SSH"
+  },
+  "T1021.005": {
+   "deprecated": false,
+   "name": "Remote Services: VNC",
+   "revoked": false,
+   "short_name": "VNC"
+  },
+  "T1021.006": {
+   "deprecated": false,
+   "name": "Remote Services: Windows Remote Management",
+   "revoked": false,
+   "short_name": "Windows Remote Management"
+  },
+  "T1021.007": {
+   "deprecated": false,
+   "name": "Remote Services: Cloud Services",
+   "revoked": false,
+   "short_name": "Cloud Services"
+  },
+  "T1021.008": {
+   "deprecated": false,
+   "name": "Remote Services: Direct Cloud VM Connections",
+   "revoked": false,
+   "short_name": "Direct Cloud VM Connections"
+  },
+  "T1022": {
+   "deprecated": false,
+   "name": "Data Encrypted",
+   "revoked": true,
+   "short_name": "Data Encrypted"
+  },
+  "T1023": {
+   "deprecated": false,
+   "name": "Shortcut Modification",
+   "revoked": true,
+   "short_name": "Shortcut Modification"
+  },
+  "T1024": {
+   "deprecated": false,
+   "name": "Custom Cryptographic Protocol",
+   "revoked": true,
+   "short_name": "Custom Cryptographic Protocol"
+  },
+  "T1025": {
+   "deprecated": false,
+   "name": "Data from Removable Media",
+   "revoked": false,
+   "short_name": "Data from Removable Media"
+  },
+  "T1026": {
+   "deprecated": true,
+   "name": "Multiband Communication",
+   "revoked": false,
+   "short_name": "Multiband Communication"
+  },
+  "T1027": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information",
+   "revoked": false,
+   "short_name": "Obfuscated Files or Information"
+  },
+  "T1027.001": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Binary Padding",
+   "revoked": false,
+   "short_name": "Binary Padding"
+  },
+  "T1027.002": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Software Packing",
+   "revoked": false,
+   "short_name": "Software Packing"
+  },
+  "T1027.003": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Steganography",
+   "revoked": false,
+   "short_name": "Steganography"
+  },
+  "T1027.004": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Compile After Delivery",
+   "revoked": false,
+   "short_name": "Compile After Delivery"
+  },
+  "T1027.005": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Indicator Removal from Tools",
+   "revoked": false,
+   "short_name": "Indicator Removal from Tools"
+  },
+  "T1027.006": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: HTML Smuggling",
+   "revoked": false,
+   "short_name": "HTML Smuggling"
+  },
+  "T1027.007": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Dynamic API Resolution",
+   "revoked": false,
+   "short_name": "Dynamic API Resolution"
+  },
+  "T1027.008": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Stripped Payloads",
+   "revoked": false,
+   "short_name": "Stripped Payloads"
+  },
+  "T1027.009": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Embedded Payloads",
+   "revoked": false,
+   "short_name": "Embedded Payloads"
+  },
+  "T1027.010": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Command Obfuscation",
+   "revoked": false,
+   "short_name": "Command Obfuscation"
+  },
+  "T1027.011": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Fileless Storage",
+   "revoked": false,
+   "short_name": "Fileless Storage"
+  },
+  "T1027.012": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: LNK Icon Smuggling",
+   "revoked": false,
+   "short_name": "LNK Icon Smuggling"
+  },
+  "T1027.013": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Encrypted/Encoded File",
+   "revoked": false,
+   "short_name": "Encrypted/Encoded File"
+  },
+  "T1027.014": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Polymorphic Code",
+   "revoked": false,
+   "short_name": "Polymorphic Code"
+  },
+  "T1027.015": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Compression",
+   "revoked": false,
+   "short_name": "Compression"
+  },
+  "T1027.016": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Junk Code Insertion",
+   "revoked": false,
+   "short_name": "Junk Code Insertion"
+  },
+  "T1027.017": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: SVG Smuggling",
+   "revoked": false,
+   "short_name": "SVG Smuggling"
+  },
+  "T1027.018": {
+   "deprecated": false,
+   "name": "Obfuscated Files or Information: Invisible Unicode",
+   "revoked": false,
+   "short_name": "Invisible Unicode"
+  },
+  "T1028": {
+   "deprecated": false,
+   "name": "Windows Remote Management",
+   "revoked": true,
+   "short_name": "Windows Remote Management"
+  },
+  "T1029": {
+   "deprecated": false,
+   "name": "Scheduled Transfer",
+   "revoked": false,
+   "short_name": "Scheduled Transfer"
+  },
+  "T1030": {
+   "deprecated": false,
+   "name": "Data Transfer Size Limits",
+   "revoked": false,
+   "short_name": "Data Transfer Size Limits"
+  },
+  "T1031": {
+   "deprecated": false,
+   "name": "Modify Existing Service",
+   "revoked": true,
+   "short_name": "Modify Existing Service"
+  },
+  "T1032": {
+   "deprecated": false,
+   "name": "Standard Cryptographic Protocol",
+   "revoked": true,
+   "short_name": "Standard Cryptographic Protocol"
+  },
+  "T1033": {
+   "deprecated": false,
+   "name": "System Owner/User Discovery",
+   "revoked": false,
+   "short_name": "System Owner/User Discovery"
+  },
+  "T1034": {
+   "deprecated": true,
+   "name": "Path Interception",
+   "revoked": false,
+   "short_name": "Path Interception"
+  },
+  "T1035": {
+   "deprecated": false,
+   "name": "Service Execution",
+   "revoked": true,
+   "short_name": "Service Execution"
+  },
+  "T1036": {
+   "deprecated": false,
+   "name": "Masquerading",
+   "revoked": false,
+   "short_name": "Masquerading"
+  },
+  "T1036.001": {
+   "deprecated": false,
+   "name": "Masquerading: Invalid Code Signature",
+   "revoked": false,
+   "short_name": "Invalid Code Signature"
+  },
+  "T1036.002": {
+   "deprecated": false,
+   "name": "Masquerading: Right-to-Left Override",
+   "revoked": false,
+   "short_name": "Right-to-Left Override"
+  },
+  "T1036.003": {
+   "deprecated": false,
+   "name": "Masquerading: Rename Legitimate Utilities",
+   "revoked": false,
+   "short_name": "Rename Legitimate Utilities"
+  },
+  "T1036.004": {
+   "deprecated": false,
+   "name": "Masquerading: Masquerade Task or Service",
+   "revoked": false,
+   "short_name": "Masquerade Task or Service"
+  },
+  "T1036.005": {
+   "deprecated": false,
+   "name": "Masquerading: Match Legitimate Resource Name or Location",
+   "revoked": false,
+   "short_name": "Match Legitimate Resource Name or Location"
+  },
+  "T1036.006": {
+   "deprecated": false,
+   "name": "Masquerading: Space after Filename",
+   "revoked": false,
+   "short_name": "Space after Filename"
+  },
+  "T1036.007": {
+   "deprecated": false,
+   "name": "Masquerading: Double File Extension",
+   "revoked": false,
+   "short_name": "Double File Extension"
+  },
+  "T1036.008": {
+   "deprecated": false,
+   "name": "Masquerading: Masquerade File Type",
+   "revoked": false,
+   "short_name": "Masquerade File Type"
+  },
+  "T1036.009": {
+   "deprecated": false,
+   "name": "Masquerading: Break Process Trees",
+   "revoked": false,
+   "short_name": "Break Process Trees"
+  },
+  "T1036.010": {
+   "deprecated": false,
+   "name": "Masquerading: Masquerade Account Name",
+   "revoked": false,
+   "short_name": "Masquerade Account Name"
+  },
+  "T1036.011": {
+   "deprecated": false,
+   "name": "Masquerading: Overwrite Process Arguments",
+   "revoked": false,
+   "short_name": "Overwrite Process Arguments"
+  },
+  "T1036.012": {
+   "deprecated": false,
+   "name": "Masquerading: Browser Fingerprint",
+   "revoked": false,
+   "short_name": "Browser Fingerprint"
+  },
+  "T1037": {
+   "deprecated": false,
+   "name": "Boot or Logon Initialization Scripts",
+   "revoked": false,
+   "short_name": "Boot or Logon Initialization Scripts"
+  },
+  "T1037.001": {
+   "deprecated": false,
+   "name": "Boot or Logon Initialization Scripts: Logon Script (Windows)",
+   "revoked": false,
+   "short_name": "Logon Script (Windows)"
+  },
+  "T1037.002": {
+   "deprecated": false,
+   "name": "Boot or Logon Initialization Scripts: Login Hook",
+   "revoked": false,
+   "short_name": "Login Hook"
+  },
+  "T1037.003": {
+   "deprecated": false,
+   "name": "Boot or Logon Initialization Scripts: Network Logon Script",
+   "revoked": false,
+   "short_name": "Network Logon Script"
+  },
+  "T1037.004": {
+   "deprecated": false,
+   "name": "Boot or Logon Initialization Scripts: RC Scripts",
+   "revoked": false,
+   "short_name": "RC Scripts"
+  },
+  "T1037.005": {
+   "deprecated": false,
+   "name": "Boot or Logon Initialization Scripts: Startup Items",
+   "revoked": false,
+   "short_name": "Startup Items"
+  },
+  "T1038": {
+   "deprecated": false,
+   "name": "DLL Search Order Hijacking",
+   "revoked": true,
+   "short_name": "DLL Search Order Hijacking"
+  },
+  "T1039": {
+   "deprecated": false,
+   "name": "Data from Network Shared Drive",
+   "revoked": false,
+   "short_name": "Data from Network Shared Drive"
+  },
+  "T1040": {
+   "deprecated": false,
+   "name": "Network Sniffing",
+   "revoked": false,
+   "short_name": "Network Sniffing"
+  },
+  "T1041": {
+   "deprecated": false,
+   "name": "Exfiltration Over C2 Channel",
+   "revoked": false,
+   "short_name": "Exfiltration Over C2 Channel"
+  },
+  "T1042": {
+   "deprecated": false,
+   "name": "Change Default File Association",
+   "revoked": true,
+   "short_name": "Change Default File Association"
+  },
+  "T1043": {
+   "deprecated": true,
+   "name": "Commonly Used Port",
+   "revoked": false,
+   "short_name": "Commonly Used Port"
+  },
+  "T1044": {
+   "deprecated": false,
+   "name": "File System Permissions Weakness",
+   "revoked": true,
+   "short_name": "File System Permissions Weakness"
+  },
+  "T1045": {
+   "deprecated": false,
+   "name": "Software Packing",
+   "revoked": true,
+   "short_name": "Software Packing"
+  },
+  "T1046": {
+   "deprecated": false,
+   "name": "Network Service Discovery",
+   "revoked": false,
+   "short_name": "Network Service Discovery"
+  },
+  "T1047": {
+   "deprecated": false,
+   "name": "Windows Management Instrumentation",
+   "revoked": false,
+   "short_name": "Windows Management Instrumentation"
+  },
+  "T1048": {
+   "deprecated": false,
+   "name": "Exfiltration Over Alternative Protocol",
+   "revoked": false,
+   "short_name": "Exfiltration Over Alternative Protocol"
+  },
+  "T1048.001": {
+   "deprecated": false,
+   "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+   "revoked": false,
+   "short_name": "Exfiltration Over Symmetric Encrypted Non-C2 Protocol"
+  },
+  "T1048.002": {
+   "deprecated": false,
+   "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Asymmetric Encrypted Non-C2 Protocol",
+   "revoked": false,
+   "short_name": "Exfiltration Over Asymmetric Encrypted Non-C2 Protocol"
+  },
+  "T1048.003": {
+   "deprecated": false,
+   "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Unencrypted Non-C2 Protocol",
+   "revoked": false,
+   "short_name": "Exfiltration Over Unencrypted Non-C2 Protocol"
+  },
+  "T1049": {
+   "deprecated": false,
+   "name": "System Network Connections Discovery",
+   "revoked": false,
+   "short_name": "System Network Connections Discovery"
+  },
+  "T1050": {
+   "deprecated": false,
+   "name": "New Service",
+   "revoked": true,
+   "short_name": "New Service"
+  },
+  "T1051": {
+   "deprecated": true,
+   "name": "Shared Webroot",
+   "revoked": false,
+   "short_name": "Shared Webroot"
+  },
+  "T1052": {
+   "deprecated": false,
+   "name": "Exfiltration Over Physical Medium",
+   "revoked": false,
+   "short_name": "Exfiltration Over Physical Medium"
+  },
+  "T1052.001": {
+   "deprecated": false,
+   "name": "Exfiltration Over Physical Medium: Exfiltration over USB",
+   "revoked": false,
+   "short_name": "Exfiltration over USB"
+  },
+  "T1053": {
+   "deprecated": false,
+   "name": "Scheduled Task/Job",
+   "revoked": false,
+   "short_name": "Scheduled Task/Job"
+  },
+  "T1053.001": {
+   "deprecated": false,
+   "name": "Scheduled Task/Job: At (Linux)",
+   "revoked": true,
+   "short_name": "At (Linux)"
+  },
+  "T1053.002": {
+   "deprecated": false,
+   "name": "Scheduled Task/Job: At",
+   "revoked": false,
+   "short_name": "At"
+  },
+  "T1053.003": {
+   "deprecated": false,
+   "name": "Scheduled Task/Job: Cron",
+   "revoked": false,
+   "short_name": "Cron"
+  },
+  "T1053.004": {
+   "deprecated": true,
+   "name": "Scheduled Task/Job: Launchd",
+   "revoked": false,
+   "short_name": "Launchd"
+  },
+  "T1053.005": {
+   "deprecated": false,
+   "name": "Scheduled Task/Job: Scheduled Task",
+   "revoked": false,
+   "short_name": "Scheduled Task"
+  },
+  "T1053.006": {
+   "deprecated": false,
+   "name": "Scheduled Task/Job: Systemd Timers",
+   "revoked": false,
+   "short_name": "Systemd Timers"
+  },
+  "T1053.007": {
+   "deprecated": false,
+   "name": "Scheduled Task/Job: Container Orchestration Job",
+   "revoked": false,
+   "short_name": "Container Orchestration Job"
+  },
+  "T1054": {
+   "deprecated": false,
+   "name": "Indicator Blocking",
+   "revoked": true,
+   "short_name": "Indicator Blocking"
+  },
+  "T1055": {
+   "deprecated": false,
+   "name": "Process Injection",
+   "revoked": false,
+   "short_name": "Process Injection"
+  },
+  "T1055.001": {
+   "deprecated": false,
+   "name": "Process Injection: Dynamic-link Library Injection",
+   "revoked": false,
+   "short_name": "Dynamic-link Library Injection"
+  },
+  "T1055.002": {
+   "deprecated": false,
+   "name": "Process Injection: Portable Executable Injection",
+   "revoked": false,
+   "short_name": "Portable Executable Injection"
+  },
+  "T1055.003": {
+   "deprecated": false,
+   "name": "Process Injection: Thread Execution Hijacking",
+   "revoked": false,
+   "short_name": "Thread Execution Hijacking"
+  },
+  "T1055.004": {
+   "deprecated": false,
+   "name": "Process Injection: Asynchronous Procedure Call",
+   "revoked": false,
+   "short_name": "Asynchronous Procedure Call"
+  },
+  "T1055.005": {
+   "deprecated": false,
+   "name": "Process Injection: Thread Local Storage",
+   "revoked": false,
+   "short_name": "Thread Local Storage"
+  },
+  "T1055.008": {
+   "deprecated": false,
+   "name": "Process Injection: Ptrace System Calls",
+   "revoked": false,
+   "short_name": "Ptrace System Calls"
+  },
+  "T1055.009": {
+   "deprecated": false,
+   "name": "Process Injection: Proc Memory",
+   "revoked": false,
+   "short_name": "Proc Memory"
+  },
+  "T1055.011": {
+   "deprecated": false,
+   "name": "Process Injection: Extra Window Memory Injection",
+   "revoked": false,
+   "short_name": "Extra Window Memory Injection"
+  },
+  "T1055.012": {
+   "deprecated": false,
+   "name": "Process Injection: Process Hollowing",
+   "revoked": false,
+   "short_name": "Process Hollowing"
+  },
+  "T1055.013": {
+   "deprecated": false,
+   "name": "Process Injection: Process Doppelg\u00e4nging",
+   "revoked": false,
+   "short_name": "Process Doppelg\u00e4nging"
+  },
+  "T1055.014": {
+   "deprecated": false,
+   "name": "Process Injection: VDSO Hijacking",
+   "revoked": false,
+   "short_name": "VDSO Hijacking"
+  },
+  "T1055.015": {
+   "deprecated": false,
+   "name": "Process Injection: ListPlanting",
+   "revoked": false,
+   "short_name": "ListPlanting"
+  },
+  "T1056": {
+   "deprecated": false,
+   "name": "Input Capture",
+   "revoked": false,
+   "short_name": "Input Capture"
+  },
+  "T1056.001": {
+   "deprecated": false,
+   "name": "Input Capture: Keylogging",
+   "revoked": false,
+   "short_name": "Keylogging"
+  },
+  "T1056.002": {
+   "deprecated": false,
+   "name": "Input Capture: GUI Input Capture",
+   "revoked": false,
+   "short_name": "GUI Input Capture"
+  },
+  "T1056.003": {
+   "deprecated": false,
+   "name": "Input Capture: Web Portal Capture",
+   "revoked": false,
+   "short_name": "Web Portal Capture"
+  },
+  "T1056.004": {
+   "deprecated": false,
+   "name": "Input Capture: Credential API Hooking",
+   "revoked": false,
+   "short_name": "Credential API Hooking"
+  },
+  "T1057": {
+   "deprecated": false,
+   "name": "Process Discovery",
+   "revoked": false,
+   "short_name": "Process Discovery"
+  },
+  "T1058": {
+   "deprecated": false,
+   "name": "Service Registry Permissions Weakness",
+   "revoked": true,
+   "short_name": "Service Registry Permissions Weakness"
+  },
+  "T1059": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter",
+   "revoked": false,
+   "short_name": "Command and Scripting Interpreter"
+  },
+  "T1059.001": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: PowerShell",
+   "revoked": false,
+   "short_name": "PowerShell"
+  },
+  "T1059.002": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: AppleScript",
+   "revoked": false,
+   "short_name": "AppleScript"
+  },
+  "T1059.003": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Windows Command Shell",
+   "revoked": false,
+   "short_name": "Windows Command Shell"
+  },
+  "T1059.004": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Unix Shell",
+   "revoked": false,
+   "short_name": "Unix Shell"
+  },
+  "T1059.005": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Visual Basic",
+   "revoked": false,
+   "short_name": "Visual Basic"
+  },
+  "T1059.006": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Python",
+   "revoked": false,
+   "short_name": "Python"
+  },
+  "T1059.007": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: JavaScript",
+   "revoked": false,
+   "short_name": "JavaScript"
+  },
+  "T1059.008": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Network Device CLI",
+   "revoked": false,
+   "short_name": "Network Device CLI"
+  },
+  "T1059.009": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Cloud API",
+   "revoked": false,
+   "short_name": "Cloud API"
+  },
+  "T1059.010": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: AutoHotKey & AutoIT",
+   "revoked": false,
+   "short_name": "AutoHotKey & AutoIT"
+  },
+  "T1059.011": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Lua",
+   "revoked": false,
+   "short_name": "Lua"
+  },
+  "T1059.012": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Hypervisor CLI",
+   "revoked": false,
+   "short_name": "Hypervisor CLI"
+  },
+  "T1059.013": {
+   "deprecated": false,
+   "name": "Command and Scripting Interpreter: Container CLI/API",
+   "revoked": false,
+   "short_name": "Container CLI/API"
+  },
+  "T1060": {
+   "deprecated": false,
+   "name": "Registry Run Keys / Startup Folder",
+   "revoked": true,
+   "short_name": "Registry Run Keys / Startup Folder"
+  },
+  "T1061": {
+   "deprecated": true,
+   "name": "Graphical User Interface",
+   "revoked": false,
+   "short_name": "Graphical User Interface"
+  },
+  "T1062": {
+   "deprecated": true,
+   "name": "Hypervisor",
+   "revoked": false,
+   "short_name": "Hypervisor"
+  },
+  "T1063": {
+   "deprecated": false,
+   "name": "Security Software Discovery",
+   "revoked": true,
+   "short_name": "Security Software Discovery"
+  },
+  "T1064": {
+   "deprecated": true,
+   "name": "Scripting",
+   "revoked": false,
+   "short_name": "Scripting"
+  },
+  "T1065": {
+   "deprecated": false,
+   "name": "Uncommonly Used Port",
+   "revoked": true,
+   "short_name": "Uncommonly Used Port"
+  },
+  "T1066": {
+   "deprecated": false,
+   "name": "Indicator Removal from Tools",
+   "revoked": true,
+   "short_name": "Indicator Removal from Tools"
+  },
+  "T1067": {
+   "deprecated": false,
+   "name": "Bootkit",
+   "revoked": true,
+   "short_name": "Bootkit"
+  },
+  "T1068": {
+   "deprecated": false,
+   "name": "Exploitation for Privilege Escalation",
+   "revoked": false,
+   "short_name": "Exploitation for Privilege Escalation"
+  },
+  "T1069": {
+   "deprecated": false,
+   "name": "Permission Groups Discovery",
+   "revoked": false,
+   "short_name": "Permission Groups Discovery"
+  },
+  "T1069.001": {
+   "deprecated": false,
+   "name": "Permission Groups Discovery: Local Groups",
+   "revoked": false,
+   "short_name": "Local Groups"
+  },
+  "T1069.002": {
+   "deprecated": false,
+   "name": "Permission Groups Discovery: Domain Groups",
+   "revoked": false,
+   "short_name": "Domain Groups"
+  },
+  "T1069.003": {
+   "deprecated": false,
+   "name": "Permission Groups Discovery: Cloud Groups",
+   "revoked": false,
+   "short_name": "Cloud Groups"
+  },
+  "T1070": {
+   "deprecated": false,
+   "name": "Indicator Removal",
+   "revoked": false,
+   "short_name": "Indicator Removal"
+  },
+  "T1070.001": {
+   "deprecated": false,
+   "name": "Indicator Removal: Clear Windows Event Logs",
+   "revoked": true,
+   "short_name": "Clear Windows Event Logs"
+  },
+  "T1070.002": {
+   "deprecated": false,
+   "name": "Indicator Removal: Clear Linux or Mac System Logs",
+   "revoked": true,
+   "short_name": "Clear Linux or Mac System Logs"
+  },
+  "T1070.003": {
+   "deprecated": false,
+   "name": "Indicator Removal: Clear Command History",
+   "revoked": false,
+   "short_name": "Clear Command History"
+  },
+  "T1070.004": {
+   "deprecated": false,
+   "name": "Indicator Removal: File Deletion",
+   "revoked": false,
+   "short_name": "File Deletion"
+  },
+  "T1070.005": {
+   "deprecated": false,
+   "name": "Indicator Removal: Network Share Connection Removal",
+   "revoked": false,
+   "short_name": "Network Share Connection Removal"
+  },
+  "T1070.006": {
+   "deprecated": false,
+   "name": "Indicator Removal: Timestomp",
+   "revoked": false,
+   "short_name": "Timestomp"
+  },
+  "T1070.007": {
+   "deprecated": false,
+   "name": "Indicator Removal: Clear Network Connection History and Configurations",
+   "revoked": false,
+   "short_name": "Clear Network Connection History and Configurations"
+  },
+  "T1070.008": {
+   "deprecated": false,
+   "name": "Indicator Removal: Clear Mailbox Data",
+   "revoked": false,
+   "short_name": "Clear Mailbox Data"
+  },
+  "T1070.009": {
+   "deprecated": false,
+   "name": "Indicator Removal: Clear Persistence",
+   "revoked": false,
+   "short_name": "Clear Persistence"
+  },
+  "T1070.010": {
+   "deprecated": false,
+   "name": "Indicator Removal: Relocate Malware",
+   "revoked": false,
+   "short_name": "Relocate Malware"
+  },
+  "T1071": {
+   "deprecated": false,
+   "name": "Application Layer Protocol",
+   "revoked": false,
+   "short_name": "Application Layer Protocol"
+  },
+  "T1071.001": {
+   "deprecated": false,
+   "name": "Application Layer Protocol: Web Protocols",
+   "revoked": false,
+   "short_name": "Web Protocols"
+  },
+  "T1071.002": {
+   "deprecated": false,
+   "name": "Application Layer Protocol: File Transfer Protocols",
+   "revoked": false,
+   "short_name": "File Transfer Protocols"
+  },
+  "T1071.003": {
+   "deprecated": false,
+   "name": "Application Layer Protocol: Mail Protocols",
+   "revoked": false,
+   "short_name": "Mail Protocols"
+  },
+  "T1071.004": {
+   "deprecated": false,
+   "name": "Application Layer Protocol: DNS",
+   "revoked": false,
+   "short_name": "DNS"
+  },
+  "T1071.005": {
+   "deprecated": false,
+   "name": "Application Layer Protocol: Publish/Subscribe Protocols",
+   "revoked": false,
+   "short_name": "Publish/Subscribe Protocols"
+  },
+  "T1072": {
+   "deprecated": false,
+   "name": "Software Deployment Tools",
+   "revoked": false,
+   "short_name": "Software Deployment Tools"
+  },
+  "T1073": {
+   "deprecated": false,
+   "name": "DLL Side-Loading",
+   "revoked": true,
+   "short_name": "DLL Side-Loading"
+  },
+  "T1074": {
+   "deprecated": false,
+   "name": "Data Staged",
+   "revoked": false,
+   "short_name": "Data Staged"
+  },
+  "T1074.001": {
+   "deprecated": false,
+   "name": "Data Staged: Local Data Staging",
+   "revoked": false,
+   "short_name": "Local Data Staging"
+  },
+  "T1074.002": {
+   "deprecated": false,
+   "name": "Data Staged: Remote Data Staging",
+   "revoked": false,
+   "short_name": "Remote Data Staging"
+  },
+  "T1075": {
+   "deprecated": false,
+   "name": "Pass the Hash",
+   "revoked": true,
+   "short_name": "Pass the Hash"
+  },
+  "T1076": {
+   "deprecated": false,
+   "name": "Remote Desktop Protocol",
+   "revoked": true,
+   "short_name": "Remote Desktop Protocol"
+  },
+  "T1077": {
+   "deprecated": false,
+   "name": "Windows Admin Shares",
+   "revoked": true,
+   "short_name": "Windows Admin Shares"
+  },
+  "T1078": {
+   "deprecated": false,
+   "name": "Valid Accounts",
+   "revoked": false,
+   "short_name": "Valid Accounts"
+  },
+  "T1078.001": {
+   "deprecated": false,
+   "name": "Valid Accounts: Default Accounts",
+   "revoked": false,
+   "short_name": "Default Accounts"
+  },
+  "T1078.002": {
+   "deprecated": false,
+   "name": "Valid Accounts: Domain Accounts",
+   "revoked": false,
+   "short_name": "Domain Accounts"
+  },
+  "T1078.003": {
+   "deprecated": false,
+   "name": "Valid Accounts: Local Accounts",
+   "revoked": false,
+   "short_name": "Local Accounts"
+  },
+  "T1078.004": {
+   "deprecated": false,
+   "name": "Valid Accounts: Cloud Accounts",
+   "revoked": false,
+   "short_name": "Cloud Accounts"
+  },
+  "T1079": {
+   "deprecated": false,
+   "name": "Multilayer Encryption",
+   "revoked": true,
+   "short_name": "Multilayer Encryption"
+  },
+  "T1080": {
+   "deprecated": false,
+   "name": "Taint Shared Content",
+   "revoked": false,
+   "short_name": "Taint Shared Content"
+  },
+  "T1081": {
+   "deprecated": false,
+   "name": "Credentials in Files",
+   "revoked": true,
+   "short_name": "Credentials in Files"
+  },
+  "T1082": {
+   "deprecated": false,
+   "name": "System Information Discovery",
+   "revoked": false,
+   "short_name": "System Information Discovery"
+  },
+  "T1083": {
+   "deprecated": false,
+   "name": "File and Directory Discovery",
+   "revoked": false,
+   "short_name": "File and Directory Discovery"
+  },
+  "T1084": {
+   "deprecated": false,
+   "name": "Windows Management Instrumentation Event Subscription",
+   "revoked": true,
+   "short_name": "Windows Management Instrumentation Event Subscription"
+  },
+  "T1085": {
+   "deprecated": false,
+   "name": "Rundll32",
+   "revoked": true,
+   "short_name": "Rundll32"
+  },
+  "T1086": {
+   "deprecated": false,
+   "name": "PowerShell",
+   "revoked": true,
+   "short_name": "PowerShell"
+  },
+  "T1087": {
+   "deprecated": false,
+   "name": "Account Discovery",
+   "revoked": false,
+   "short_name": "Account Discovery"
+  },
+  "T1087.001": {
+   "deprecated": false,
+   "name": "Account Discovery: Local Account",
+   "revoked": false,
+   "short_name": "Local Account"
+  },
+  "T1087.002": {
+   "deprecated": false,
+   "name": "Account Discovery: Domain Account",
+   "revoked": false,
+   "short_name": "Domain Account"
+  },
+  "T1087.003": {
+   "deprecated": false,
+   "name": "Account Discovery: Email Account",
+   "revoked": false,
+   "short_name": "Email Account"
+  },
+  "T1087.004": {
+   "deprecated": false,
+   "name": "Account Discovery: Cloud Account",
+   "revoked": false,
+   "short_name": "Cloud Account"
+  },
+  "T1088": {
+   "deprecated": false,
+   "name": "Bypass User Account Control",
+   "revoked": true,
+   "short_name": "Bypass User Account Control"
+  },
+  "T1089": {
+   "deprecated": false,
+   "name": "Disabling Security Tools",
+   "revoked": true,
+   "short_name": "Disabling Security Tools"
+  },
+  "T1090": {
+   "deprecated": false,
+   "name": "Proxy",
+   "revoked": false,
+   "short_name": "Proxy"
+  },
+  "T1090.001": {
+   "deprecated": false,
+   "name": "Proxy: Internal Proxy",
+   "revoked": false,
+   "short_name": "Internal Proxy"
+  },
+  "T1090.002": {
+   "deprecated": false,
+   "name": "Proxy: External Proxy",
+   "revoked": false,
+   "short_name": "External Proxy"
+  },
+  "T1090.003": {
+   "deprecated": false,
+   "name": "Proxy: Multi-hop Proxy",
+   "revoked": false,
+   "short_name": "Multi-hop Proxy"
+  },
+  "T1090.004": {
+   "deprecated": false,
+   "name": "Proxy: Domain Fronting",
+   "revoked": false,
+   "short_name": "Domain Fronting"
+  },
+  "T1091": {
+   "deprecated": false,
+   "name": "Replication Through Removable Media",
+   "revoked": false,
+   "short_name": "Replication Through Removable Media"
+  },
+  "T1092": {
+   "deprecated": false,
+   "name": "Communication Through Removable Media",
+   "revoked": false,
+   "short_name": "Communication Through Removable Media"
+  },
+  "T1093": {
+   "deprecated": false,
+   "name": "Process Hollowing",
+   "revoked": true,
+   "short_name": "Process Hollowing"
+  },
+  "T1094": {
+   "deprecated": false,
+   "name": "Custom Command and Control Protocol",
+   "revoked": true,
+   "short_name": "Custom Command and Control Protocol"
+  },
+  "T1095": {
+   "deprecated": false,
+   "name": "Non-Application Layer Protocol",
+   "revoked": false,
+   "short_name": "Non-Application Layer Protocol"
+  },
+  "T1096": {
+   "deprecated": false,
+   "name": "NTFS File Attributes",
+   "revoked": true,
+   "short_name": "NTFS File Attributes"
+  },
+  "T1097": {
+   "deprecated": false,
+   "name": "Pass the Ticket",
+   "revoked": true,
+   "short_name": "Pass the Ticket"
+  },
+  "T1098": {
+   "deprecated": false,
+   "name": "Account Manipulation",
+   "revoked": false,
+   "short_name": "Account Manipulation"
+  },
+  "T1098.001": {
+   "deprecated": false,
+   "name": "Account Manipulation: Additional Cloud Credentials",
+   "revoked": false,
+   "short_name": "Additional Cloud Credentials"
+  },
+  "T1098.002": {
+   "deprecated": false,
+   "name": "Account Manipulation: Additional Email Delegate Permissions",
+   "revoked": false,
+   "short_name": "Additional Email Delegate Permissions"
+  },
+  "T1098.003": {
+   "deprecated": false,
+   "name": "Account Manipulation: Additional Cloud Roles",
+   "revoked": false,
+   "short_name": "Additional Cloud Roles"
+  },
+  "T1098.004": {
+   "deprecated": false,
+   "name": "Account Manipulation: SSH Authorized Keys",
+   "revoked": false,
+   "short_name": "SSH Authorized Keys"
+  },
+  "T1098.005": {
+   "deprecated": false,
+   "name": "Account Manipulation: Device Registration",
+   "revoked": false,
+   "short_name": "Device Registration"
+  },
+  "T1098.006": {
+   "deprecated": false,
+   "name": "Account Manipulation: Additional Container Cluster Roles",
+   "revoked": false,
+   "short_name": "Additional Container Cluster Roles"
+  },
+  "T1098.007": {
+   "deprecated": false,
+   "name": "Account Manipulation: Additional Local or Domain Groups",
+   "revoked": false,
+   "short_name": "Additional Local or Domain Groups"
+  },
+  "T1099": {
+   "deprecated": false,
+   "name": "Timestomp",
+   "revoked": true,
+   "short_name": "Timestomp"
+  },
+  "T1100": {
+   "deprecated": false,
+   "name": "Web Shell",
+   "revoked": true,
+   "short_name": "Web Shell"
+  },
+  "T1101": {
+   "deprecated": false,
+   "name": "Security Support Provider",
+   "revoked": true,
+   "short_name": "Security Support Provider"
+  },
+  "T1102": {
+   "deprecated": false,
+   "name": "Web Service",
+   "revoked": false,
+   "short_name": "Web Service"
+  },
+  "T1102.001": {
+   "deprecated": false,
+   "name": "Web Service: Dead Drop Resolver",
+   "revoked": false,
+   "short_name": "Dead Drop Resolver"
+  },
+  "T1102.002": {
+   "deprecated": false,
+   "name": "Web Service: Bidirectional Communication",
+   "revoked": false,
+   "short_name": "Bidirectional Communication"
+  },
+  "T1102.003": {
+   "deprecated": false,
+   "name": "Web Service: One-Way Communication",
+   "revoked": false,
+   "short_name": "One-Way Communication"
+  },
+  "T1103": {
+   "deprecated": false,
+   "name": "AppInit DLLs",
+   "revoked": true,
+   "short_name": "AppInit DLLs"
+  },
+  "T1104": {
+   "deprecated": false,
+   "name": "Multi-Stage Channels",
+   "revoked": false,
+   "short_name": "Multi-Stage Channels"
+  },
+  "T1105": {
+   "deprecated": false,
+   "name": "Ingress Tool Transfer",
+   "revoked": false,
+   "short_name": "Ingress Tool Transfer"
+  },
+  "T1106": {
+   "deprecated": false,
+   "name": "Native API",
+   "revoked": false,
+   "short_name": "Native API"
+  },
+  "T1107": {
+   "deprecated": false,
+   "name": "File Deletion",
+   "revoked": true,
+   "short_name": "File Deletion"
+  },
+  "T1108": {
+   "deprecated": true,
+   "name": "Redundant Access",
+   "revoked": false,
+   "short_name": "Redundant Access"
+  },
+  "T1109": {
+   "deprecated": false,
+   "name": "Component Firmware",
+   "revoked": true,
+   "short_name": "Component Firmware"
+  },
+  "T1110": {
+   "deprecated": false,
+   "name": "Brute Force",
+   "revoked": false,
+   "short_name": "Brute Force"
+  },
+  "T1110.001": {
+   "deprecated": false,
+   "name": "Brute Force: Password Guessing",
+   "revoked": false,
+   "short_name": "Password Guessing"
+  },
+  "T1110.002": {
+   "deprecated": false,
+   "name": "Brute Force: Password Cracking",
+   "revoked": false,
+   "short_name": "Password Cracking"
+  },
+  "T1110.003": {
+   "deprecated": false,
+   "name": "Brute Force: Password Spraying",
+   "revoked": false,
+   "short_name": "Password Spraying"
+  },
+  "T1110.004": {
+   "deprecated": false,
+   "name": "Brute Force: Credential Stuffing",
+   "revoked": false,
+   "short_name": "Credential Stuffing"
+  },
+  "T1111": {
+   "deprecated": false,
+   "name": "Multi-Factor Authentication Interception",
+   "revoked": false,
+   "short_name": "Multi-Factor Authentication Interception"
+  },
+  "T1112": {
+   "deprecated": false,
+   "name": "Modify Registry",
+   "revoked": false,
+   "short_name": "Modify Registry"
+  },
+  "T1113": {
+   "deprecated": false,
+   "name": "Screen Capture",
+   "revoked": false,
+   "short_name": "Screen Capture"
+  },
+  "T1114": {
+   "deprecated": false,
+   "name": "Email Collection",
+   "revoked": false,
+   "short_name": "Email Collection"
+  },
+  "T1114.001": {
+   "deprecated": false,
+   "name": "Email Collection: Local Email Collection",
+   "revoked": false,
+   "short_name": "Local Email Collection"
+  },
+  "T1114.002": {
+   "deprecated": false,
+   "name": "Email Collection: Remote Email Collection",
+   "revoked": false,
+   "short_name": "Remote Email Collection"
+  },
+  "T1114.003": {
+   "deprecated": false,
+   "name": "Email Collection: Email Forwarding Rule",
+   "revoked": false,
+   "short_name": "Email Forwarding Rule"
+  },
+  "T1115": {
+   "deprecated": false,
+   "name": "Clipboard Data",
+   "revoked": false,
+   "short_name": "Clipboard Data"
+  },
+  "T1116": {
+   "deprecated": false,
+   "name": "Code Signing",
+   "revoked": true,
+   "short_name": "Code Signing"
+  },
+  "T1117": {
+   "deprecated": false,
+   "name": "Regsvr32",
+   "revoked": true,
+   "short_name": "Regsvr32"
+  },
+  "T1118": {
+   "deprecated": false,
+   "name": "InstallUtil",
+   "revoked": true,
+   "short_name": "InstallUtil"
+  },
+  "T1119": {
+   "deprecated": false,
+   "name": "Automated Collection",
+   "revoked": false,
+   "short_name": "Automated Collection"
+  },
+  "T1120": {
+   "deprecated": false,
+   "name": "Peripheral Device Discovery",
+   "revoked": false,
+   "short_name": "Peripheral Device Discovery"
+  },
+  "T1121": {
+   "deprecated": false,
+   "name": "Regsvcs/Regasm",
+   "revoked": true,
+   "short_name": "Regsvcs/Regasm"
+  },
+  "T1122": {
+   "deprecated": false,
+   "name": "Component Object Model Hijacking",
+   "revoked": true,
+   "short_name": "Component Object Model Hijacking"
+  },
+  "T1123": {
+   "deprecated": false,
+   "name": "Audio Capture",
+   "revoked": false,
+   "short_name": "Audio Capture"
+  },
+  "T1124": {
+   "deprecated": false,
+   "name": "System Time Discovery",
+   "revoked": false,
+   "short_name": "System Time Discovery"
+  },
+  "T1125": {
+   "deprecated": false,
+   "name": "Video Capture",
+   "revoked": false,
+   "short_name": "Video Capture"
+  },
+  "T1126": {
+   "deprecated": false,
+   "name": "Network Share Connection Removal",
+   "revoked": true,
+   "short_name": "Network Share Connection Removal"
+  },
+  "T1127": {
+   "deprecated": false,
+   "name": "Trusted Developer Utilities Proxy Execution",
+   "revoked": false,
+   "short_name": "Trusted Developer Utilities Proxy Execution"
+  },
+  "T1127.001": {
+   "deprecated": false,
+   "name": "Trusted Developer Utilities Proxy Execution: MSBuild",
+   "revoked": false,
+   "short_name": "MSBuild"
+  },
+  "T1127.002": {
+   "deprecated": false,
+   "name": "Trusted Developer Utilities Proxy Execution: ClickOnce",
+   "revoked": false,
+   "short_name": "ClickOnce"
+  },
+  "T1127.003": {
+   "deprecated": false,
+   "name": "Trusted Developer Utilities Proxy Execution: JamPlus",
+   "revoked": false,
+   "short_name": "JamPlus"
+  },
+  "T1128": {
+   "deprecated": false,
+   "name": "Netsh Helper DLL",
+   "revoked": true,
+   "short_name": "Netsh Helper DLL"
+  },
+  "T1129": {
+   "deprecated": false,
+   "name": "Shared Modules",
+   "revoked": false,
+   "short_name": "Shared Modules"
+  },
+  "T1130": {
+   "deprecated": false,
+   "name": "Install Root Certificate",
+   "revoked": true,
+   "short_name": "Install Root Certificate"
+  },
+  "T1131": {
+   "deprecated": false,
+   "name": "Authentication Package",
+   "revoked": true,
+   "short_name": "Authentication Package"
+  },
+  "T1132": {
+   "deprecated": false,
+   "name": "Data Encoding",
+   "revoked": false,
+   "short_name": "Data Encoding"
+  },
+  "T1132.001": {
+   "deprecated": false,
+   "name": "Data Encoding: Standard Encoding",
+   "revoked": false,
+   "short_name": "Standard Encoding"
+  },
+  "T1132.002": {
+   "deprecated": false,
+   "name": "Data Encoding: Non-Standard Encoding",
+   "revoked": false,
+   "short_name": "Non-Standard Encoding"
+  },
+  "T1133": {
+   "deprecated": false,
+   "name": "External Remote Services",
+   "revoked": false,
+   "short_name": "External Remote Services"
+  },
+  "T1134": {
+   "deprecated": false,
+   "name": "Access Token Manipulation",
+   "revoked": false,
+   "short_name": "Access Token Manipulation"
+  },
+  "T1134.001": {
+   "deprecated": false,
+   "name": "Access Token Manipulation: Token Impersonation/Theft",
+   "revoked": false,
+   "short_name": "Token Impersonation/Theft"
+  },
+  "T1134.002": {
+   "deprecated": false,
+   "name": "Access Token Manipulation: Create Process with Token",
+   "revoked": false,
+   "short_name": "Create Process with Token"
+  },
+  "T1134.003": {
+   "deprecated": false,
+   "name": "Access Token Manipulation: Make and Impersonate Token",
+   "revoked": false,
+   "short_name": "Make and Impersonate Token"
+  },
+  "T1134.004": {
+   "deprecated": false,
+   "name": "Access Token Manipulation: Parent PID Spoofing",
+   "revoked": false,
+   "short_name": "Parent PID Spoofing"
+  },
+  "T1134.005": {
+   "deprecated": false,
+   "name": "Access Token Manipulation: SID-History Injection",
+   "revoked": false,
+   "short_name": "SID-History Injection"
+  },
+  "T1135": {
+   "deprecated": false,
+   "name": "Network Share Discovery",
+   "revoked": false,
+   "short_name": "Network Share Discovery"
+  },
+  "T1136": {
+   "deprecated": false,
+   "name": "Create Account",
+   "revoked": false,
+   "short_name": "Create Account"
+  },
+  "T1136.001": {
+   "deprecated": false,
+   "name": "Create Account: Local Account",
+   "revoked": false,
+   "short_name": "Local Account"
+  },
+  "T1136.002": {
+   "deprecated": false,
+   "name": "Create Account: Domain Account",
+   "revoked": false,
+   "short_name": "Domain Account"
+  },
+  "T1136.003": {
+   "deprecated": false,
+   "name": "Create Account: Cloud Account",
+   "revoked": false,
+   "short_name": "Cloud Account"
+  },
+  "T1137": {
+   "deprecated": false,
+   "name": "Office Application Startup",
+   "revoked": false,
+   "short_name": "Office Application Startup"
+  },
+  "T1137.001": {
+   "deprecated": false,
+   "name": "Office Application Startup: Office Template Macros",
+   "revoked": false,
+   "short_name": "Office Template Macros"
+  },
+  "T1137.002": {
+   "deprecated": false,
+   "name": "Office Application Startup: Office Test",
+   "revoked": false,
+   "short_name": "Office Test"
+  },
+  "T1137.003": {
+   "deprecated": false,
+   "name": "Office Application Startup: Outlook Forms",
+   "revoked": false,
+   "short_name": "Outlook Forms"
+  },
+  "T1137.004": {
+   "deprecated": false,
+   "name": "Office Application Startup: Outlook Home Page",
+   "revoked": false,
+   "short_name": "Outlook Home Page"
+  },
+  "T1137.005": {
+   "deprecated": false,
+   "name": "Office Application Startup: Outlook Rules",
+   "revoked": false,
+   "short_name": "Outlook Rules"
+  },
+  "T1137.006": {
+   "deprecated": false,
+   "name": "Office Application Startup: Add-ins",
+   "revoked": false,
+   "short_name": "Add-ins"
+  },
+  "T1138": {
+   "deprecated": false,
+   "name": "Application Shimming",
+   "revoked": true,
+   "short_name": "Application Shimming"
+  },
+  "T1139": {
+   "deprecated": false,
+   "name": "Bash History",
+   "revoked": true,
+   "short_name": "Bash History"
+  },
+  "T1140": {
+   "deprecated": false,
+   "name": "Deobfuscate/Decode Files or Information",
+   "revoked": false,
+   "short_name": "Deobfuscate/Decode Files or Information"
+  },
+  "T1141": {
+   "deprecated": false,
+   "name": "Input Prompt",
+   "revoked": true,
+   "short_name": "Input Prompt"
+  },
+  "T1142": {
+   "deprecated": false,
+   "name": "Keychain",
+   "revoked": true,
+   "short_name": "Keychain"
+  },
+  "T1143": {
+   "deprecated": false,
+   "name": "Hidden Window",
+   "revoked": true,
+   "short_name": "Hidden Window"
+  },
+  "T1144": {
+   "deprecated": false,
+   "name": "Gatekeeper Bypass",
+   "revoked": true,
+   "short_name": "Gatekeeper Bypass"
+  },
+  "T1145": {
+   "deprecated": false,
+   "name": "Private Keys",
+   "revoked": true,
+   "short_name": "Private Keys"
+  },
+  "T1146": {
+   "deprecated": false,
+   "name": "Clear Command History",
+   "revoked": true,
+   "short_name": "Clear Command History"
+  },
+  "T1147": {
+   "deprecated": false,
+   "name": "Hidden Users",
+   "revoked": true,
+   "short_name": "Hidden Users"
+  },
+  "T1148": {
+   "deprecated": false,
+   "name": "HISTCONTROL",
+   "revoked": true,
+   "short_name": "HISTCONTROL"
+  },
+  "T1149": {
+   "deprecated": true,
+   "name": "LC_MAIN Hijacking",
+   "revoked": false,
+   "short_name": "LC_MAIN Hijacking"
+  },
+  "T1150": {
+   "deprecated": false,
+   "name": "Plist Modification",
+   "revoked": true,
+   "short_name": "Plist Modification"
+  },
+  "T1151": {
+   "deprecated": false,
+   "name": "Space after Filename",
+   "revoked": true,
+   "short_name": "Space after Filename"
+  },
+  "T1152": {
+   "deprecated": false,
+   "name": "Launchctl",
+   "revoked": true,
+   "short_name": "Launchctl"
+  },
+  "T1153": {
+   "deprecated": true,
+   "name": "Source",
+   "revoked": false,
+   "short_name": "Source"
+  },
+  "T1154": {
+   "deprecated": false,
+   "name": "Trap",
+   "revoked": true,
+   "short_name": "Trap"
+  },
+  "T1155": {
+   "deprecated": false,
+   "name": "AppleScript",
+   "revoked": true,
+   "short_name": "AppleScript"
+  },
+  "T1156": {
+   "deprecated": false,
+   "name": "Malicious Shell Modification",
+   "revoked": true,
+   "short_name": "Malicious Shell Modification"
+  },
+  "T1157": {
+   "deprecated": false,
+   "name": "Dylib Hijacking",
+   "revoked": true,
+   "short_name": "Dylib Hijacking"
+  },
+  "T1158": {
+   "deprecated": false,
+   "name": "Hidden Files and Directories",
+   "revoked": true,
+   "short_name": "Hidden Files and Directories"
+  },
+  "T1159": {
+   "deprecated": false,
+   "name": "Launch Agent",
+   "revoked": true,
+   "short_name": "Launch Agent"
+  },
+  "T1160": {
+   "deprecated": false,
+   "name": "Launch Daemon",
+   "revoked": true,
+   "short_name": "Launch Daemon"
+  },
+  "T1161": {
+   "deprecated": false,
+   "name": "LC_LOAD_DYLIB Addition",
+   "revoked": true,
+   "short_name": "LC_LOAD_DYLIB Addition"
+  },
+  "T1162": {
+   "deprecated": false,
+   "name": "Login Item",
+   "revoked": true,
+   "short_name": "Login Item"
+  },
+  "T1163": {
+   "deprecated": false,
+   "name": "Rc.common",
+   "revoked": true,
+   "short_name": "Rc.common"
+  },
+  "T1164": {
+   "deprecated": false,
+   "name": "Re-opened Applications",
+   "revoked": true,
+   "short_name": "Re-opened Applications"
+  },
+  "T1165": {
+   "deprecated": false,
+   "name": "Startup Items",
+   "revoked": true,
+   "short_name": "Startup Items"
+  },
+  "T1166": {
+   "deprecated": false,
+   "name": "Setuid and Setgid",
+   "revoked": true,
+   "short_name": "Setuid and Setgid"
+  },
+  "T1167": {
+   "deprecated": false,
+   "name": "Securityd Memory",
+   "revoked": true,
+   "short_name": "Securityd Memory"
+  },
+  "T1168": {
+   "deprecated": false,
+   "name": "Local Job Scheduling",
+   "revoked": true,
+   "short_name": "Local Job Scheduling"
+  },
+  "T1169": {
+   "deprecated": false,
+   "name": "Sudo",
+   "revoked": true,
+   "short_name": "Sudo"
+  },
+  "T1170": {
+   "deprecated": false,
+   "name": "Mshta",
+   "revoked": true,
+   "short_name": "Mshta"
+  },
+  "T1171": {
+   "deprecated": false,
+   "name": "LLMNR/NBT-NS Poisoning and Relay",
+   "revoked": true,
+   "short_name": "LLMNR/NBT-NS Poisoning and Relay"
+  },
+  "T1172": {
+   "deprecated": false,
+   "name": "Domain Fronting",
+   "revoked": true,
+   "short_name": "Domain Fronting"
+  },
+  "T1173": {
+   "deprecated": false,
+   "name": "Dynamic Data Exchange",
+   "revoked": true,
+   "short_name": "Dynamic Data Exchange"
+  },
+  "T1174": {
+   "deprecated": false,
+   "name": "Password Filter DLL",
+   "revoked": true,
+   "short_name": "Password Filter DLL"
+  },
+  "T1175": {
+   "deprecated": true,
+   "name": "Component Object Model and Distributed COM",
+   "revoked": false,
+   "short_name": "Component Object Model and Distributed COM"
+  },
+  "T1176": {
+   "deprecated": false,
+   "name": "Software Extensions",
+   "revoked": false,
+   "short_name": "Software Extensions"
+  },
+  "T1176.001": {
+   "deprecated": false,
+   "name": "Software Extensions: Browser Extensions",
+   "revoked": false,
+   "short_name": "Browser Extensions"
+  },
+  "T1176.002": {
+   "deprecated": false,
+   "name": "Software Extensions: IDE Extensions",
+   "revoked": false,
+   "short_name": "IDE Extensions"
+  },
+  "T1177": {
+   "deprecated": false,
+   "name": "LSASS Driver",
+   "revoked": true,
+   "short_name": "LSASS Driver"
+  },
+  "T1178": {
+   "deprecated": false,
+   "name": "SID-History Injection",
+   "revoked": true,
+   "short_name": "SID-History Injection"
+  },
+  "T1179": {
+   "deprecated": false,
+   "name": "Hooking",
+   "revoked": true,
+   "short_name": "Hooking"
+  },
+  "T1180": {
+   "deprecated": false,
+   "name": "Screensaver",
+   "revoked": true,
+   "short_name": "Screensaver"
+  },
+  "T1181": {
+   "deprecated": false,
+   "name": "Extra Window Memory Injection",
+   "revoked": true,
+   "short_name": "Extra Window Memory Injection"
+  },
+  "T1182": {
+   "deprecated": false,
+   "name": "AppCert DLLs",
+   "revoked": true,
+   "short_name": "AppCert DLLs"
+  },
+  "T1183": {
+   "deprecated": false,
+   "name": "Image File Execution Options Injection",
+   "revoked": true,
+   "short_name": "Image File Execution Options Injection"
+  },
+  "T1184": {
+   "deprecated": false,
+   "name": "SSH Hijacking",
+   "revoked": true,
+   "short_name": "SSH Hijacking"
+  },
+  "T1185": {
+   "deprecated": false,
+   "name": "Browser Session Hijacking",
+   "revoked": false,
+   "short_name": "Browser Session Hijacking"
+  },
+  "T1186": {
+   "deprecated": false,
+   "name": "Process Doppelg\u00e4nging",
+   "revoked": true,
+   "short_name": "Process Doppelg\u00e4nging"
+  },
+  "T1187": {
+   "deprecated": false,
+   "name": "Forced Authentication",
+   "revoked": false,
+   "short_name": "Forced Authentication"
+  },
+  "T1188": {
+   "deprecated": false,
+   "name": "Multi-hop Proxy",
+   "revoked": true,
+   "short_name": "Multi-hop Proxy"
+  },
+  "T1189": {
+   "deprecated": false,
+   "name": "Drive-by Compromise",
+   "revoked": false,
+   "short_name": "Drive-by Compromise"
+  },
+  "T1190": {
+   "deprecated": false,
+   "name": "Exploit Public-Facing Application",
+   "revoked": false,
+   "short_name": "Exploit Public-Facing Application"
+  },
+  "T1191": {
+   "deprecated": false,
+   "name": "CMSTP",
+   "revoked": true,
+   "short_name": "CMSTP"
+  },
+  "T1192": {
+   "deprecated": false,
+   "name": "Spearphishing Link",
+   "revoked": true,
+   "short_name": "Spearphishing Link"
+  },
+  "T1193": {
+   "deprecated": false,
+   "name": "Spearphishing Attachment",
+   "revoked": true,
+   "short_name": "Spearphishing Attachment"
+  },
+  "T1194": {
+   "deprecated": false,
+   "name": "Spearphishing via Service",
+   "revoked": true,
+   "short_name": "Spearphishing via Service"
+  },
+  "T1195": {
+   "deprecated": false,
+   "name": "Supply Chain Compromise",
+   "revoked": false,
+   "short_name": "Supply Chain Compromise"
+  },
+  "T1195.001": {
+   "deprecated": false,
+   "name": "Supply Chain Compromise: Compromise Software Dependencies and Development Tools",
+   "revoked": false,
+   "short_name": "Compromise Software Dependencies and Development Tools"
+  },
+  "T1195.002": {
+   "deprecated": false,
+   "name": "Supply Chain Compromise: Compromise Software Supply Chain",
+   "revoked": false,
+   "short_name": "Compromise Software Supply Chain"
+  },
+  "T1195.003": {
+   "deprecated": false,
+   "name": "Supply Chain Compromise: Compromise Hardware Supply Chain",
+   "revoked": false,
+   "short_name": "Compromise Hardware Supply Chain"
+  },
+  "T1196": {
+   "deprecated": false,
+   "name": "Control Panel Items",
+   "revoked": true,
+   "short_name": "Control Panel Items"
+  },
+  "T1197": {
+   "deprecated": false,
+   "name": "BITS Jobs",
+   "revoked": false,
+   "short_name": "BITS Jobs"
+  },
+  "T1198": {
+   "deprecated": false,
+   "name": "SIP and Trust Provider Hijacking",
+   "revoked": true,
+   "short_name": "SIP and Trust Provider Hijacking"
+  },
+  "T1199": {
+   "deprecated": false,
+   "name": "Trusted Relationship",
+   "revoked": false,
+   "short_name": "Trusted Relationship"
+  },
+  "T1200": {
+   "deprecated": false,
+   "name": "Hardware Additions",
+   "revoked": false,
+   "short_name": "Hardware Additions"
+  },
+  "T1201": {
+   "deprecated": false,
+   "name": "Password Policy Discovery",
+   "revoked": false,
+   "short_name": "Password Policy Discovery"
+  },
+  "T1202": {
+   "deprecated": false,
+   "name": "Indirect Command Execution",
+   "revoked": false,
+   "short_name": "Indirect Command Execution"
+  },
+  "T1203": {
+   "deprecated": false,
+   "name": "Exploitation for Client Execution",
+   "revoked": false,
+   "short_name": "Exploitation for Client Execution"
+  },
+  "T1204": {
+   "deprecated": false,
+   "name": "User Execution",
+   "revoked": false,
+   "short_name": "User Execution"
+  },
+  "T1204.001": {
+   "deprecated": false,
+   "name": "User Execution: Malicious Link",
+   "revoked": false,
+   "short_name": "Malicious Link"
+  },
+  "T1204.002": {
+   "deprecated": false,
+   "name": "User Execution: Malicious File",
+   "revoked": false,
+   "short_name": "Malicious File"
+  },
+  "T1204.003": {
+   "deprecated": false,
+   "name": "User Execution: Malicious Image",
+   "revoked": false,
+   "short_name": "Malicious Image"
+  },
+  "T1204.004": {
+   "deprecated": false,
+   "name": "User Execution: Malicious Copy and Paste",
+   "revoked": false,
+   "short_name": "Malicious Copy and Paste"
+  },
+  "T1204.005": {
+   "deprecated": false,
+   "name": "User Execution: Malicious Library",
+   "revoked": false,
+   "short_name": "Malicious Library"
+  },
+  "T1205": {
+   "deprecated": false,
+   "name": "Traffic Signaling",
+   "revoked": false,
+   "short_name": "Traffic Signaling"
+  },
+  "T1205.001": {
+   "deprecated": false,
+   "name": "Traffic Signaling: Port Knocking",
+   "revoked": false,
+   "short_name": "Port Knocking"
+  },
+  "T1205.002": {
+   "deprecated": false,
+   "name": "Traffic Signaling: Socket Filters",
+   "revoked": false,
+   "short_name": "Socket Filters"
+  },
+  "T1206": {
+   "deprecated": false,
+   "name": "Sudo Caching",
+   "revoked": true,
+   "short_name": "Sudo Caching"
+  },
+  "T1207": {
+   "deprecated": false,
+   "name": "Rogue Domain Controller",
+   "revoked": false,
+   "short_name": "Rogue Domain Controller"
+  },
+  "T1208": {
+   "deprecated": false,
+   "name": "Kerberoasting",
+   "revoked": true,
+   "short_name": "Kerberoasting"
+  },
+  "T1209": {
+   "deprecated": false,
+   "name": "Time Providers",
+   "revoked": true,
+   "short_name": "Time Providers"
+  },
+  "T1210": {
+   "deprecated": false,
+   "name": "Exploitation of Remote Services",
+   "revoked": false,
+   "short_name": "Exploitation of Remote Services"
+  },
+  "T1211": {
+   "deprecated": false,
+   "name": "Exploitation for Stealth",
+   "revoked": false,
+   "short_name": "Exploitation for Stealth"
+  },
+  "T1212": {
+   "deprecated": false,
+   "name": "Exploitation for Credential Access",
+   "revoked": false,
+   "short_name": "Exploitation for Credential Access"
+  },
+  "T1213": {
+   "deprecated": false,
+   "name": "Data from Information Repositories",
+   "revoked": false,
+   "short_name": "Data from Information Repositories"
+  },
+  "T1213.001": {
+   "deprecated": false,
+   "name": "Data from Information Repositories: Confluence",
+   "revoked": false,
+   "short_name": "Confluence"
+  },
+  "T1213.002": {
+   "deprecated": false,
+   "name": "Data from Information Repositories: Sharepoint",
+   "revoked": false,
+   "short_name": "Sharepoint"
+  },
+  "T1213.003": {
+   "deprecated": false,
+   "name": "Data from Information Repositories: Code Repositories",
+   "revoked": false,
+   "short_name": "Code Repositories"
+  },
+  "T1213.004": {
+   "deprecated": false,
+   "name": "Data from Information Repositories: Customer Relationship Management Software",
+   "revoked": false,
+   "short_name": "Customer Relationship Management Software"
+  },
+  "T1213.005": {
+   "deprecated": false,
+   "name": "Data from Information Repositories: Messaging Applications",
+   "revoked": false,
+   "short_name": "Messaging Applications"
+  },
+  "T1213.006": {
+   "deprecated": false,
+   "name": "Data from Information Repositories: Databases",
+   "revoked": false,
+   "short_name": "Databases"
+  },
+  "T1214": {
+   "deprecated": false,
+   "name": "Credentials in Registry",
+   "revoked": true,
+   "short_name": "Credentials in Registry"
+  },
+  "T1215": {
+   "deprecated": false,
+   "name": "Kernel Modules and Extensions",
+   "revoked": true,
+   "short_name": "Kernel Modules and Extensions"
+  },
+  "T1216": {
+   "deprecated": false,
+   "name": "System Script Proxy Execution",
+   "revoked": false,
+   "short_name": "System Script Proxy Execution"
+  },
+  "T1216.001": {
+   "deprecated": false,
+   "name": "System Script Proxy Execution: PubPrn",
+   "revoked": false,
+   "short_name": "PubPrn"
+  },
+  "T1216.002": {
+   "deprecated": false,
+   "name": "System Script Proxy Execution: SyncAppvPublishingServer",
+   "revoked": false,
+   "short_name": "SyncAppvPublishingServer"
+  },
+  "T1217": {
+   "deprecated": false,
+   "name": "Browser Information Discovery",
+   "revoked": false,
+   "short_name": "Browser Information Discovery"
+  },
+  "T1218": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution",
+   "revoked": false,
+   "short_name": "System Binary Proxy Execution"
+  },
+  "T1218.001": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Compiled HTML File",
+   "revoked": false,
+   "short_name": "Compiled HTML File"
+  },
+  "T1218.002": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Control Panel",
+   "revoked": false,
+   "short_name": "Control Panel"
+  },
+  "T1218.003": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: CMSTP",
+   "revoked": false,
+   "short_name": "CMSTP"
+  },
+  "T1218.004": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: InstallUtil",
+   "revoked": false,
+   "short_name": "InstallUtil"
+  },
+  "T1218.005": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Mshta",
+   "revoked": false,
+   "short_name": "Mshta"
+  },
+  "T1218.007": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Msiexec",
+   "revoked": false,
+   "short_name": "Msiexec"
+  },
+  "T1218.008": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Odbcconf",
+   "revoked": false,
+   "short_name": "Odbcconf"
+  },
+  "T1218.009": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Regsvcs/Regasm",
+   "revoked": false,
+   "short_name": "Regsvcs/Regasm"
+  },
+  "T1218.010": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Regsvr32",
+   "revoked": false,
+   "short_name": "Regsvr32"
+  },
+  "T1218.011": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Rundll32",
+   "revoked": false,
+   "short_name": "Rundll32"
+  },
+  "T1218.012": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Verclsid",
+   "revoked": false,
+   "short_name": "Verclsid"
+  },
+  "T1218.013": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Mavinject",
+   "revoked": false,
+   "short_name": "Mavinject"
+  },
+  "T1218.014": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: MMC",
+   "revoked": false,
+   "short_name": "MMC"
+  },
+  "T1218.015": {
+   "deprecated": false,
+   "name": "System Binary Proxy Execution: Electron Applications",
+   "revoked": false,
+   "short_name": "Electron Applications"
+  },
+  "T1219": {
+   "deprecated": false,
+   "name": "Remote Access Tools",
+   "revoked": false,
+   "short_name": "Remote Access Tools"
+  },
+  "T1219.001": {
+   "deprecated": false,
+   "name": "Remote Access Tools: IDE Tunneling",
+   "revoked": false,
+   "short_name": "IDE Tunneling"
+  },
+  "T1219.002": {
+   "deprecated": false,
+   "name": "Remote Access Tools: Remote Desktop Software",
+   "revoked": false,
+   "short_name": "Remote Desktop Software"
+  },
+  "T1219.003": {
+   "deprecated": false,
+   "name": "Remote Access Tools: Remote Access Hardware",
+   "revoked": false,
+   "short_name": "Remote Access Hardware"
+  },
+  "T1220": {
+   "deprecated": false,
+   "name": "XSL Script Processing",
+   "revoked": false,
+   "short_name": "XSL Script Processing"
+  },
+  "T1221": {
+   "deprecated": false,
+   "name": "Template Injection",
+   "revoked": false,
+   "short_name": "Template Injection"
+  },
+  "T1222": {
+   "deprecated": false,
+   "name": "File and Directory Permissions Modification",
+   "revoked": false,
+   "short_name": "File and Directory Permissions Modification"
+  },
+  "T1222.001": {
+   "deprecated": false,
+   "name": "File and Directory Permissions Modification: Windows Permissions",
+   "revoked": false,
+   "short_name": "Windows Permissions"
+  },
+  "T1222.002": {
+   "deprecated": false,
+   "name": "File and Directory Permissions Modification: Linux and Mac Permissions",
+   "revoked": false,
+   "short_name": "Linux and Mac Permissions"
+  },
+  "T1223": {
+   "deprecated": false,
+   "name": "Compiled HTML File",
+   "revoked": true,
+   "short_name": "Compiled HTML File"
+  },
+  "T1480": {
+   "deprecated": false,
+   "name": "Execution Guardrails",
+   "revoked": false,
+   "short_name": "Execution Guardrails"
+  },
+  "T1480.001": {
+   "deprecated": false,
+   "name": "Execution Guardrails: Environmental Keying",
+   "revoked": false,
+   "short_name": "Environmental Keying"
+  },
+  "T1480.002": {
+   "deprecated": false,
+   "name": "Execution Guardrails: Mutual Exclusion",
+   "revoked": false,
+   "short_name": "Mutual Exclusion"
+  },
+  "T1482": {
+   "deprecated": false,
+   "name": "Domain Trust Discovery",
+   "revoked": false,
+   "short_name": "Domain Trust Discovery"
+  },
+  "T1483": {
+   "deprecated": false,
+   "name": "Domain Generation Algorithms",
+   "revoked": true,
+   "short_name": "Domain Generation Algorithms"
+  },
+  "T1484": {
+   "deprecated": false,
+   "name": "Domain or Tenant Policy Modification",
+   "revoked": false,
+   "short_name": "Domain or Tenant Policy Modification"
+  },
+  "T1484.001": {
+   "deprecated": false,
+   "name": "Domain or Tenant Policy Modification: Group Policy Modification",
+   "revoked": false,
+   "short_name": "Group Policy Modification"
+  },
+  "T1484.002": {
+   "deprecated": false,
+   "name": "Domain or Tenant Policy Modification: Trust Modification",
+   "revoked": false,
+   "short_name": "Trust Modification"
+  },
+  "T1485": {
+   "deprecated": false,
+   "name": "Data Destruction",
+   "revoked": false,
+   "short_name": "Data Destruction"
+  },
+  "T1485.001": {
+   "deprecated": false,
+   "name": "Data Destruction: Lifecycle-Triggered Deletion",
+   "revoked": false,
+   "short_name": "Lifecycle-Triggered Deletion"
+  },
+  "T1486": {
+   "deprecated": false,
+   "name": "Data Encrypted for Impact",
+   "revoked": false,
+   "short_name": "Data Encrypted for Impact"
+  },
+  "T1487": {
+   "deprecated": false,
+   "name": "Disk Structure Wipe",
+   "revoked": true,
+   "short_name": "Disk Structure Wipe"
+  },
+  "T1488": {
+   "deprecated": false,
+   "name": "Disk Content Wipe",
+   "revoked": true,
+   "short_name": "Disk Content Wipe"
+  },
+  "T1489": {
+   "deprecated": false,
+   "name": "Service Stop",
+   "revoked": false,
+   "short_name": "Service Stop"
+  },
+  "T1490": {
+   "deprecated": false,
+   "name": "Inhibit System Recovery",
+   "revoked": false,
+   "short_name": "Inhibit System Recovery"
+  },
+  "T1491": {
+   "deprecated": false,
+   "name": "Defacement",
+   "revoked": false,
+   "short_name": "Defacement"
+  },
+  "T1491.001": {
+   "deprecated": false,
+   "name": "Defacement: Internal Defacement",
+   "revoked": false,
+   "short_name": "Internal Defacement"
+  },
+  "T1491.002": {
+   "deprecated": false,
+   "name": "Defacement: External Defacement",
+   "revoked": false,
+   "short_name": "External Defacement"
+  },
+  "T1492": {
+   "deprecated": false,
+   "name": "Stored Data Manipulation",
+   "revoked": true,
+   "short_name": "Stored Data Manipulation"
+  },
+  "T1493": {
+   "deprecated": false,
+   "name": "Transmitted Data Manipulation",
+   "revoked": true,
+   "short_name": "Transmitted Data Manipulation"
+  },
+  "T1494": {
+   "deprecated": false,
+   "name": "Runtime Data Manipulation",
+   "revoked": true,
+   "short_name": "Runtime Data Manipulation"
+  },
+  "T1495": {
+   "deprecated": false,
+   "name": "Firmware Corruption",
+   "revoked": false,
+   "short_name": "Firmware Corruption"
+  },
+  "T1496": {
+   "deprecated": false,
+   "name": "Resource Hijacking",
+   "revoked": false,
+   "short_name": "Resource Hijacking"
+  },
+  "T1496.001": {
+   "deprecated": false,
+   "name": "Resource Hijacking: Compute Hijacking",
+   "revoked": false,
+   "short_name": "Compute Hijacking"
+  },
+  "T1496.002": {
+   "deprecated": false,
+   "name": "Resource Hijacking: Bandwidth Hijacking",
+   "revoked": false,
+   "short_name": "Bandwidth Hijacking"
+  },
+  "T1496.003": {
+   "deprecated": false,
+   "name": "Resource Hijacking: SMS Pumping",
+   "revoked": false,
+   "short_name": "SMS Pumping"
+  },
+  "T1496.004": {
+   "deprecated": false,
+   "name": "Resource Hijacking: Cloud Service Hijacking",
+   "revoked": false,
+   "short_name": "Cloud Service Hijacking"
+  },
+  "T1497": {
+   "deprecated": false,
+   "name": "Virtualization/Sandbox Evasion",
+   "revoked": false,
+   "short_name": "Virtualization/Sandbox Evasion"
+  },
+  "T1497.001": {
+   "deprecated": false,
+   "name": "Virtualization/Sandbox Evasion: System Checks",
+   "revoked": false,
+   "short_name": "System Checks"
+  },
+  "T1497.002": {
+   "deprecated": false,
+   "name": "Virtualization/Sandbox Evasion: User Activity Based Checks",
+   "revoked": false,
+   "short_name": "User Activity Based Checks"
+  },
+  "T1497.003": {
+   "deprecated": false,
+   "name": "Virtualization/Sandbox Evasion: Time Based Checks",
+   "revoked": false,
+   "short_name": "Time Based Checks"
+  },
+  "T1498": {
+   "deprecated": false,
+   "name": "Network Denial of Service",
+   "revoked": false,
+   "short_name": "Network Denial of Service"
+  },
+  "T1498.001": {
+   "deprecated": false,
+   "name": "Network Denial of Service: Direct Network Flood",
+   "revoked": false,
+   "short_name": "Direct Network Flood"
+  },
+  "T1498.002": {
+   "deprecated": false,
+   "name": "Network Denial of Service: Reflection Amplification",
+   "revoked": false,
+   "short_name": "Reflection Amplification"
+  },
+  "T1499": {
+   "deprecated": false,
+   "name": "Endpoint Denial of Service",
+   "revoked": false,
+   "short_name": "Endpoint Denial of Service"
+  },
+  "T1499.001": {
+   "deprecated": false,
+   "name": "Endpoint Denial of Service: OS Exhaustion Flood",
+   "revoked": false,
+   "short_name": "OS Exhaustion Flood"
+  },
+  "T1499.002": {
+   "deprecated": false,
+   "name": "Endpoint Denial of Service: Service Exhaustion Flood",
+   "revoked": false,
+   "short_name": "Service Exhaustion Flood"
+  },
+  "T1499.003": {
+   "deprecated": false,
+   "name": "Endpoint Denial of Service: Application Exhaustion Flood",
+   "revoked": false,
+   "short_name": "Application Exhaustion Flood"
+  },
+  "T1499.004": {
+   "deprecated": false,
+   "name": "Endpoint Denial of Service: Application or System Exploitation",
+   "revoked": false,
+   "short_name": "Application or System Exploitation"
+  },
+  "T1500": {
+   "deprecated": false,
+   "name": "Compile After Delivery",
+   "revoked": true,
+   "short_name": "Compile After Delivery"
+  },
+  "T1501": {
+   "deprecated": false,
+   "name": "Systemd Service",
+   "revoked": true,
+   "short_name": "Systemd Service"
+  },
+  "T1502": {
+   "deprecated": false,
+   "name": "Parent PID Spoofing",
+   "revoked": true,
+   "short_name": "Parent PID Spoofing"
+  },
+  "T1503": {
+   "deprecated": false,
+   "name": "Credentials from Web Browsers",
+   "revoked": true,
+   "short_name": "Credentials from Web Browsers"
+  },
+  "T1504": {
+   "deprecated": false,
+   "name": "PowerShell Profile",
+   "revoked": true,
+   "short_name": "PowerShell Profile"
+  },
+  "T1505": {
+   "deprecated": false,
+   "name": "Server Software Component",
+   "revoked": false,
+   "short_name": "Server Software Component"
+  },
+  "T1505.001": {
+   "deprecated": false,
+   "name": "Server Software Component: SQL Stored Procedures",
+   "revoked": false,
+   "short_name": "SQL Stored Procedures"
+  },
+  "T1505.002": {
+   "deprecated": false,
+   "name": "Server Software Component: Transport Agent",
+   "revoked": false,
+   "short_name": "Transport Agent"
+  },
+  "T1505.003": {
+   "deprecated": false,
+   "name": "Server Software Component: Web Shell",
+   "revoked": false,
+   "short_name": "Web Shell"
+  },
+  "T1505.004": {
+   "deprecated": false,
+   "name": "Server Software Component: IIS Components",
+   "revoked": false,
+   "short_name": "IIS Components"
+  },
+  "T1505.005": {
+   "deprecated": false,
+   "name": "Server Software Component: Terminal Services DLL",
+   "revoked": false,
+   "short_name": "Terminal Services DLL"
+  },
+  "T1505.006": {
+   "deprecated": false,
+   "name": "Server Software Component: vSphere Installation Bundles",
+   "revoked": false,
+   "short_name": "vSphere Installation Bundles"
+  },
+  "T1506": {
+   "deprecated": false,
+   "name": "Web Session Cookie",
+   "revoked": true,
+   "short_name": "Web Session Cookie"
+  },
+  "T1514": {
+   "deprecated": false,
+   "name": "Elevated Execution with Prompt",
+   "revoked": true,
+   "short_name": "Elevated Execution with Prompt"
+  },
+  "T1518": {
+   "deprecated": false,
+   "name": "Software Discovery",
+   "revoked": false,
+   "short_name": "Software Discovery"
+  },
+  "T1518.001": {
+   "deprecated": false,
+   "name": "Software Discovery: Security Software Discovery",
+   "revoked": false,
+   "short_name": "Security Software Discovery"
+  },
+  "T1518.002": {
+   "deprecated": false,
+   "name": "Software Discovery: Backup Software Discovery",
+   "revoked": false,
+   "short_name": "Backup Software Discovery"
+  },
+  "T1519": {
+   "deprecated": false,
+   "name": "Emond",
+   "revoked": true,
+   "short_name": "Emond"
+  },
+  "T1522": {
+   "deprecated": false,
+   "name": "Cloud Instance Metadata API",
+   "revoked": true,
+   "short_name": "Cloud Instance Metadata API"
+  },
+  "T1525": {
+   "deprecated": false,
+   "name": "Implant Internal Image",
+   "revoked": false,
+   "short_name": "Implant Internal Image"
+  },
+  "T1526": {
+   "deprecated": false,
+   "name": "Cloud Service Discovery",
+   "revoked": false,
+   "short_name": "Cloud Service Discovery"
+  },
+  "T1527": {
+   "deprecated": false,
+   "name": "Application Access Token",
+   "revoked": true,
+   "short_name": "Application Access Token"
+  },
+  "T1528": {
+   "deprecated": false,
+   "name": "Steal Application Access Token",
+   "revoked": false,
+   "short_name": "Steal Application Access Token"
+  },
+  "T1529": {
+   "deprecated": false,
+   "name": "System Shutdown/Reboot",
+   "revoked": false,
+   "short_name": "System Shutdown/Reboot"
+  },
+  "T1530": {
+   "deprecated": false,
+   "name": "Data from Cloud Storage",
+   "revoked": false,
+   "short_name": "Data from Cloud Storage"
+  },
+  "T1531": {
+   "deprecated": false,
+   "name": "Account Access Removal",
+   "revoked": false,
+   "short_name": "Account Access Removal"
+  },
+  "T1534": {
+   "deprecated": false,
+   "name": "Internal Spearphishing",
+   "revoked": false,
+   "short_name": "Internal Spearphishing"
+  },
+  "T1535": {
+   "deprecated": false,
+   "name": "Unused/Unsupported Cloud Regions",
+   "revoked": false,
+   "short_name": "Unused/Unsupported Cloud Regions"
+  },
+  "T1536": {
+   "deprecated": false,
+   "name": "Revert Cloud Instance",
+   "revoked": true,
+   "short_name": "Revert Cloud Instance"
+  },
+  "T1537": {
+   "deprecated": false,
+   "name": "Transfer Data to Cloud Account",
+   "revoked": false,
+   "short_name": "Transfer Data to Cloud Account"
+  },
+  "T1538": {
+   "deprecated": false,
+   "name": "Cloud Service Dashboard",
+   "revoked": false,
+   "short_name": "Cloud Service Dashboard"
+  },
+  "T1539": {
+   "deprecated": false,
+   "name": "Steal Web Session Cookie",
+   "revoked": false,
+   "short_name": "Steal Web Session Cookie"
+  },
+  "T1542": {
+   "deprecated": false,
+   "name": "Pre-OS Boot",
+   "revoked": false,
+   "short_name": "Pre-OS Boot"
+  },
+  "T1542.001": {
+   "deprecated": false,
+   "name": "Pre-OS Boot: System Firmware",
+   "revoked": false,
+   "short_name": "System Firmware"
+  },
+  "T1542.002": {
+   "deprecated": false,
+   "name": "Pre-OS Boot: Component Firmware",
+   "revoked": false,
+   "short_name": "Component Firmware"
+  },
+  "T1542.003": {
+   "deprecated": false,
+   "name": "Pre-OS Boot: Bootkit",
+   "revoked": false,
+   "short_name": "Bootkit"
+  },
+  "T1542.004": {
+   "deprecated": false,
+   "name": "Pre-OS Boot: ROMMONkit",
+   "revoked": false,
+   "short_name": "ROMMONkit"
+  },
+  "T1542.005": {
+   "deprecated": false,
+   "name": "Pre-OS Boot: TFTP Boot",
+   "revoked": false,
+   "short_name": "TFTP Boot"
+  },
+  "T1543": {
+   "deprecated": false,
+   "name": "Create or Modify System Process",
+   "revoked": false,
+   "short_name": "Create or Modify System Process"
+  },
+  "T1543.001": {
+   "deprecated": false,
+   "name": "Create or Modify System Process: Launch Agent",
+   "revoked": false,
+   "short_name": "Launch Agent"
+  },
+  "T1543.002": {
+   "deprecated": false,
+   "name": "Create or Modify System Process: Systemd Service",
+   "revoked": false,
+   "short_name": "Systemd Service"
+  },
+  "T1543.003": {
+   "deprecated": false,
+   "name": "Create or Modify System Process: Windows Service",
+   "revoked": false,
+   "short_name": "Windows Service"
+  },
+  "T1543.004": {
+   "deprecated": false,
+   "name": "Create or Modify System Process: Launch Daemon",
+   "revoked": false,
+   "short_name": "Launch Daemon"
+  },
+  "T1543.005": {
+   "deprecated": false,
+   "name": "Create or Modify System Process: Container Service",
+   "revoked": false,
+   "short_name": "Container Service"
+  },
+  "T1546": {
+   "deprecated": false,
+   "name": "Event Triggered Execution",
+   "revoked": false,
+   "short_name": "Event Triggered Execution"
+  },
+  "T1546.001": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Change Default File Association",
+   "revoked": false,
+   "short_name": "Change Default File Association"
+  },
+  "T1546.002": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Screensaver",
+   "revoked": false,
+   "short_name": "Screensaver"
+  },
+  "T1546.003": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Windows Management Instrumentation Event Subscription",
+   "revoked": false,
+   "short_name": "Windows Management Instrumentation Event Subscription"
+  },
+  "T1546.004": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Unix Shell Configuration Modification",
+   "revoked": false,
+   "short_name": "Unix Shell Configuration Modification"
+  },
+  "T1546.005": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Trap",
+   "revoked": false,
+   "short_name": "Trap"
+  },
+  "T1546.006": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: LC_LOAD_DYLIB Addition",
+   "revoked": false,
+   "short_name": "LC_LOAD_DYLIB Addition"
+  },
+  "T1546.007": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Netsh Helper DLL",
+   "revoked": false,
+   "short_name": "Netsh Helper DLL"
+  },
+  "T1546.008": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Accessibility Features",
+   "revoked": false,
+   "short_name": "Accessibility Features"
+  },
+  "T1546.009": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: AppCert DLLs",
+   "revoked": false,
+   "short_name": "AppCert DLLs"
+  },
+  "T1546.010": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: AppInit DLLs",
+   "revoked": false,
+   "short_name": "AppInit DLLs"
+  },
+  "T1546.011": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Application Shimming",
+   "revoked": false,
+   "short_name": "Application Shimming"
+  },
+  "T1546.012": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Image File Execution Options Injection",
+   "revoked": false,
+   "short_name": "Image File Execution Options Injection"
+  },
+  "T1546.013": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: PowerShell Profile",
+   "revoked": false,
+   "short_name": "PowerShell Profile"
+  },
+  "T1546.014": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Emond",
+   "revoked": false,
+   "short_name": "Emond"
+  },
+  "T1546.015": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Component Object Model Hijacking",
+   "revoked": false,
+   "short_name": "Component Object Model Hijacking"
+  },
+  "T1546.016": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Installer Packages",
+   "revoked": false,
+   "short_name": "Installer Packages"
+  },
+  "T1546.017": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Udev Rules",
+   "revoked": false,
+   "short_name": "Udev Rules"
+  },
+  "T1546.018": {
+   "deprecated": false,
+   "name": "Event Triggered Execution: Python Startup Hooks",
+   "revoked": false,
+   "short_name": "Python Startup Hooks"
+  },
+  "T1547": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution",
+   "revoked": false,
+   "short_name": "Boot or Logon Autostart Execution"
+  },
+  "T1547.001": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder",
+   "revoked": false,
+   "short_name": "Registry Run Keys / Startup Folder"
+  },
+  "T1547.002": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Authentication Package",
+   "revoked": false,
+   "short_name": "Authentication Package"
+  },
+  "T1547.003": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Time Providers",
+   "revoked": false,
+   "short_name": "Time Providers"
+  },
+  "T1547.004": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Winlogon Helper DLL",
+   "revoked": false,
+   "short_name": "Winlogon Helper DLL"
+  },
+  "T1547.005": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Security Support Provider",
+   "revoked": false,
+   "short_name": "Security Support Provider"
+  },
+  "T1547.006": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Kernel Modules and Extensions",
+   "revoked": false,
+   "short_name": "Kernel Modules and Extensions"
+  },
+  "T1547.007": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Re-opened Applications",
+   "revoked": false,
+   "short_name": "Re-opened Applications"
+  },
+  "T1547.008": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: LSASS Driver",
+   "revoked": false,
+   "short_name": "LSASS Driver"
+  },
+  "T1547.009": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Shortcut Modification",
+   "revoked": false,
+   "short_name": "Shortcut Modification"
+  },
+  "T1547.010": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Port Monitors",
+   "revoked": false,
+   "short_name": "Port Monitors"
+  },
+  "T1547.011": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Plist Modification",
+   "revoked": true,
+   "short_name": "Plist Modification"
+  },
+  "T1547.012": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Print Processors",
+   "revoked": false,
+   "short_name": "Print Processors"
+  },
+  "T1547.013": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: XDG Autostart Entries",
+   "revoked": false,
+   "short_name": "XDG Autostart Entries"
+  },
+  "T1547.014": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Active Setup",
+   "revoked": false,
+   "short_name": "Active Setup"
+  },
+  "T1547.015": {
+   "deprecated": false,
+   "name": "Boot or Logon Autostart Execution: Login Items",
+   "revoked": false,
+   "short_name": "Login Items"
+  },
+  "T1548": {
+   "deprecated": false,
+   "name": "Abuse Elevation Control Mechanism",
+   "revoked": false,
+   "short_name": "Abuse Elevation Control Mechanism"
+  },
+  "T1548.001": {
+   "deprecated": false,
+   "name": "Abuse Elevation Control Mechanism: Setuid and Setgid",
+   "revoked": false,
+   "short_name": "Setuid and Setgid"
+  },
+  "T1548.002": {
+   "deprecated": false,
+   "name": "Abuse Elevation Control Mechanism: Bypass User Account Control",
+   "revoked": false,
+   "short_name": "Bypass User Account Control"
+  },
+  "T1548.003": {
+   "deprecated": false,
+   "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching",
+   "revoked": false,
+   "short_name": "Sudo and Sudo Caching"
+  },
+  "T1548.004": {
+   "deprecated": false,
+   "name": "Abuse Elevation Control Mechanism: Elevated Execution with Prompt",
+   "revoked": false,
+   "short_name": "Elevated Execution with Prompt"
+  },
+  "T1548.005": {
+   "deprecated": false,
+   "name": "Abuse Elevation Control Mechanism: Temporary Elevated Cloud Access",
+   "revoked": false,
+   "short_name": "Temporary Elevated Cloud Access"
+  },
+  "T1548.006": {
+   "deprecated": false,
+   "name": "Abuse Elevation Control Mechanism: TCC Manipulation",
+   "revoked": false,
+   "short_name": "TCC Manipulation"
+  },
+  "T1550": {
+   "deprecated": false,
+   "name": "Use Alternate Authentication Material",
+   "revoked": false,
+   "short_name": "Use Alternate Authentication Material"
+  },
+  "T1550.001": {
+   "deprecated": false,
+   "name": "Use Alternate Authentication Material: Application Access Token",
+   "revoked": false,
+   "short_name": "Application Access Token"
+  },
+  "T1550.002": {
+   "deprecated": false,
+   "name": "Use Alternate Authentication Material: Pass the Hash",
+   "revoked": false,
+   "short_name": "Pass the Hash"
+  },
+  "T1550.003": {
+   "deprecated": false,
+   "name": "Use Alternate Authentication Material: Pass the Ticket",
+   "revoked": false,
+   "short_name": "Pass the Ticket"
+  },
+  "T1550.004": {
+   "deprecated": false,
+   "name": "Use Alternate Authentication Material: Web Session Cookie",
+   "revoked": false,
+   "short_name": "Web Session Cookie"
+  },
+  "T1552": {
+   "deprecated": false,
+   "name": "Unsecured Credentials",
+   "revoked": false,
+   "short_name": "Unsecured Credentials"
+  },
+  "T1552.001": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Credentials In Files",
+   "revoked": false,
+   "short_name": "Credentials In Files"
+  },
+  "T1552.002": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Credentials in Registry",
+   "revoked": false,
+   "short_name": "Credentials in Registry"
+  },
+  "T1552.003": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Shell History",
+   "revoked": false,
+   "short_name": "Shell History"
+  },
+  "T1552.004": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Private Keys",
+   "revoked": false,
+   "short_name": "Private Keys"
+  },
+  "T1552.005": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Cloud Instance Metadata API",
+   "revoked": false,
+   "short_name": "Cloud Instance Metadata API"
+  },
+  "T1552.006": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Group Policy Preferences",
+   "revoked": false,
+   "short_name": "Group Policy Preferences"
+  },
+  "T1552.007": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Container API",
+   "revoked": false,
+   "short_name": "Container API"
+  },
+  "T1552.008": {
+   "deprecated": false,
+   "name": "Unsecured Credentials: Chat Messages",
+   "revoked": false,
+   "short_name": "Chat Messages"
+  },
+  "T1553": {
+   "deprecated": false,
+   "name": "Subvert Trust Controls",
+   "revoked": false,
+   "short_name": "Subvert Trust Controls"
+  },
+  "T1553.001": {
+   "deprecated": false,
+   "name": "Subvert Trust Controls: Gatekeeper Bypass",
+   "revoked": false,
+   "short_name": "Gatekeeper Bypass"
+  },
+  "T1553.002": {
+   "deprecated": false,
+   "name": "Subvert Trust Controls: Code Signing",
+   "revoked": false,
+   "short_name": "Code Signing"
+  },
+  "T1553.003": {
+   "deprecated": false,
+   "name": "Subvert Trust Controls: SIP and Trust Provider Hijacking",
+   "revoked": false,
+   "short_name": "SIP and Trust Provider Hijacking"
+  },
+  "T1553.004": {
+   "deprecated": false,
+   "name": "Subvert Trust Controls: Install Root Certificate",
+   "revoked": false,
+   "short_name": "Install Root Certificate"
+  },
+  "T1553.005": {
+   "deprecated": false,
+   "name": "Subvert Trust Controls: Mark-of-the-Web Bypass",
+   "revoked": false,
+   "short_name": "Mark-of-the-Web Bypass"
+  },
+  "T1553.006": {
+   "deprecated": false,
+   "name": "Subvert Trust Controls: Code Signing Policy Modification",
+   "revoked": false,
+   "short_name": "Code Signing Policy Modification"
+  },
+  "T1554": {
+   "deprecated": false,
+   "name": "Compromise Host Software Binary",
+   "revoked": false,
+   "short_name": "Compromise Host Software Binary"
+  },
+  "T1555": {
+   "deprecated": false,
+   "name": "Credentials from Password Stores",
+   "revoked": false,
+   "short_name": "Credentials from Password Stores"
+  },
+  "T1555.001": {
+   "deprecated": false,
+   "name": "Credentials from Password Stores: Keychain",
+   "revoked": false,
+   "short_name": "Keychain"
+  },
+  "T1555.002": {
+   "deprecated": false,
+   "name": "Credentials from Password Stores: Securityd Memory",
+   "revoked": false,
+   "short_name": "Securityd Memory"
+  },
+  "T1555.003": {
+   "deprecated": false,
+   "name": "Credentials from Password Stores: Credentials from Web Browsers",
+   "revoked": false,
+   "short_name": "Credentials from Web Browsers"
+  },
+  "T1555.004": {
+   "deprecated": false,
+   "name": "Credentials from Password Stores: Windows Credential Manager",
+   "revoked": false,
+   "short_name": "Windows Credential Manager"
+  },
+  "T1555.005": {
+   "deprecated": false,
+   "name": "Credentials from Password Stores: Password Managers",
+   "revoked": false,
+   "short_name": "Password Managers"
+  },
+  "T1555.006": {
+   "deprecated": false,
+   "name": "Credentials from Password Stores: Cloud Secrets Management Stores",
+   "revoked": false,
+   "short_name": "Cloud Secrets Management Stores"
+  },
+  "T1556": {
+   "deprecated": false,
+   "name": "Modify Authentication Process",
+   "revoked": false,
+   "short_name": "Modify Authentication Process"
+  },
+  "T1556.001": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Domain Controller Authentication",
+   "revoked": false,
+   "short_name": "Domain Controller Authentication"
+  },
+  "T1556.002": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Password Filter DLL",
+   "revoked": false,
+   "short_name": "Password Filter DLL"
+  },
+  "T1556.003": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Pluggable Authentication Modules",
+   "revoked": false,
+   "short_name": "Pluggable Authentication Modules"
+  },
+  "T1556.004": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Network Device Authentication",
+   "revoked": false,
+   "short_name": "Network Device Authentication"
+  },
+  "T1556.005": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Reversible Encryption",
+   "revoked": false,
+   "short_name": "Reversible Encryption"
+  },
+  "T1556.006": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Multi-Factor Authentication",
+   "revoked": false,
+   "short_name": "Multi-Factor Authentication"
+  },
+  "T1556.007": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Hybrid Identity",
+   "revoked": false,
+   "short_name": "Hybrid Identity"
+  },
+  "T1556.008": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Network Provider DLL",
+   "revoked": false,
+   "short_name": "Network Provider DLL"
+  },
+  "T1556.009": {
+   "deprecated": false,
+   "name": "Modify Authentication Process: Conditional Access Policies",
+   "revoked": false,
+   "short_name": "Conditional Access Policies"
+  },
+  "T1557": {
+   "deprecated": false,
+   "name": "Adversary-in-the-Middle",
+   "revoked": false,
+   "short_name": "Adversary-in-the-Middle"
+  },
+  "T1557.001": {
+   "deprecated": false,
+   "name": "Adversary-in-the-Middle: Name Resolution Poisoning and SMB Relay",
+   "revoked": false,
+   "short_name": "Name Resolution Poisoning and SMB Relay"
+  },
+  "T1557.002": {
+   "deprecated": false,
+   "name": "Adversary-in-the-Middle: ARP Cache Poisoning",
+   "revoked": false,
+   "short_name": "ARP Cache Poisoning"
+  },
+  "T1557.003": {
+   "deprecated": false,
+   "name": "Adversary-in-the-Middle: DHCP Spoofing",
+   "revoked": false,
+   "short_name": "DHCP Spoofing"
+  },
+  "T1557.004": {
+   "deprecated": false,
+   "name": "Adversary-in-the-Middle: Evil Twin",
+   "revoked": false,
+   "short_name": "Evil Twin"
+  },
+  "T1558": {
+   "deprecated": false,
+   "name": "Steal or Forge Kerberos Tickets",
+   "revoked": false,
+   "short_name": "Steal or Forge Kerberos Tickets"
+  },
+  "T1558.001": {
+   "deprecated": false,
+   "name": "Steal or Forge Kerberos Tickets: Golden Ticket",
+   "revoked": false,
+   "short_name": "Golden Ticket"
+  },
+  "T1558.002": {
+   "deprecated": false,
+   "name": "Steal or Forge Kerberos Tickets: Silver Ticket",
+   "revoked": false,
+   "short_name": "Silver Ticket"
+  },
+  "T1558.003": {
+   "deprecated": false,
+   "name": "Steal or Forge Kerberos Tickets: Kerberoasting",
+   "revoked": false,
+   "short_name": "Kerberoasting"
+  },
+  "T1558.004": {
+   "deprecated": false,
+   "name": "Steal or Forge Kerberos Tickets: AS-REP Roasting",
+   "revoked": false,
+   "short_name": "AS-REP Roasting"
+  },
+  "T1558.005": {
+   "deprecated": false,
+   "name": "Steal or Forge Kerberos Tickets: Ccache Files",
+   "revoked": false,
+   "short_name": "Ccache Files"
+  },
+  "T1559": {
+   "deprecated": false,
+   "name": "Inter-Process Communication",
+   "revoked": false,
+   "short_name": "Inter-Process Communication"
+  },
+  "T1559.001": {
+   "deprecated": false,
+   "name": "Inter-Process Communication: Component Object Model",
+   "revoked": false,
+   "short_name": "Component Object Model"
+  },
+  "T1559.002": {
+   "deprecated": false,
+   "name": "Inter-Process Communication: Dynamic Data Exchange",
+   "revoked": false,
+   "short_name": "Dynamic Data Exchange"
+  },
+  "T1559.003": {
+   "deprecated": false,
+   "name": "Inter-Process Communication: XPC Services",
+   "revoked": false,
+   "short_name": "XPC Services"
+  },
+  "T1560": {
+   "deprecated": false,
+   "name": "Archive Collected Data",
+   "revoked": false,
+   "short_name": "Archive Collected Data"
+  },
+  "T1560.001": {
+   "deprecated": false,
+   "name": "Archive Collected Data: Archive via Utility",
+   "revoked": false,
+   "short_name": "Archive via Utility"
+  },
+  "T1560.002": {
+   "deprecated": false,
+   "name": "Archive Collected Data: Archive via Library",
+   "revoked": false,
+   "short_name": "Archive via Library"
+  },
+  "T1560.003": {
+   "deprecated": false,
+   "name": "Archive Collected Data: Archive via Custom Method",
+   "revoked": false,
+   "short_name": "Archive via Custom Method"
+  },
+  "T1561": {
+   "deprecated": false,
+   "name": "Disk Wipe",
+   "revoked": false,
+   "short_name": "Disk Wipe"
+  },
+  "T1561.001": {
+   "deprecated": false,
+   "name": "Disk Wipe: Disk Content Wipe",
+   "revoked": false,
+   "short_name": "Disk Content Wipe"
+  },
+  "T1561.002": {
+   "deprecated": false,
+   "name": "Disk Wipe: Disk Structure Wipe",
+   "revoked": false,
+   "short_name": "Disk Structure Wipe"
+  },
+  "T1562": {
+   "deprecated": false,
+   "name": "Impair Defenses",
+   "revoked": true,
+   "short_name": "Impair Defenses"
+  },
+  "T1562.001": {
+   "deprecated": false,
+   "name": "Impair Defenses: Disable or Modify Tools",
+   "revoked": true,
+   "short_name": "Disable or Modify Tools"
+  },
+  "T1562.002": {
+   "deprecated": false,
+   "name": "Impair Defenses: Disable Windows Event Logging",
+   "revoked": true,
+   "short_name": "Disable Windows Event Logging"
+  },
+  "T1562.003": {
+   "deprecated": false,
+   "name": "Impair Defenses: Impair Command History Logging",
+   "revoked": true,
+   "short_name": "Impair Command History Logging"
+  },
+  "T1562.004": {
+   "deprecated": false,
+   "name": "Impair Defenses: Disable or Modify System Firewall",
+   "revoked": true,
+   "short_name": "Disable or Modify System Firewall"
+  },
+  "T1562.006": {
+   "deprecated": false,
+   "name": "Impair Defenses: Indicator Blocking",
+   "revoked": true,
+   "short_name": "Indicator Blocking"
+  },
+  "T1562.007": {
+   "deprecated": false,
+   "name": "Impair Defenses: Disable or Modify Cloud Firewall",
+   "revoked": true,
+   "short_name": "Disable or Modify Cloud Firewall"
+  },
+  "T1562.008": {
+   "deprecated": false,
+   "name": "Impair Defenses: Disable or Modify Cloud Logs",
+   "revoked": true,
+   "short_name": "Disable or Modify Cloud Logs"
+  },
+  "T1562.009": {
+   "deprecated": false,
+   "name": "Impair Defenses: Safe Mode Boot",
+   "revoked": true,
+   "short_name": "Safe Mode Boot"
+  },
+  "T1562.010": {
+   "deprecated": false,
+   "name": "Impair Defenses: Downgrade Attack",
+   "revoked": true,
+   "short_name": "Downgrade Attack"
+  },
+  "T1562.011": {
+   "deprecated": false,
+   "name": "Impair Defenses: Spoof Security Alerting",
+   "revoked": true,
+   "short_name": "Spoof Security Alerting"
+  },
+  "T1562.012": {
+   "deprecated": false,
+   "name": "Impair Defenses: Disable or Modify Linux Audit System",
+   "revoked": true,
+   "short_name": "Disable or Modify Linux Audit System"
+  },
+  "T1562.013": {
+   "deprecated": false,
+   "name": "Impair Defenses: Disable or Modify Network Device Firewall",
+   "revoked": true,
+   "short_name": "Disable or Modify Network Device Firewall"
+  },
+  "T1563": {
+   "deprecated": false,
+   "name": "Remote Service Session Hijacking",
+   "revoked": false,
+   "short_name": "Remote Service Session Hijacking"
+  },
+  "T1563.001": {
+   "deprecated": false,
+   "name": "Remote Service Session Hijacking: SSH Hijacking",
+   "revoked": false,
+   "short_name": "SSH Hijacking"
+  },
+  "T1563.002": {
+   "deprecated": false,
+   "name": "Remote Service Session Hijacking: RDP Hijacking",
+   "revoked": false,
+   "short_name": "RDP Hijacking"
+  },
+  "T1564": {
+   "deprecated": false,
+   "name": "Hide Artifacts",
+   "revoked": false,
+   "short_name": "Hide Artifacts"
+  },
+  "T1564.001": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Hidden Files and Directories",
+   "revoked": false,
+   "short_name": "Hidden Files and Directories"
+  },
+  "T1564.002": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Hidden Users",
+   "revoked": false,
+   "short_name": "Hidden Users"
+  },
+  "T1564.003": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Hidden Window",
+   "revoked": false,
+   "short_name": "Hidden Window"
+  },
+  "T1564.004": {
+   "deprecated": false,
+   "name": "Hide Artifacts: NTFS File Attributes",
+   "revoked": false,
+   "short_name": "NTFS File Attributes"
+  },
+  "T1564.005": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Hidden File System",
+   "revoked": false,
+   "short_name": "Hidden File System"
+  },
+  "T1564.006": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Run Virtual Instance",
+   "revoked": false,
+   "short_name": "Run Virtual Instance"
+  },
+  "T1564.007": {
+   "deprecated": false,
+   "name": "Hide Artifacts: VBA Stomping",
+   "revoked": false,
+   "short_name": "VBA Stomping"
+  },
+  "T1564.008": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Email Hiding Rules",
+   "revoked": false,
+   "short_name": "Email Hiding Rules"
+  },
+  "T1564.009": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Resource Forking",
+   "revoked": false,
+   "short_name": "Resource Forking"
+  },
+  "T1564.010": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Process Argument Spoofing",
+   "revoked": false,
+   "short_name": "Process Argument Spoofing"
+  },
+  "T1564.011": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Ignore Process Interrupts",
+   "revoked": false,
+   "short_name": "Ignore Process Interrupts"
+  },
+  "T1564.012": {
+   "deprecated": false,
+   "name": "Hide Artifacts: File/Path Exclusions",
+   "revoked": false,
+   "short_name": "File/Path Exclusions"
+  },
+  "T1564.013": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Bind Mounts",
+   "revoked": false,
+   "short_name": "Bind Mounts"
+  },
+  "T1564.014": {
+   "deprecated": false,
+   "name": "Hide Artifacts: Extended Attributes",
+   "revoked": false,
+   "short_name": "Extended Attributes"
+  },
+  "T1565": {
+   "deprecated": false,
+   "name": "Data Manipulation",
+   "revoked": false,
+   "short_name": "Data Manipulation"
+  },
+  "T1565.001": {
+   "deprecated": false,
+   "name": "Data Manipulation: Stored Data Manipulation",
+   "revoked": false,
+   "short_name": "Stored Data Manipulation"
+  },
+  "T1565.002": {
+   "deprecated": false,
+   "name": "Data Manipulation: Transmitted Data Manipulation",
+   "revoked": false,
+   "short_name": "Transmitted Data Manipulation"
+  },
+  "T1565.003": {
+   "deprecated": false,
+   "name": "Data Manipulation: Runtime Data Manipulation",
+   "revoked": false,
+   "short_name": "Runtime Data Manipulation"
+  },
+  "T1566": {
+   "deprecated": false,
+   "name": "Phishing",
+   "revoked": false,
+   "short_name": "Phishing"
+  },
+  "T1566.001": {
+   "deprecated": false,
+   "name": "Phishing: Spearphishing Attachment",
+   "revoked": false,
+   "short_name": "Spearphishing Attachment"
+  },
+  "T1566.002": {
+   "deprecated": false,
+   "name": "Phishing: Spearphishing Link",
+   "revoked": false,
+   "short_name": "Spearphishing Link"
+  },
+  "T1566.003": {
+   "deprecated": false,
+   "name": "Phishing: Spearphishing via Service",
+   "revoked": false,
+   "short_name": "Spearphishing via Service"
+  },
+  "T1566.004": {
+   "deprecated": false,
+   "name": "Phishing: Spearphishing Voice",
+   "revoked": false,
+   "short_name": "Spearphishing Voice"
+  },
+  "T1567": {
+   "deprecated": false,
+   "name": "Exfiltration Over Web Service",
+   "revoked": false,
+   "short_name": "Exfiltration Over Web Service"
+  },
+  "T1567.001": {
+   "deprecated": false,
+   "name": "Exfiltration Over Web Service: Exfiltration to Code Repository",
+   "revoked": false,
+   "short_name": "Exfiltration to Code Repository"
+  },
+  "T1567.002": {
+   "deprecated": false,
+   "name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage",
+   "revoked": false,
+   "short_name": "Exfiltration to Cloud Storage"
+  },
+  "T1567.003": {
+   "deprecated": false,
+   "name": "Exfiltration Over Web Service: Exfiltration to Text Storage Sites",
+   "revoked": false,
+   "short_name": "Exfiltration to Text Storage Sites"
+  },
+  "T1567.004": {
+   "deprecated": false,
+   "name": "Exfiltration Over Web Service: Exfiltration Over Webhook",
+   "revoked": false,
+   "short_name": "Exfiltration Over Webhook"
+  },
+  "T1568": {
+   "deprecated": false,
+   "name": "Dynamic Resolution",
+   "revoked": false,
+   "short_name": "Dynamic Resolution"
+  },
+  "T1568.001": {
+   "deprecated": false,
+   "name": "Dynamic Resolution: Fast Flux DNS",
+   "revoked": false,
+   "short_name": "Fast Flux DNS"
+  },
+  "T1568.002": {
+   "deprecated": false,
+   "name": "Dynamic Resolution: Domain Generation Algorithms",
+   "revoked": false,
+   "short_name": "Domain Generation Algorithms"
+  },
+  "T1568.003": {
+   "deprecated": false,
+   "name": "Dynamic Resolution: DNS Calculation",
+   "revoked": false,
+   "short_name": "DNS Calculation"
+  },
+  "T1569": {
+   "deprecated": false,
+   "name": "System Services",
+   "revoked": false,
+   "short_name": "System Services"
+  },
+  "T1569.001": {
+   "deprecated": false,
+   "name": "System Services: Launchctl",
+   "revoked": false,
+   "short_name": "Launchctl"
+  },
+  "T1569.002": {
+   "deprecated": false,
+   "name": "System Services: Service Execution",
+   "revoked": false,
+   "short_name": "Service Execution"
+  },
+  "T1569.003": {
+   "deprecated": false,
+   "name": "System Services: Systemctl",
+   "revoked": false,
+   "short_name": "Systemctl"
+  },
+  "T1570": {
+   "deprecated": false,
+   "name": "Lateral Tool Transfer",
+   "revoked": false,
+   "short_name": "Lateral Tool Transfer"
+  },
+  "T1571": {
+   "deprecated": false,
+   "name": "Non-Standard Port",
+   "revoked": false,
+   "short_name": "Non-Standard Port"
+  },
+  "T1572": {
+   "deprecated": false,
+   "name": "Protocol Tunneling",
+   "revoked": false,
+   "short_name": "Protocol Tunneling"
+  },
+  "T1573": {
+   "deprecated": false,
+   "name": "Encrypted Channel",
+   "revoked": false,
+   "short_name": "Encrypted Channel"
+  },
+  "T1573.001": {
+   "deprecated": false,
+   "name": "Encrypted Channel: Symmetric Cryptography",
+   "revoked": false,
+   "short_name": "Symmetric Cryptography"
+  },
+  "T1573.002": {
+   "deprecated": false,
+   "name": "Encrypted Channel: Asymmetric Cryptography",
+   "revoked": false,
+   "short_name": "Asymmetric Cryptography"
+  },
+  "T1574": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow",
+   "revoked": false,
+   "short_name": "Hijack Execution Flow"
+  },
+  "T1574.001": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: DLL",
+   "revoked": false,
+   "short_name": "DLL"
+  },
+  "T1574.002": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: DLL Side-Loading",
+   "revoked": true,
+   "short_name": "DLL Side-Loading"
+  },
+  "T1574.004": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Dylib Hijacking",
+   "revoked": false,
+   "short_name": "Dylib Hijacking"
+  },
+  "T1574.005": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Executable Installer File Permissions Weakness",
+   "revoked": false,
+   "short_name": "Executable Installer File Permissions Weakness"
+  },
+  "T1574.006": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Dynamic Linker Hijacking",
+   "revoked": false,
+   "short_name": "Dynamic Linker Hijacking"
+  },
+  "T1574.007": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Path Interception by PATH Environment Variable",
+   "revoked": false,
+   "short_name": "Path Interception by PATH Environment Variable"
+  },
+  "T1574.008": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Path Interception by Search Order Hijacking",
+   "revoked": false,
+   "short_name": "Path Interception by Search Order Hijacking"
+  },
+  "T1574.009": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Path Interception by Unquoted Path",
+   "revoked": false,
+   "short_name": "Path Interception by Unquoted Path"
+  },
+  "T1574.010": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Services File Permissions Weakness",
+   "revoked": false,
+   "short_name": "Services File Permissions Weakness"
+  },
+  "T1574.011": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: Services Registry Permissions Weakness",
+   "revoked": false,
+   "short_name": "Services Registry Permissions Weakness"
+  },
+  "T1574.012": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: COR_PROFILER",
+   "revoked": false,
+   "short_name": "COR_PROFILER"
+  },
+  "T1574.013": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: KernelCallbackTable",
+   "revoked": false,
+   "short_name": "KernelCallbackTable"
+  },
+  "T1574.014": {
+   "deprecated": false,
+   "name": "Hijack Execution Flow: AppDomainManager",
+   "revoked": false,
+   "short_name": "AppDomainManager"
+  },
+  "T1578": {
+   "deprecated": false,
+   "name": "Modify Cloud Compute Infrastructure",
+   "revoked": false,
+   "short_name": "Modify Cloud Compute Infrastructure"
+  },
+  "T1578.001": {
+   "deprecated": false,
+   "name": "Modify Cloud Compute Infrastructure: Create Snapshot",
+   "revoked": false,
+   "short_name": "Create Snapshot"
+  },
+  "T1578.002": {
+   "deprecated": false,
+   "name": "Modify Cloud Compute Infrastructure: Create Cloud Instance",
+   "revoked": false,
+   "short_name": "Create Cloud Instance"
+  },
+  "T1578.003": {
+   "deprecated": false,
+   "name": "Modify Cloud Compute Infrastructure: Delete Cloud Instance",
+   "revoked": false,
+   "short_name": "Delete Cloud Instance"
+  },
+  "T1578.004": {
+   "deprecated": false,
+   "name": "Modify Cloud Compute Infrastructure: Revert Cloud Instance",
+   "revoked": false,
+   "short_name": "Revert Cloud Instance"
+  },
+  "T1578.005": {
+   "deprecated": false,
+   "name": "Modify Cloud Compute Infrastructure: Modify Cloud Compute Configurations",
+   "revoked": false,
+   "short_name": "Modify Cloud Compute Configurations"
+  },
+  "T1580": {
+   "deprecated": false,
+   "name": "Cloud Infrastructure Discovery",
+   "revoked": false,
+   "short_name": "Cloud Infrastructure Discovery"
+  },
+  "T1583": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure",
+   "revoked": false,
+   "short_name": "Acquire Infrastructure"
+  },
+  "T1583.001": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: Domains",
+   "revoked": false,
+   "short_name": "Domains"
+  },
+  "T1583.002": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: DNS Server",
+   "revoked": false,
+   "short_name": "DNS Server"
+  },
+  "T1583.003": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: Virtual Private Server",
+   "revoked": false,
+   "short_name": "Virtual Private Server"
+  },
+  "T1583.004": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: Server",
+   "revoked": false,
+   "short_name": "Server"
+  },
+  "T1583.005": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: Botnet",
+   "revoked": false,
+   "short_name": "Botnet"
+  },
+  "T1583.006": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: Web Services",
+   "revoked": false,
+   "short_name": "Web Services"
+  },
+  "T1583.007": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: Serverless",
+   "revoked": false,
+   "short_name": "Serverless"
+  },
+  "T1583.008": {
+   "deprecated": false,
+   "name": "Acquire Infrastructure: Malvertising",
+   "revoked": false,
+   "short_name": "Malvertising"
+  },
+  "T1584": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure",
+   "revoked": false,
+   "short_name": "Compromise Infrastructure"
+  },
+  "T1584.001": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: Domains",
+   "revoked": false,
+   "short_name": "Domains"
+  },
+  "T1584.002": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: DNS Server",
+   "revoked": false,
+   "short_name": "DNS Server"
+  },
+  "T1584.003": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: Virtual Private Server",
+   "revoked": false,
+   "short_name": "Virtual Private Server"
+  },
+  "T1584.004": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: Server",
+   "revoked": false,
+   "short_name": "Server"
+  },
+  "T1584.005": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: Botnet",
+   "revoked": false,
+   "short_name": "Botnet"
+  },
+  "T1584.006": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: Web Services",
+   "revoked": false,
+   "short_name": "Web Services"
+  },
+  "T1584.007": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: Serverless",
+   "revoked": false,
+   "short_name": "Serverless"
+  },
+  "T1584.008": {
+   "deprecated": false,
+   "name": "Compromise Infrastructure: Network Devices",
+   "revoked": false,
+   "short_name": "Network Devices"
+  },
+  "T1585": {
+   "deprecated": false,
+   "name": "Establish Accounts",
+   "revoked": false,
+   "short_name": "Establish Accounts"
+  },
+  "T1585.001": {
+   "deprecated": false,
+   "name": "Establish Accounts: Social Media Accounts",
+   "revoked": false,
+   "short_name": "Social Media Accounts"
+  },
+  "T1585.002": {
+   "deprecated": false,
+   "name": "Establish Accounts: Email Accounts",
+   "revoked": false,
+   "short_name": "Email Accounts"
+  },
+  "T1585.003": {
+   "deprecated": false,
+   "name": "Establish Accounts: Cloud Accounts",
+   "revoked": false,
+   "short_name": "Cloud Accounts"
+  },
+  "T1586": {
+   "deprecated": false,
+   "name": "Compromise Accounts",
+   "revoked": false,
+   "short_name": "Compromise Accounts"
+  },
+  "T1586.001": {
+   "deprecated": false,
+   "name": "Compromise Accounts: Social Media Accounts",
+   "revoked": false,
+   "short_name": "Social Media Accounts"
+  },
+  "T1586.002": {
+   "deprecated": false,
+   "name": "Compromise Accounts: Email Accounts",
+   "revoked": false,
+   "short_name": "Email Accounts"
+  },
+  "T1586.003": {
+   "deprecated": false,
+   "name": "Compromise Accounts: Cloud Accounts",
+   "revoked": false,
+   "short_name": "Cloud Accounts"
+  },
+  "T1587": {
+   "deprecated": false,
+   "name": "Develop Capabilities",
+   "revoked": false,
+   "short_name": "Develop Capabilities"
+  },
+  "T1587.001": {
+   "deprecated": false,
+   "name": "Develop Capabilities: Malware",
+   "revoked": false,
+   "short_name": "Malware"
+  },
+  "T1587.002": {
+   "deprecated": false,
+   "name": "Develop Capabilities: Code Signing Certificates",
+   "revoked": false,
+   "short_name": "Code Signing Certificates"
+  },
+  "T1587.003": {
+   "deprecated": false,
+   "name": "Develop Capabilities: Digital Certificates",
+   "revoked": false,
+   "short_name": "Digital Certificates"
+  },
+  "T1587.004": {
+   "deprecated": false,
+   "name": "Develop Capabilities: Exploits",
+   "revoked": false,
+   "short_name": "Exploits"
+  },
+  "T1588": {
+   "deprecated": false,
+   "name": "Obtain Capabilities",
+   "revoked": false,
+   "short_name": "Obtain Capabilities"
+  },
+  "T1588.001": {
+   "deprecated": false,
+   "name": "Obtain Capabilities: Malware",
+   "revoked": false,
+   "short_name": "Malware"
+  },
+  "T1588.002": {
+   "deprecated": false,
+   "name": "Obtain Capabilities: Tool",
+   "revoked": false,
+   "short_name": "Tool"
+  },
+  "T1588.003": {
+   "deprecated": false,
+   "name": "Obtain Capabilities: Code Signing Certificates",
+   "revoked": false,
+   "short_name": "Code Signing Certificates"
+  },
+  "T1588.004": {
+   "deprecated": false,
+   "name": "Obtain Capabilities: Digital Certificates",
+   "revoked": false,
+   "short_name": "Digital Certificates"
+  },
+  "T1588.005": {
+   "deprecated": false,
+   "name": "Obtain Capabilities: Exploits",
+   "revoked": false,
+   "short_name": "Exploits"
+  },
+  "T1588.006": {
+   "deprecated": false,
+   "name": "Obtain Capabilities: Vulnerabilities",
+   "revoked": false,
+   "short_name": "Vulnerabilities"
+  },
+  "T1588.007": {
+   "deprecated": false,
+   "name": "Obtain Capabilities: Artificial Intelligence",
+   "revoked": false,
+   "short_name": "Artificial Intelligence"
+  },
+  "T1589": {
+   "deprecated": false,
+   "name": "Gather Victim Identity Information",
+   "revoked": false,
+   "short_name": "Gather Victim Identity Information"
+  },
+  "T1589.001": {
+   "deprecated": false,
+   "name": "Gather Victim Identity Information: Credentials",
+   "revoked": false,
+   "short_name": "Credentials"
+  },
+  "T1589.002": {
+   "deprecated": false,
+   "name": "Gather Victim Identity Information: Email Addresses",
+   "revoked": false,
+   "short_name": "Email Addresses"
+  },
+  "T1589.003": {
+   "deprecated": false,
+   "name": "Gather Victim Identity Information: Employee Names",
+   "revoked": false,
+   "short_name": "Employee Names"
+  },
+  "T1590": {
+   "deprecated": false,
+   "name": "Gather Victim Network Information",
+   "revoked": false,
+   "short_name": "Gather Victim Network Information"
+  },
+  "T1590.001": {
+   "deprecated": false,
+   "name": "Gather Victim Network Information: Domain Properties",
+   "revoked": false,
+   "short_name": "Domain Properties"
+  },
+  "T1590.002": {
+   "deprecated": false,
+   "name": "Gather Victim Network Information: DNS",
+   "revoked": false,
+   "short_name": "DNS"
+  },
+  "T1590.003": {
+   "deprecated": false,
+   "name": "Gather Victim Network Information: Network Trust Dependencies",
+   "revoked": false,
+   "short_name": "Network Trust Dependencies"
+  },
+  "T1590.004": {
+   "deprecated": false,
+   "name": "Gather Victim Network Information: Network Topology",
+   "revoked": false,
+   "short_name": "Network Topology"
+  },
+  "T1590.005": {
+   "deprecated": false,
+   "name": "Gather Victim Network Information: IP Addresses",
+   "revoked": false,
+   "short_name": "IP Addresses"
+  },
+  "T1590.006": {
+   "deprecated": false,
+   "name": "Gather Victim Network Information: Network Security Appliances",
+   "revoked": false,
+   "short_name": "Network Security Appliances"
+  },
+  "T1591": {
+   "deprecated": false,
+   "name": "Gather Victim Org Information",
+   "revoked": false,
+   "short_name": "Gather Victim Org Information"
+  },
+  "T1591.001": {
+   "deprecated": false,
+   "name": "Gather Victim Org Information: Determine Physical Locations",
+   "revoked": false,
+   "short_name": "Determine Physical Locations"
+  },
+  "T1591.002": {
+   "deprecated": false,
+   "name": "Gather Victim Org Information: Business Relationships",
+   "revoked": false,
+   "short_name": "Business Relationships"
+  },
+  "T1591.003": {
+   "deprecated": false,
+   "name": "Gather Victim Org Information: Identify Business Tempo",
+   "revoked": false,
+   "short_name": "Identify Business Tempo"
+  },
+  "T1591.004": {
+   "deprecated": false,
+   "name": "Gather Victim Org Information: Identify Roles",
+   "revoked": false,
+   "short_name": "Identify Roles"
+  },
+  "T1592": {
+   "deprecated": false,
+   "name": "Gather Victim Host Information",
+   "revoked": false,
+   "short_name": "Gather Victim Host Information"
+  },
+  "T1592.001": {
+   "deprecated": false,
+   "name": "Gather Victim Host Information: Hardware",
+   "revoked": false,
+   "short_name": "Hardware"
+  },
+  "T1592.002": {
+   "deprecated": false,
+   "name": "Gather Victim Host Information: Software",
+   "revoked": false,
+   "short_name": "Software"
+  },
+  "T1592.003": {
+   "deprecated": false,
+   "name": "Gather Victim Host Information: Firmware",
+   "revoked": false,
+   "short_name": "Firmware"
+  },
+  "T1592.004": {
+   "deprecated": false,
+   "name": "Gather Victim Host Information: Client Configurations",
+   "revoked": false,
+   "short_name": "Client Configurations"
+  },
+  "T1593": {
+   "deprecated": false,
+   "name": "Search Open Websites/Domains",
+   "revoked": false,
+   "short_name": "Search Open Websites/Domains"
+  },
+  "T1593.001": {
+   "deprecated": false,
+   "name": "Search Open Websites/Domains: Social Media",
+   "revoked": false,
+   "short_name": "Social Media"
+  },
+  "T1593.002": {
+   "deprecated": false,
+   "name": "Search Open Websites/Domains: Search Engines",
+   "revoked": false,
+   "short_name": "Search Engines"
+  },
+  "T1593.003": {
+   "deprecated": false,
+   "name": "Search Open Websites/Domains: Code Repositories",
+   "revoked": false,
+   "short_name": "Code Repositories"
+  },
+  "T1594": {
+   "deprecated": false,
+   "name": "Search Victim-Owned Websites",
+   "revoked": false,
+   "short_name": "Search Victim-Owned Websites"
+  },
+  "T1595": {
+   "deprecated": false,
+   "name": "Active Scanning",
+   "revoked": false,
+   "short_name": "Active Scanning"
+  },
+  "T1595.001": {
+   "deprecated": false,
+   "name": "Active Scanning: Scanning IP Blocks",
+   "revoked": false,
+   "short_name": "Scanning IP Blocks"
+  },
+  "T1595.002": {
+   "deprecated": false,
+   "name": "Active Scanning: Vulnerability Scanning",
+   "revoked": false,
+   "short_name": "Vulnerability Scanning"
+  },
+  "T1595.003": {
+   "deprecated": false,
+   "name": "Active Scanning: Wordlist Scanning",
+   "revoked": false,
+   "short_name": "Wordlist Scanning"
+  },
+  "T1596": {
+   "deprecated": false,
+   "name": "Search Open Technical Databases",
+   "revoked": false,
+   "short_name": "Search Open Technical Databases"
+  },
+  "T1596.001": {
+   "deprecated": false,
+   "name": "Search Open Technical Databases: DNS/Passive DNS",
+   "revoked": false,
+   "short_name": "DNS/Passive DNS"
+  },
+  "T1596.002": {
+   "deprecated": false,
+   "name": "Search Open Technical Databases: WHOIS",
+   "revoked": false,
+   "short_name": "WHOIS"
+  },
+  "T1596.003": {
+   "deprecated": false,
+   "name": "Search Open Technical Databases: Digital Certificates",
+   "revoked": false,
+   "short_name": "Digital Certificates"
+  },
+  "T1596.004": {
+   "deprecated": false,
+   "name": "Search Open Technical Databases: CDNs",
+   "revoked": false,
+   "short_name": "CDNs"
+  },
+  "T1596.005": {
+   "deprecated": false,
+   "name": "Search Open Technical Databases: Scan Databases",
+   "revoked": false,
+   "short_name": "Scan Databases"
+  },
+  "T1597": {
+   "deprecated": false,
+   "name": "Search Closed Sources",
+   "revoked": false,
+   "short_name": "Search Closed Sources"
+  },
+  "T1597.001": {
+   "deprecated": false,
+   "name": "Search Closed Sources: Threat Intel Vendors",
+   "revoked": false,
+   "short_name": "Threat Intel Vendors"
+  },
+  "T1597.002": {
+   "deprecated": false,
+   "name": "Search Closed Sources: Purchase Technical Data",
+   "revoked": false,
+   "short_name": "Purchase Technical Data"
+  },
+  "T1598": {
+   "deprecated": false,
+   "name": "Phishing for Information",
+   "revoked": false,
+   "short_name": "Phishing for Information"
+  },
+  "T1598.001": {
+   "deprecated": false,
+   "name": "Phishing for Information: Spearphishing Service",
+   "revoked": false,
+   "short_name": "Spearphishing Service"
+  },
+  "T1598.002": {
+   "deprecated": false,
+   "name": "Phishing for Information: Spearphishing Attachment",
+   "revoked": false,
+   "short_name": "Spearphishing Attachment"
+  },
+  "T1598.003": {
+   "deprecated": false,
+   "name": "Phishing for Information: Spearphishing Link",
+   "revoked": false,
+   "short_name": "Spearphishing Link"
+  },
+  "T1598.004": {
+   "deprecated": false,
+   "name": "Phishing for Information: Spearphishing Voice",
+   "revoked": false,
+   "short_name": "Spearphishing Voice"
+  },
+  "T1599": {
+   "deprecated": false,
+   "name": "Network Boundary Bridging",
+   "revoked": false,
+   "short_name": "Network Boundary Bridging"
+  },
+  "T1599.001": {
+   "deprecated": false,
+   "name": "Network Boundary Bridging: Network Address Translation Traversal",
+   "revoked": false,
+   "short_name": "Network Address Translation Traversal"
+  },
+  "T1600": {
+   "deprecated": false,
+   "name": "Weaken Encryption",
+   "revoked": false,
+   "short_name": "Weaken Encryption"
+  },
+  "T1600.001": {
+   "deprecated": false,
+   "name": "Weaken Encryption: Reduce Key Space",
+   "revoked": false,
+   "short_name": "Reduce Key Space"
+  },
+  "T1600.002": {
+   "deprecated": false,
+   "name": "Weaken Encryption: Disable Crypto Hardware",
+   "revoked": false,
+   "short_name": "Disable Crypto Hardware"
+  },
+  "T1601": {
+   "deprecated": false,
+   "name": "Modify System Image",
+   "revoked": false,
+   "short_name": "Modify System Image"
+  },
+  "T1601.001": {
+   "deprecated": false,
+   "name": "Modify System Image: Patch System Image",
+   "revoked": false,
+   "short_name": "Patch System Image"
+  },
+  "T1601.002": {
+   "deprecated": false,
+   "name": "Modify System Image: Downgrade System Image",
+   "revoked": false,
+   "short_name": "Downgrade System Image"
+  },
+  "T1602": {
+   "deprecated": false,
+   "name": "Data from Configuration Repository",
+   "revoked": false,
+   "short_name": "Data from Configuration Repository"
+  },
+  "T1602.001": {
+   "deprecated": false,
+   "name": "Data from Configuration Repository: SNMP (MIB Dump)",
+   "revoked": false,
+   "short_name": "SNMP (MIB Dump)"
+  },
+  "T1602.002": {
+   "deprecated": false,
+   "name": "Data from Configuration Repository: Network Device Configuration Dump",
+   "revoked": false,
+   "short_name": "Network Device Configuration Dump"
+  },
+  "T1606": {
+   "deprecated": false,
+   "name": "Forge Web Credentials",
+   "revoked": false,
+   "short_name": "Forge Web Credentials"
+  },
+  "T1606.001": {
+   "deprecated": false,
+   "name": "Forge Web Credentials: Web Cookies",
+   "revoked": false,
+   "short_name": "Web Cookies"
+  },
+  "T1606.002": {
+   "deprecated": false,
+   "name": "Forge Web Credentials: SAML Tokens",
+   "revoked": false,
+   "short_name": "SAML Tokens"
+  },
+  "T1608": {
+   "deprecated": false,
+   "name": "Stage Capabilities",
+   "revoked": false,
+   "short_name": "Stage Capabilities"
+  },
+  "T1608.001": {
+   "deprecated": false,
+   "name": "Stage Capabilities: Upload Malware",
+   "revoked": false,
+   "short_name": "Upload Malware"
+  },
+  "T1608.002": {
+   "deprecated": false,
+   "name": "Stage Capabilities: Upload Tool",
+   "revoked": false,
+   "short_name": "Upload Tool"
+  },
+  "T1608.003": {
+   "deprecated": false,
+   "name": "Stage Capabilities: Install Digital Certificate",
+   "revoked": false,
+   "short_name": "Install Digital Certificate"
+  },
+  "T1608.004": {
+   "deprecated": false,
+   "name": "Stage Capabilities: Drive-by Target",
+   "revoked": false,
+   "short_name": "Drive-by Target"
+  },
+  "T1608.005": {
+   "deprecated": false,
+   "name": "Stage Capabilities: Link Target",
+   "revoked": false,
+   "short_name": "Link Target"
+  },
+  "T1608.006": {
+   "deprecated": false,
+   "name": "Stage Capabilities: SEO Poisoning",
+   "revoked": false,
+   "short_name": "SEO Poisoning"
+  },
+  "T1608.007": {
+   "deprecated": false,
+   "name": "Stage Capabilities: AI Result Poisoning",
+   "revoked": false,
+   "short_name": "AI Result Poisoning"
+  },
+  "T1609": {
+   "deprecated": false,
+   "name": "Container Administration Command",
+   "revoked": false,
+   "short_name": "Container Administration Command"
+  },
+  "T1610": {
+   "deprecated": false,
+   "name": "Deploy Container",
+   "revoked": false,
+   "short_name": "Deploy Container"
+  },
+  "T1611": {
+   "deprecated": false,
+   "name": "Escape to Host",
+   "revoked": false,
+   "short_name": "Escape to Host"
+  },
+  "T1612": {
+   "deprecated": false,
+   "name": "Build Image on Host",
+   "revoked": false,
+   "short_name": "Build Image on Host"
+  },
+  "T1613": {
+   "deprecated": false,
+   "name": "Container and Resource Discovery",
+   "revoked": false,
+   "short_name": "Container and Resource Discovery"
+  },
+  "T1614": {
+   "deprecated": false,
+   "name": "System Location Discovery",
+   "revoked": false,
+   "short_name": "System Location Discovery"
+  },
+  "T1614.001": {
+   "deprecated": false,
+   "name": "System Location Discovery: System Language Discovery",
+   "revoked": false,
+   "short_name": "System Language Discovery"
+  },
+  "T1615": {
+   "deprecated": false,
+   "name": "Group Policy Discovery",
+   "revoked": false,
+   "short_name": "Group Policy Discovery"
+  },
+  "T1619": {
+   "deprecated": false,
+   "name": "Cloud Storage Object Discovery",
+   "revoked": false,
+   "short_name": "Cloud Storage Object Discovery"
+  },
+  "T1620": {
+   "deprecated": false,
+   "name": "Reflective Code Loading",
+   "revoked": false,
+   "short_name": "Reflective Code Loading"
+  },
+  "T1621": {
+   "deprecated": false,
+   "name": "Multi-Factor Authentication Request Generation",
+   "revoked": false,
+   "short_name": "Multi-Factor Authentication Request Generation"
+  },
+  "T1622": {
+   "deprecated": false,
+   "name": "Debugger Evasion",
+   "revoked": false,
+   "short_name": "Debugger Evasion"
+  },
+  "T1647": {
+   "deprecated": false,
+   "name": "Plist File Modification",
+   "revoked": false,
+   "short_name": "Plist File Modification"
+  },
+  "T1648": {
+   "deprecated": false,
+   "name": "Serverless Execution",
+   "revoked": false,
+   "short_name": "Serverless Execution"
+  },
+  "T1649": {
+   "deprecated": false,
+   "name": "Steal or Forge Authentication Certificates",
+   "revoked": false,
+   "short_name": "Steal or Forge Authentication Certificates"
+  },
+  "T1650": {
+   "deprecated": false,
+   "name": "Acquire Access",
+   "revoked": false,
+   "short_name": "Acquire Access"
+  },
+  "T1651": {
+   "deprecated": false,
+   "name": "Cloud Administration Command",
+   "revoked": false,
+   "short_name": "Cloud Administration Command"
+  },
+  "T1652": {
+   "deprecated": false,
+   "name": "Device Driver Discovery",
+   "revoked": false,
+   "short_name": "Device Driver Discovery"
+  },
+  "T1653": {
+   "deprecated": false,
+   "name": "Power Settings",
+   "revoked": false,
+   "short_name": "Power Settings"
+  },
+  "T1654": {
+   "deprecated": false,
+   "name": "Log Enumeration",
+   "revoked": false,
+   "short_name": "Log Enumeration"
+  },
+  "T1656": {
+   "deprecated": false,
+   "name": "Impersonation",
+   "revoked": true,
+   "short_name": "Impersonation"
+  },
+  "T1657": {
+   "deprecated": false,
+   "name": "Financial Theft",
+   "revoked": false,
+   "short_name": "Financial Theft"
+  },
+  "T1659": {
+   "deprecated": false,
+   "name": "Content Injection",
+   "revoked": false,
+   "short_name": "Content Injection"
+  },
+  "T1665": {
+   "deprecated": false,
+   "name": "Hide Infrastructure",
+   "revoked": false,
+   "short_name": "Hide Infrastructure"
+  },
+  "T1666": {
+   "deprecated": false,
+   "name": "Modify Cloud Resource Hierarchy",
+   "revoked": false,
+   "short_name": "Modify Cloud Resource Hierarchy"
+  },
+  "T1667": {
+   "deprecated": false,
+   "name": "Email Bombing",
+   "revoked": false,
+   "short_name": "Email Bombing"
+  },
+  "T1668": {
+   "deprecated": false,
+   "name": "Exclusive Control",
+   "revoked": false,
+   "short_name": "Exclusive Control"
+  },
+  "T1669": {
+   "deprecated": false,
+   "name": "Wi-Fi Networks",
+   "revoked": false,
+   "short_name": "Wi-Fi Networks"
+  },
+  "T1671": {
+   "deprecated": false,
+   "name": "Cloud Application Integration",
+   "revoked": false,
+   "short_name": "Cloud Application Integration"
+  },
+  "T1672": {
+   "deprecated": false,
+   "name": "Email Spoofing",
+   "revoked": true,
+   "short_name": "Email Spoofing"
+  },
+  "T1673": {
+   "deprecated": false,
+   "name": "Virtual Machine Discovery",
+   "revoked": false,
+   "short_name": "Virtual Machine Discovery"
+  },
+  "T1674": {
+   "deprecated": false,
+   "name": "Input Injection",
+   "revoked": false,
+   "short_name": "Input Injection"
+  },
+  "T1675": {
+   "deprecated": false,
+   "name": "ESXi Administration Command",
+   "revoked": false,
+   "short_name": "ESXi Administration Command"
+  },
+  "T1677": {
+   "deprecated": false,
+   "name": "Poisoned Pipeline Execution",
+   "revoked": false,
+   "short_name": "Poisoned Pipeline Execution"
+  },
+  "T1678": {
+   "deprecated": false,
+   "name": "Delay Execution",
+   "revoked": false,
+   "short_name": "Delay Execution"
+  },
+  "T1679": {
+   "deprecated": false,
+   "name": "Selective Exclusion",
+   "revoked": false,
+   "short_name": "Selective Exclusion"
+  },
+  "T1680": {
+   "deprecated": false,
+   "name": "Local Storage Discovery",
+   "revoked": false,
+   "short_name": "Local Storage Discovery"
+  },
+  "T1681": {
+   "deprecated": false,
+   "name": "Search Threat Vendor Data",
+   "revoked": false,
+   "short_name": "Search Threat Vendor Data"
+  },
+  "T1682": {
+   "deprecated": false,
+   "name": "Query Public AI Services",
+   "revoked": false,
+   "short_name": "Query Public AI Services"
+  },
+  "T1683": {
+   "deprecated": false,
+   "name": "Generate Content",
+   "revoked": false,
+   "short_name": "Generate Content"
+  },
+  "T1683.001": {
+   "deprecated": false,
+   "name": "Generate Content: Written Content",
+   "revoked": false,
+   "short_name": "Written Content"
+  },
+  "T1683.002": {
+   "deprecated": false,
+   "name": "Generate Content: Audio-Visual Content",
+   "revoked": false,
+   "short_name": "Audio-Visual Content"
+  },
+  "T1684": {
+   "deprecated": false,
+   "name": "Social Engineering",
+   "revoked": false,
+   "short_name": "Social Engineering"
+  },
+  "T1684.001": {
+   "deprecated": false,
+   "name": "Social Engineering: Impersonation",
+   "revoked": false,
+   "short_name": "Impersonation"
+  },
+  "T1684.002": {
+   "deprecated": false,
+   "name": "Social Engineering: Email Spoofing",
+   "revoked": false,
+   "short_name": "Email Spoofing"
+  },
+  "T1685": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools",
+   "revoked": false,
+   "short_name": "Disable or Modify Tools"
+  },
+  "T1685.001": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools: Disable or Modify Windows Event Log",
+   "revoked": false,
+   "short_name": "Disable or Modify Windows Event Log"
+  },
+  "T1685.002": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools: Disable or Modify Cloud Log",
+   "revoked": false,
+   "short_name": "Disable or Modify Cloud Log"
+  },
+  "T1685.003": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools: Modify or Spoof Tool UI",
+   "revoked": false,
+   "short_name": "Modify or Spoof Tool UI"
+  },
+  "T1685.004": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools: Disable or Modify Linux Audit System Log",
+   "revoked": false,
+   "short_name": "Disable or Modify Linux Audit System Log"
+  },
+  "T1685.005": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools: Clear Windows Event Logs",
+   "revoked": false,
+   "short_name": "Clear Windows Event Logs"
+  },
+  "T1685.006": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools: Clear Linux or Mac System Logs",
+   "revoked": false,
+   "short_name": "Clear Linux or Mac System Logs"
+  },
+  "T1685.007": {
+   "deprecated": false,
+   "name": "Disable or Modify Tools: Impair Autonomous Defenses",
+   "revoked": false,
+   "short_name": "Impair Autonomous Defenses"
+  },
+  "T1686": {
+   "deprecated": false,
+   "name": "Disable or Modify System Firewall",
+   "revoked": false,
+   "short_name": "Disable or Modify System Firewall"
+  },
+  "T1686.001": {
+   "deprecated": false,
+   "name": "Disable or Modify System Firewall: Cloud Firewall",
+   "revoked": false,
+   "short_name": "Cloud Firewall"
+  },
+  "T1686.002": {
+   "deprecated": false,
+   "name": "Disable or Modify System Firewall: Network Device Firewall",
+   "revoked": false,
+   "short_name": "Network Device Firewall"
+  },
+  "T1686.003": {
+   "deprecated": false,
+   "name": "Disable or Modify System Firewall: Windows Host Firewall",
+   "revoked": false,
+   "short_name": "Windows Host Firewall"
+  },
+  "T1687": {
+   "deprecated": false,
+   "name": "Exploitation for Defense Impairment",
+   "revoked": false,
+   "short_name": "Exploitation for Defense Impairment"
+  },
+  "T1688": {
+   "deprecated": false,
+   "name": "Safe Mode Boot",
+   "revoked": false,
+   "short_name": "Safe Mode Boot"
+  },
+  "T1689": {
+   "deprecated": false,
+   "name": "Downgrade Attack",
+   "revoked": false,
+   "short_name": "Downgrade Attack"
+  },
+  "T1690": {
+   "deprecated": false,
+   "name": "Prevent Command History Logging",
+   "revoked": false,
+   "short_name": "Prevent Command History Logging"
+  },
+  "T1696": {
+   "deprecated": false,
+   "name": "Anti-Automation Evasion",
+   "revoked": false,
+   "short_name": "Anti-Automation Evasion"
+  },
+  "T1696.001": {
+   "deprecated": false,
+   "name": "Anti-Automation Evasion: Automate CAPTCHA Completion",
+   "revoked": false,
+   "short_name": "Automate CAPTCHA Completion"
+  },
+  "T1696.002": {
+   "deprecated": false,
+   "name": "Anti-Automation Evasion: Avoid CAPTCHA",
+   "revoked": false,
+   "short_name": "Avoid CAPTCHA"
+  },
+  "T1697": {
+   "deprecated": false,
+   "name": "Steal Application Specific Passwords",
+   "revoked": false,
+   "short_name": "Steal Application Specific Passwords"
+  },
+  "T1698": {
+   "deprecated": false,
+   "name": "Indirect Prompt Injection",
+   "revoked": false,
+   "short_name": "Indirect Prompt Injection"
+  },
+  "T1699": {
+   "deprecated": false,
+   "name": "Direct Prompt Injection",
+   "revoked": false,
+   "short_name": "Direct Prompt Injection"
+  },
+  "T1700": {
+   "deprecated": false,
+   "name": "AI-Enabled Exfiltration",
+   "revoked": false,
+   "short_name": "AI-Enabled Exfiltration"
+  }
+ }
+}

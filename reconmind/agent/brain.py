@@ -17,7 +17,7 @@ from reconmind.agent.prompts import SYSTEM_PROMPT, first_user_message
 from reconmind.agent.tools import TOOL_SPECS, ToolBox
 
 MAX_STEPS = 12          # hard cap on model turns, so a run can never loop forever
-MAX_TOKENS = 2048
+MAX_TOKENS = 4096
 
 
 def _say(trace, kind, text):

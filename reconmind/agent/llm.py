@@ -14,10 +14,15 @@ Switching provider is a setting (.env or a CLI flag), not a code change.
 Adding a provider is one entry in PROVIDERS. Only openrouter has a default
 model, and it is the zero-cost "openrouter/free". Every other provider needs
 RECONMIND_MODEL, so a paid model is never picked silently.
+
+Both client kinds go through _call_with_retry: on an HTTP 429 (rate limited)
+the call waits RATE_LIMIT_WAIT seconds and is retried once. A second 429
+raises RateLimited, which the runner turns into a short message and exit 1.
 """
 
 import json
 import os
+import time
 from dataclasses import dataclass, field
 
 PROVIDERS = {
@@ -50,8 +55,41 @@ DEFAULT_PROVIDER = "openrouter"
 NO_KEY_PLACEHOLDER = "no-key"  # the openai SDK refuses an empty key
 
 
+RATE_LIMIT_WAIT = 20  # seconds before the single retry after a 429
+RATE_LIMIT_MESSAGE = ("Model busy (rate limited). Try again in a minute or use "
+                      "--model with another model.")
+
+
 class ConfigError(ValueError):
     """Provider settings are missing or wrong. The message says what to set."""
+
+
+class RateLimited(RuntimeError):
+    """The provider answered 429 twice in a row. str() is RATE_LIMIT_MESSAGE."""
+
+
+def _is_rate_limit(exc):
+    """True for an HTTP 429 from either SDK (both errors carry status_code)."""
+    if getattr(exc, "status_code", None) == 429:
+        return True
+    return getattr(getattr(exc, "response", None), "status_code", None) == 429
+
+
+def _call_with_retry(fn, **kwargs):
+    """Call fn; on a 429 wait and retry once. Other errors pass through."""
+    try:
+        return fn(**kwargs)
+    except Exception as exc:
+        if not _is_rate_limit(exc):
+            raise
+    print("rate limited (429), waiting {s}s and retrying once".format(s=RATE_LIMIT_WAIT))
+    time.sleep(RATE_LIMIT_WAIT)
+    try:
+        return fn(**kwargs)
+    except Exception as exc:
+        if _is_rate_limit(exc):
+            raise RateLimited(RATE_LIMIT_MESSAGE) from None
+        raise
 
 
 @dataclass
@@ -104,7 +142,7 @@ def make_client(config):
         kwargs = {"api_key": config.api_key}
         if config.base_url:
             kwargs["base_url"] = config.base_url
-        return anthropic.Anthropic(**kwargs)
+        return AnthropicClient(anthropic.Anthropic(**kwargs))
 
     import openai
     return OpenAICompatClient(openai.OpenAI(base_url=config.base_url, api_key=config.api_key))
@@ -132,6 +170,22 @@ class Response:
     stop_reason: str
 
 
+# ---- clients -------------------------------------------------------------
+
+class AnthropicClient:
+    """
+    The native Anthropic client with the 429 retry added. Requests and
+    responses pass through untouched (no translation).
+    """
+
+    def __init__(self, native):
+        self.native = native
+        self.messages = self  # so brain's client.messages.create(...) lands here
+
+    def create(self, **kwargs):
+        return _call_with_retry(self.native.messages.create, **kwargs)
+
+
 # ---- translator ----------------------------------------------------------
 
 class OpenAICompatClient:
@@ -150,7 +204,8 @@ class OpenAICompatClient:
             request["tools"] = to_openai_tools(tools)
         if max_tokens:
             request["max_tokens"] = max_tokens
-        return from_openai_response(self._client.chat.completions.create(**request))
+        return from_openai_response(
+            _call_with_retry(self._client.chat.completions.create, **request))
 
 
 def _get(block, key, default=None):

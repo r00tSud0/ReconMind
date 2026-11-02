@@ -145,6 +145,15 @@ class TranslatorTests(TmpDirTest):
         self.assertEqual(tb.calls, [])
         self.assertIn("no answer", summary)
 
+    def test_temperature_sent_only_when_given(self):
+        fake = FakeOpenAI([turn("a"), turn("b")])
+        client = llm.OpenAICompatClient(fake)
+        msgs = [{"role": "user", "content": "hi"}]
+        client.messages.create(model="m", messages=msgs, temperature=0)
+        client.messages.create(model="m", messages=msgs)
+        self.assertEqual(fake.requests[0]["temperature"], 0)
+        self.assertNotIn("temperature", fake.requests[1])
+
     def test_brain_refuses_to_pick_a_model(self):
         with self.assertRaises(ValueError):
             brain.run_agent(TARGET, client=llm.OpenAICompatClient(FakeOpenAI([])), trace=False)

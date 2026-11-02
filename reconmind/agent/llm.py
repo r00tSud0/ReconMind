@@ -198,12 +198,15 @@ class OpenAICompatClient:
         self._client = openai_client
         self.messages = self  # so brain's client.messages.create(...) lands here
 
-    def create(self, model, messages, max_tokens=None, system=None, tools=None, **_ignored):
+    def create(self, model, messages, max_tokens=None, system=None, tools=None,
+               temperature=None, **_ignored):
         request = {"model": model, "messages": to_openai_messages(system, messages)}
         if tools:
             request["tools"] = to_openai_tools(tools)
         if max_tokens:
             request["max_tokens"] = max_tokens
+        if temperature is not None:  # only sent when a caller asks; brain never does
+            request["temperature"] = temperature
         return from_openai_response(
             _call_with_retry(self._client.chat.completions.create, **request))
 

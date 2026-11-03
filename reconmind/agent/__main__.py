@@ -18,6 +18,9 @@ Settings come from the environment or a .env file in the repo root. The
     ANTHROPIC_API_KEY    key for anthropic
     HF_TOKEN             key for huggingface (ollama needs no key)
 
+If a reasoning model's final answer is empty because it used its whole length
+budget (see llm.py), the runner says so and the usual summary fallback runs.
+
 On a provider rate limit (429) the client waits and retries once. If the main
 loop is still rate limited, the run stops with exit 1 and no report. If only
 the repair call is, the report is still written with every fact section and a
@@ -149,6 +152,11 @@ def main(argv):
         print(exc)
         return 1
     print("-" * 60)
+
+    # A reasoning model can spend its whole length budget before answering.
+    # llm marks that answer, and the fallback below then handles it as usual.
+    if getattr(getattr(client, "last_response", None), "empty_reason", None):
+        print("summary: model ran out of length budget while reasoning")
 
     try:
         summary, refs = _final_summary(client, config.model, target, tools.scan, draft)

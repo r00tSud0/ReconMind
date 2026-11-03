@@ -14,14 +14,22 @@ empty prediction, so their gold labels count as false negatives.
 Every finished batch is appended as one JSON line to a raw results file, so a
 run that stops (rate limit, network error, Ctrl-C) resumes where it left off.
 llm.RateLimited and other client errors propagate to the caller untouched.
+
+Reasoning models spend completion tokens on hidden reasoning before the JSON,
+so MAX_TOKENS is generous. Each record keeps finish_reason and token counts
+for every attempt, and a batch that failed because the length budget ran out
+is reported as such.
 """
 
 import json
 import os
 import re
 
-MAX_TOKENS = 2048
+from reconmind.agent.llm import response_info
+
+MAX_TOKENS = 16000  # reasoning models spend much of this before the JSON answer
 TEMPERATURE = 0
+LENGTH_HINT = "batch {n}: model ran out of length budget (raise --max-tokens)"
 
 _FENCE = re.compile(r"```(?:json|JSON)?\s*(.*?)```", re.DOTALL)
 
@@ -90,25 +98,35 @@ def _text(response):
                      if getattr(b, "type", "") == "text")
 
 
-def classify_batch(client, model, rows, label_table):
+def ran_out_of_length(rec):
+    """True when a failed batch had an attempt that stopped for length."""
+    return rec.get("status") == "failed" and any(
+        a.get("empty_reason") == "length" or a.get("finish_reason") in ("length", "max_tokens")
+        for a in rec.get("attempts", []))
+
+
+def classify_batch(client, model, rows, label_table, max_tokens=MAX_TOKENS):
     """
     One record for a batch of eval rows: status "ok" with predictions, or
-    status "failed" with the raw answers after one retry.
+    status "failed" with the raw answers after one retry. Every record lists
+    finish_reason and token counts for each attempt under "attempts".
     """
     system, user = build_prompt([r["sentence"] for r in rows], label_table)
     ids = [r["id"] for r in rows]
-    raws = []
+    raws, attempts = [], []
     for _attempt in range(2):
         response = client.messages.create(
-            model=model, system=system, max_tokens=MAX_TOKENS, temperature=TEMPERATURE,
+            model=model, system=system, max_tokens=max_tokens, temperature=TEMPERATURE,
             messages=[{"role": "user", "content": user}])
+        attempts.append(response_info(response))
         text = _text(response)
         parsed = parse_response(text, len(rows))
         if parsed is not None:
-            return {"batch_ids": ids, "status": "ok",
+            return {"batch_ids": ids, "status": "ok", "attempts": attempts,
                     "predictions": dict(zip(ids, parsed))}
         raws.append(text[:4000])
-    return {"batch_ids": ids, "status": "failed", "predictions": {}, "raw": raws}
+    return {"batch_ids": ids, "status": "failed", "predictions": {}, "raw": raws,
+            "attempts": attempts}
 
 
 # ---- raw results file ----------------------------------------------------
@@ -168,15 +186,19 @@ def predictions(eval_rows, state):
 
 
 def run(client, model, eval_rows, label_table, raw_path, eval_sha256,
-        batch_size=25, retry_failed=False, log=print):
+        batch_size=25, retry_failed=False, log=print, max_tokens=MAX_TOKENS,
+        max_batches=None):
     """
     Classify every eval sentence not yet done (and failed ones when
-    retry_failed), appending one record per batch to raw_path. Returns the
-    final sentence state. Client errors, including llm.RateLimited,
-    propagate; finished batches are already on disk.
+    retry_failed), appending one record per batch to raw_path. max_batches
+    stops after that many batches (None sends them all). Returns the final
+    sentence state. Client errors, including llm.RateLimited, propagate;
+    finished batches are already on disk.
     """
     if batch_size < 1:
         raise ValueError("batch_size must be at least 1")
+    if max_batches is not None and max_batches < 1:
+        raise ValueError("max_batches must be at least 1")
     records = read_records(raw_path)
     check_records(records, eval_sha256)
     state = sentence_state(records)
@@ -186,6 +208,9 @@ def run(client, model, eval_rows, label_table, raw_path, eval_sha256,
     batches = [todo[i:i + batch_size] for i in range(0, len(todo), batch_size)]
     if batches:
         log("{t} sentences to classify in {b} batches".format(t=len(todo), b=len(batches)))
+    if max_batches is not None and len(batches) > max_batches:
+        batches = batches[:max_batches]
+        log("sending only the first {m} (max batches)".format(m=max_batches))
 
     # A crash mid write can leave a partial last line with no newline.
     # End it so the next record starts on its own line.
@@ -199,12 +224,14 @@ def run(client, model, eval_rows, label_table, raw_path, eval_sha256,
         if needs_newline:
             fh.write("\n")
         for n, batch in enumerate(batches, 1):
-            rec = classify_batch(client, model, batch, label_table)
-            rec.update(model=model, eval_sha256=eval_sha256)
+            rec = classify_batch(client, model, batch, label_table, max_tokens=max_tokens)
+            rec.update(model=model, eval_sha256=eval_sha256, max_tokens=max_tokens)
             fh.write(json.dumps(rec, sort_keys=True) + "\n")
             fh.flush()
             state.update(sentence_state([rec]))
             p = progress(eval_rows, state)
             log("batch {n}/{b} {s}  ({d} of {t} sentences done)".format(
                 n=n, b=len(batches), s=rec["status"], d=p["done"], t=p["total"]))
+            if ran_out_of_length(rec):
+                log(LENGTH_HINT.format(n=n))
     return state

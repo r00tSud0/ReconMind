@@ -3,6 +3,7 @@ Score Model A (the prompted LLM) on the frozen TRAM eval set.
 
     python3 scripts/eval_prompted.py [--provider NAME] [--model ID]
                                      [--batch-size 25] [--retry-failed]
+                                     [--max-tokens 16000] [--max-batches N]
 
 Run scripts/prepare_tram_data.py first. Provider settings work like the agent
 (.env or flags, see reconmind/agent/__main__.py).
@@ -16,6 +17,11 @@ are printed.
 
 Failed batches (unparseable twice) count as done and score as empty
 predictions. --retry-failed sends only those batches again.
+
+Reasoning models spend completion tokens before the answer. A batch that
+failed because the length budget ran out prints "batch N: model ran out of
+length budget (raise --max-tokens)". --max-batches N sends at most N batches
+and then stops without scoring, which is handy for testing one batch.
 """
 
 import argparse
@@ -51,6 +57,11 @@ def _parse_args(args):
                         help="sentences per request (default 25)")
     parser.add_argument("--retry-failed", action="store_true",
                         help="send the failed batches again")
+    parser.add_argument("--max-tokens", type=int, default=prompted_mapper.MAX_TOKENS,
+                        help="completion token budget per request (default {d})".format(
+                            d=prompted_mapper.MAX_TOKENS))
+    parser.add_argument("--max-batches", type=int,
+                        help="send at most this many batches, then stop (for testing)")
     parser.add_argument("--data-dir", default=DATA_DIR, help="folder with eval.jsonl and labels.json")
     parser.add_argument("--results-dir", default=RESULTS_DIR, help="where results are written")
     return parser.parse_args(args)
@@ -76,9 +87,11 @@ def main(argv):
         args = _parse_args(argv[1:])
     except SystemExit:
         return 1
-    if args.batch_size < 1:
-        print("--batch-size must be at least 1")
-        return 1
+    for flag, value in (("--batch-size", args.batch_size), ("--max-tokens", args.max_tokens),
+                        ("--max-batches", args.max_batches)):
+        if value is not None and value < 1:
+            print("{f} must be at least 1".format(f=flag))
+            return 1
 
     try:
         eval_rows, table, eval_sha = _load_eval(args.data_dir)
@@ -105,8 +118,8 @@ def main(argv):
     raw_path = os.path.join(raw_dir, "prompted_{m}.jsonl".format(m=name))
     metrics_path = os.path.join(args.results_dir, "prompted_{m}_metrics.json".format(m=name))
 
-    print("Model A (prompted)  provider={p}  model={m}  batch={b}".format(
-        p=config.name, m=config.model, b=args.batch_size))
+    print("Model A (prompted)  provider={p}  model={m}  batch={b}  max_tokens={t}".format(
+        p=config.name, m=config.model, b=args.batch_size, t=args.max_tokens))
     if config.model in ROUTER_MODELS:
         print("WARNING: {m} routes to different models between runs, so this result "
               "may not be reproducible. Prefer a pinned model id.".format(m=config.model))
@@ -115,7 +128,9 @@ def main(argv):
     try:
         state = prompted_mapper.run(client, config.model, eval_rows, table, raw_path,
                                     eval_sha, batch_size=args.batch_size,
-                                    retry_failed=args.retry_failed)
+                                    retry_failed=args.retry_failed,
+                                    max_tokens=args.max_tokens,
+                                    max_batches=args.max_batches)
     except prompted_mapper.MapperError as exc:
         print(exc)
         return 1
@@ -131,6 +146,9 @@ def main(argv):
         return 1
 
     p = prompted_mapper.progress(eval_rows, state)
+    if p["done"] < p["total"] and args.max_batches:
+        _stopped(p, "Stopped after --max-batches {n}".format(n=args.max_batches))
+        return 0
     if p["done"] < p["total"]:  # cannot happen after a clean run, but never score a partial set
         _stopped(p, "Incomplete")
         return 1
@@ -143,6 +161,7 @@ def main(argv):
         "provider": config.name,
         "model": config.model,
         "batch_size": args.batch_size,
+        "max_tokens": args.max_tokens,
         "temperature": prompted_mapper.TEMPERATURE,
         "eval_sha256": eval_sha,
         "failed_sentences": p["failed"],

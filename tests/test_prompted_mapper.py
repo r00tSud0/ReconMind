@@ -80,6 +80,29 @@ class FakeClient:
                 for r in self.requests]
 
 
+class ReasoningOpenAI:
+    """
+    An OpenAI-compatible endpoint whose reasoning model spends its whole
+    budget thinking and returns an empty answer cut off by length.
+    """
+
+    def __init__(self):
+        self.requests = []
+        self.chat = NS(completions=NS(create=self._create))
+
+    def _create(self, **kwargs):
+        self.requests.append(kwargs)
+        budget = kwargs["max_tokens"]
+        return NS(choices=[NS(message=NS(content="", tool_calls=None), finish_reason="length")],
+                  usage=NS(completion_tokens=budget,
+                           completion_tokens_details=NS(reasoning_tokens=budget)))
+
+
+def reasoning_client():
+    fake = ReasoningOpenAI()
+    return llm.OpenAICompatClient(fake), fake
+
+
 class ParseTests(unittest.TestCase):
 
     def test_good_json(self):
@@ -147,6 +170,34 @@ class ClassifyBatchTests(unittest.TestCase):
         client = FakeClient([llm.RateLimited(llm.RATE_LIMIT_MESSAGE)])
         with self.assertRaises(llm.RateLimited):
             pm.classify_batch(client, "m", EVAL_ROWS[:2], TABLE)
+
+    def test_default_budget_is_16000(self):
+        client = FakeClient()
+        pm.classify_batch(client, "m", EVAL_ROWS[:2], TABLE)
+        self.assertEqual(pm.MAX_TOKENS, 16000)
+        self.assertEqual(client.requests[0]["max_tokens"], 16000)
+
+    def test_attempts_recorded_for_ok_batch(self):
+        rec = pm.classify_batch(FakeClient(["garbage", "good"]), "m", EVAL_ROWS[:2], TABLE)
+        self.assertEqual(rec["attempts"], [{"finish_reason": "end_turn"},
+                                           {"finish_reason": "end_turn"}])
+        self.assertFalse(pm.ran_out_of_length(rec))
+
+    def test_empty_length_batch_records_reason_and_tokens(self):
+        client, fake = reasoning_client()
+        rec = pm.classify_batch(client, "m", EVAL_ROWS[:2], TABLE, max_tokens=2048)
+        self.assertEqual(rec["status"], "failed")
+        self.assertEqual(rec["raw"], ["", ""])
+        # each attempt: the original call, then the llm layer's doubled retry
+        self.assertEqual([r["max_tokens"] for r in fake.requests], [2048, 4096, 2048, 4096])
+        self.assertEqual(rec["attempts"], [{
+            "finish_reason": "length", "completion_tokens": 4096,
+            "reasoning_tokens": 4096, "empty_reason": "length"}] * 2)
+        self.assertTrue(pm.ran_out_of_length(rec))
+
+    def test_garbage_failure_is_not_a_length_failure(self):
+        rec = pm.classify_batch(FakeClient(["garbage", "garbage"]), "m", EVAL_ROWS[:2], TABLE)
+        self.assertFalse(pm.ran_out_of_length(rec))
 
 
 class RunTests(unittest.TestCase):
@@ -288,6 +339,77 @@ class ScriptTests(unittest.TestCase):
                                      os.path.join(self._tmp.name, "nope")])
         self.assertEqual(code, 1)
         self.assertIn("prepare_tram_data.py", out.getvalue())
+
+    def raw_records(self):
+        return pm.read_records(os.path.join(self.results, "raw", "prompted_vendor_m_free.jsonl"))
+
+    def test_length_failure_prints_reason_and_stores_attempts(self):
+        client, fake = reasoning_client()
+        code, out = self.main(client, "--max-batches", "1")
+        self.assertEqual(code, 0)
+        self.assertIn("batch 1: model ran out of length budget (raise --max-tokens)", out)
+        self.assertNotIn("Traceback", out)
+        rec = self.raw_records()[0]
+        self.assertEqual(rec["status"], "failed")
+        self.assertEqual(rec["raw"], ["", ""])
+        self.assertEqual(rec["max_tokens"], 16000)
+        self.assertEqual(len(rec["attempts"]), 2)
+        for attempt in rec["attempts"]:
+            self.assertEqual(attempt["finish_reason"], "length")
+            self.assertEqual(attempt["empty_reason"], "length")
+            self.assertEqual(attempt["completion_tokens"], 32000)  # after the doubled retry
+            self.assertEqual(attempt["reasoning_tokens"], 32000)
+
+    def test_garbage_failure_prints_no_length_reason(self):
+        code, out = self.main(FakeClient(["garbage", "garbage"]))
+        self.assertEqual(code, 0)
+        self.assertNotIn("length budget", out)
+
+    def test_max_tokens_flag(self):
+        client = FakeClient()
+        code, out = self.main(client, "--max-tokens", "500")
+        self.assertEqual(code, 0)
+        self.assertEqual({r["max_tokens"] for r in client.requests}, {500})
+        self.assertIn("max_tokens=500", out)
+        with open(self.metrics_path()) as fh:
+            self.assertEqual(json.load(fh)["max_tokens"], 500)
+        self.assertTrue(all(r["max_tokens"] == 500 for r in self.raw_records()))
+
+    def test_bad_flag_values_stop(self):
+        for flag in ("--max-tokens", "--max-batches", "--batch-size"):
+            code, out = self.main(FakeClient(), flag, "0")
+            self.assertEqual(code, 1, flag)
+            self.assertIn("{f} must be at least 1".format(f=flag), out)
+
+    def test_max_batches_sends_one_batch_and_does_not_score(self):
+        client = FakeClient()
+        code, out = self.main(client, "--max-batches", "1")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(client.requests), 1)
+        self.assertIn("Stopped after --max-batches 1. 2 of 6 sentences done", out)
+        self.assertFalse(os.path.exists(self.metrics_path()))
+
+        rest = FakeClient()  # a later full run resumes after that batch
+        code, out = self.main(rest)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(rest.requests), 2)
+        self.assertTrue(os.path.exists(self.metrics_path()))
+
+    def test_retry_failed_redoes_only_failed_batches(self):
+        # batch 1 ok, batch 2 fails twice, batch 3 ok
+        code, out = self.main(FakeClient(["good", "garbage", "garbage", "good"]))
+        self.assertEqual(code, 0)
+        with open(self.metrics_path()) as fh:
+            self.assertEqual(json.load(fh)["failed_sentences"], 2)
+
+        retry = FakeClient()
+        code, out = self.main(retry, "--retry-failed")
+        self.assertEqual(code, 0)
+        self.assertEqual(retry.sent_ids(), [["Then T1002 happened.", "Also nothing."]])
+        with open(self.metrics_path()) as fh:
+            saved = json.load(fh)
+        self.assertEqual(saved["failed_sentences"], 0)
+        self.assertAlmostEqual(saved["metrics"]["micro"]["f1"], 1.0)
 
     def test_router_model_warns(self):
         code, out = self.main_with_model(FakeClient(), "openrouter/free")

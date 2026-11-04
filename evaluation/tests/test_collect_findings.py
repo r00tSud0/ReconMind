@@ -1,0 +1,109 @@
+"""
+Offline tests for evaluation/scripts/collect_findings.py. Nothing is scanned:
+run_nmap and search_exploits are mocked and all output goes to a temp folder.
+
+    python3 -m unittest discover -s evaluation/tests -t . -v
+"""
+
+import importlib.util
+import json
+import os
+import tempfile
+import unittest
+from unittest import mock
+
+from reconmind.agent import tools as toolmod
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SCRIPT = os.path.join(os.path.dirname(HERE), "scripts", "collect_findings.py")
+
+TARGET = "10.10.1.100"
+FAKE_SCAN = {
+    "target": TARGET, "status": "ok",
+    "ports": [
+        {"port": 21, "protocol": "tcp", "service": "ftp",
+         "product": "vsftpd", "version": "2.3.4"},
+        {"port": 22, "protocol": "tcp", "service": "ssh",
+         "product": "OpenSSH", "version": "4.7p1"},
+    ],
+}
+
+
+def load_script():
+    spec = importlib.util.spec_from_file_location("collect_findings", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+cf = load_script()
+
+
+def fresh_scan():
+    """A fresh copy each time, since ToolBox enriches the ports in place."""
+    return dict(FAKE_SCAN, ports=[dict(p) for p in FAKE_SCAN["ports"]])
+
+
+class CollectFindingsTests(unittest.TestCase):
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.out = os.path.join(self._tmp.name, "findings.jsonl")
+        self.scans = os.path.join(self._tmp.name, "scans")
+        self._patch_scans = mock.patch.object(cf, "SCANS_DIR", self.scans)
+        self._patch_scans.start()
+
+    def tearDown(self):
+        self._patch_scans.stop()
+        self._tmp.cleanup()
+
+    def _run(self, *extra):
+        return cf.main(["collect_findings.py", TARGET, "--out", self.out, *extra])
+
+    def _lines(self):
+        with open(self.out) as fh:
+            return [json.loads(line) for line in fh if line.strip()]
+
+    def test_refused_target_exits_2_and_never_scans(self):
+        with mock.patch.object(cf, "is_authorized", return_value=False), \
+             mock.patch.object(toolmod, "run_nmap") as run_nmap:
+            code = self._run()
+        self.assertEqual(code, 2)
+        run_nmap.assert_not_called()
+        self.assertFalse(os.path.exists(self.out))
+        self.assertFalse(os.path.exists(self.scans))
+
+    def test_normal_run_writes_scan_and_one_line_per_port(self):
+        with mock.patch.object(cf, "is_authorized", return_value=True), \
+             mock.patch.object(toolmod, "run_nmap", return_value=fresh_scan()), \
+             mock.patch.object(toolmod, "search_exploits", return_value=[]):
+            code = self._run()
+        self.assertEqual(code, 0)
+
+        lines = self._lines()
+        self.assertEqual([r["id"] for r in lines],
+                         ["10.10.1.100:21/tcp", "10.10.1.100:22/tcp"])
+        self.assertTrue(all(r["labels"] is None for r in lines))
+        self.assertEqual(lines[0]["port"], 21)
+        self.assertEqual(lines[0]["protocol"], "tcp")
+        self.assertIn("vsftpd 2.3.4", lines[0]["text"])
+
+        # Exactly one scan file was saved and the findings point at it.
+        saved = os.listdir(self.scans)
+        self.assertEqual(len(saved), 1)
+        self.assertTrue(saved[0].startswith("10.10.1.100_"))
+        self.assertTrue(lines[0]["scan_file"].endswith(saved[0]))
+
+    def test_second_run_skips_duplicates(self):
+        with mock.patch.object(cf, "is_authorized", return_value=True), \
+             mock.patch.object(toolmod, "run_nmap",
+                               side_effect=lambda *a, **k: fresh_scan()), \
+             mock.patch.object(toolmod, "search_exploits", return_value=[]):
+            self.assertEqual(self._run(), 0)
+            self.assertEqual(self._run(), 0)
+        # The second run adds nothing, so there are still two lines.
+        self.assertEqual(len(self._lines()), 2)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -53,6 +53,18 @@ Run every command from the repo root.
    python3 -m unittest discover -s evaluation/tests -t . -v
    ```
 
+## Collect the ReconMind test set
+
+Build the hand labeling queue from a real scan of an authorized target. This
+appends one line per open port to
+`evaluation/data/reconmind_eval/findings.jsonl`, each with `labels` left null to
+fill in by hand, and saves the full scan under
+`evaluation/data/reconmind_eval/scans/`:
+
+```
+python3 evaluation/scripts/collect_findings.py TARGET [--all-ports]
+```
+
 ## Where results go
 
 - `evaluation/results/<run>_metrics.json`: headline and per technique scores

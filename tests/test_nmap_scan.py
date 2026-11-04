@@ -138,5 +138,44 @@ class RunTests(unittest.TestCase):
         which.assert_not_called()
 
 
+class AllPortsTests(unittest.TestCase):
+    """all_ports controls the -p- flag and the timeout, nothing else."""
+
+    def _run(self, **kwargs):
+        # The gate allows, nmap is present, and parsing is stubbed so we can
+        # read back exactly what subprocess.run was asked to do.
+        with mock.patch.object(nmap_scan, "is_authorized", return_value=True), \
+             mock.patch.object(nmap_scan.shutil, "which", return_value="/usr/bin/nmap"), \
+             mock.patch.object(nmap_scan, "_parse_nmap_xml", return_value=[]), \
+             mock.patch.object(nmap_scan.subprocess, "run") as run:
+            result = nmap_scan.run_nmap("10.10.1.100", **kwargs)
+        return run, result
+
+    def test_all_ports_adds_dash_p_and_900_timeout(self):
+        run, result = self._run(all_ports=True)
+        cmd = run.call_args.args[0]
+        self.assertIn("-p-", cmd)
+        self.assertEqual(run.call_args.kwargs["timeout"], 900)
+        self.assertEqual(result["status"], "ok")
+
+    def test_default_command_and_timeout_unchanged(self):
+        run, result = self._run()
+        cmd = run.call_args.args[0]
+        self.assertNotIn("-p-", cmd)
+        self.assertEqual(run.call_args.kwargs["timeout"], 300)
+        tmp_name = cmd[cmd.index("-oX") + 1]
+        self.assertEqual(
+            cmd,
+            ["nmap"] + nmap_scan.NMAP_FLAGS + ["-oX", tmp_name, "10.10.1.100"])
+        self.assertEqual(result["status"], "ok")
+
+    def test_refused_target_never_reaches_subprocess_even_with_all_ports(self):
+        with mock.patch.object(nmap_scan, "is_authorized", return_value=False), \
+             mock.patch.object(nmap_scan.subprocess, "run") as run:
+            result = nmap_scan.run_nmap("8.8.8.8", all_ports=True)
+        run.assert_not_called()
+        self.assertEqual(result["status"], "refused")
+
+
 if __name__ == "__main__":
     unittest.main()

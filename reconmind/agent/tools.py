@@ -98,8 +98,12 @@ TOOL_SPECS = [
 class ToolBox:
     """Holds the scope lock and the results gathered during one agent run."""
 
-    def __init__(self, target):
+    def __init__(self, target, all_ports=False):
         self.target = str(target).strip()
+        # Passed straight through to run_nmap. Default False, so the agent and
+        # brain.py scan exactly as before; only callers that ask for a full
+        # sweep set it.
+        self.all_ports = all_ports
         # Same shape the report builder already reads.
         self.scan = {"target": self.target, "status": "not-run", "ports": []}
         self.calls = []  # (tool name, input) history, for the trace and tests
@@ -137,7 +141,7 @@ class ToolBox:
                 "target is {s}.".format(t=target, s=self.target))
 
         # run_nmap asks the authorization gate again before nmap starts.
-        result = run_nmap(self.target)
+        result = run_nmap(self.target, all_ports=self.all_ports)
         self.scan = result
 
         if result["status"] == "refused":

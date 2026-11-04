@@ -97,11 +97,16 @@ def _parse_nmap_xml(xml_text):
     return ports
 
 
-def run_nmap(target_ip):
+def run_nmap(target_ip, all_ports=False):
     """
     Scan one authorized target and return a dict:
         {"target", "status", "ports": [...]}
     If the gate refuses the target, status is "refused" and nmap never runs.
+
+    By default nmap scans its usual port set with a 300 second timeout. When
+    all_ports is True, "-p-" is added so every TCP port is scanned and the
+    timeout is raised to 900 seconds, because a full sweep takes much longer.
+    NMAP_FLAGS itself is never changed.
     """
     # The gate decides first. Nothing happens if it says no.
     if not is_authorized(target_ip):
@@ -111,11 +116,19 @@ def run_nmap(target_ip):
     if shutil.which("nmap") is None:
         return {"target": target_ip, "status": "nmap-not-found", "ports": []}
 
+    # A full sweep ("-p-") covers every port and needs a longer timeout. The
+    # default path below is byte for byte what it was before all_ports existed.
+    flags = list(NMAP_FLAGS)
+    timeout = 300
+    if all_ports:
+        flags = flags + ["-p-"]
+        timeout = 900
+
     # Write XML to a temp file, then read and parse it.
     with tempfile.NamedTemporaryFile(suffix=".xml") as tmp:
-        cmd = ["nmap"] + NMAP_FLAGS + ["-oX", tmp.name, str(target_ip)]
+        cmd = ["nmap"] + flags + ["-oX", tmp.name, str(target_ip)]
         subprocess.run(cmd, check=True, capture_output=True, text=True,
-                       timeout=300)
+                       timeout=timeout)
         tmp.seek(0)
         xml_text = open(tmp.name).read()
 

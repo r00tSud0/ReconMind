@@ -1,18 +1,18 @@
 """
 Score Model A (the prompted LLM) on the frozen TRAM eval set.
 
-    python3 scripts/eval_prompted.py [--provider NAME] [--model ID]
-                                     [--batch-size 25] [--retry-failed]
-                                     [--max-tokens 16000] [--max-batches N]
+    python3 evaluation/scripts/eval_prompted.py [--provider NAME] [--model ID]
+                                                [--batch-size 25] [--retry-failed]
+                                                [--max-tokens 16000] [--max-batches N]
 
-Run scripts/prepare_tram_data.py first. Provider settings work like the agent
+Run evaluation/scripts/prepare_tram_data.py first. Provider settings work like the agent
 (.env or flags, see reconmind/agent/__main__.py).
 
-Each finished batch is saved to results/raw/prompted_<model>.jsonl and the
+Each finished batch is saved to evaluation/results/raw/prompted_<model>.jsonl and the
 next run resumes from it, so a daily request limit just means running it
 again tomorrow. On a rate limit the run stops cleanly and says how many
 sentences are done. When every sentence has a result, the metrics are
-written to results/prompted_<model>_metrics.json and the headline numbers
+written to evaluation/results/prompted_<model>_metrics.json and the headline numbers
 are printed.
 
 Failed batches (unparseable twice) count as done and score as empty
@@ -32,16 +32,16 @@ import re
 import sys
 from datetime import datetime, timezone
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from reconmind.agent import llm  # noqa: E402
 from reconmind.agent.__main__ import MISSING_PACKAGE, _load_dotenv  # noqa: E402
-from reconmind.ai import metrics, prompted_mapper  # noqa: E402
+from evaluation.attack_mapper import metrics, prompted_mapper  # noqa: E402
 
-DATA_DIR = os.path.join(REPO_ROOT, "data", "tram")
-RESULTS_DIR = os.path.join(REPO_ROOT, "results")
+DATA_DIR = os.path.join(REPO_ROOT, "evaluation", "data", "tram")
+RESULTS_DIR = os.path.join(REPO_ROOT, "evaluation", "results")
 ROUTER_MODELS = {"openrouter/free"}
 
 
@@ -50,7 +50,7 @@ def safe_name(model):
 
 
 def _parse_args(args):
-    parser = argparse.ArgumentParser(prog="python3 scripts/eval_prompted.py")
+    parser = argparse.ArgumentParser(prog="python3 evaluation/scripts/eval_prompted.py")
     parser.add_argument("--provider", help="one of: " + ", ".join(sorted(llm.PROVIDERS)))
     parser.add_argument("--model", help="model id for this run")
     parser.add_argument("--batch-size", type=int, default=25,
@@ -97,7 +97,7 @@ def main(argv):
         eval_rows, table, eval_sha = _load_eval(args.data_dir)
     except (OSError, ValueError) as exc:
         print("Cannot read the eval set in {d}: {e}".format(d=args.data_dir, e=exc))
-        print("Run python3 scripts/prepare_tram_data.py first.")
+        print("Run python3 evaluation/scripts/prepare_tram_data.py first.")
         return 1
 
     _load_dotenv()

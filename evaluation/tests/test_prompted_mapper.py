@@ -1,9 +1,9 @@
 """
-Offline tests for Model A: reconmind/ai/prompted_mapper.py and
-scripts/eval_prompted.py. A fake client stands in for the provider, so no
+Offline tests for Model A: evaluation/attack_mapper/prompted_mapper.py and
+evaluation/scripts/eval_prompted.py. A fake client stands in for the provider, so no
 key, network or SDK is needed:
 
-    python3 -m unittest discover -s tests -v
+    python3 -m unittest discover -s evaluation/tests -t . -v
 """
 
 import contextlib
@@ -18,7 +18,7 @@ from types import SimpleNamespace as NS
 from unittest import mock
 
 from reconmind.agent import llm
-from reconmind.ai import prompted_mapper as pm
+from evaluation.attack_mapper import prompted_mapper as pm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(os.path.dirname(HERE), "scripts", "eval_prompted.py")

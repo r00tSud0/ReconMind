@@ -1,8 +1,8 @@
 """
-Offline tests for scripts/prepare_tram_data.py on a tiny fake dataset.
+Offline tests for evaluation/scripts/prepare_tram_data.py on a tiny fake dataset.
 Nothing is downloaded:
 
-    python3 -m unittest discover -s tests -v
+    python3 -m unittest discover -s evaluation/tests -t . -v
 """
 
 import importlib.util

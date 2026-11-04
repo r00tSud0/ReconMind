@@ -1,11 +1,11 @@
 """
 Prepare the MITRE TRAM data for the Stage 3 ATT&CK mapper experiment.
 
-    python3 scripts/prepare_tram_data.py
+    python3 evaluation/scripts/prepare_tram_data.py
 
 Downloads TRAM multi_label.json pinned to one commit, checks its SHA-256,
 splits it 70/15/15 by report (doc_title, never by sentence), builds the eval
-set both models are scored on, and writes everything to data/tram/:
+set both models are scored on, and writes everything to evaluation/data/tram/:
 
     train.jsonl, val.jsonl, test.jsonl   rows {id, sentence, labels, doc_title}
     eval.jsonl                           every labeled test sentence plus an
@@ -18,7 +18,7 @@ Split seed: seeds 0 to 999 are tried. A seed is kept only if all 50
 techniques appear in train. Among those, the one with the most techniques
 present in test wins, lowest seed on ties.
 
-The download is cached as data/tram/multi_label.json and the checksum is
+The download is cached as evaluation/data/tram/multi_label.json and the checksum is
 verified on every run, cached or not. Standard library only.
 """
 
@@ -40,8 +40,8 @@ EVAL_SEED = 0
 TRAIN_FRAC = 0.70
 VAL_FRAC = 0.15
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_DIR = os.path.join(REPO_ROOT, "data", "tram")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT_DIR = os.path.join(REPO_ROOT, "evaluation", "data", "tram")
 CACHE_PATH = os.path.join(OUT_DIR, "multi_label.json")
 ATTACK_PATH = os.path.join(REPO_ROOT, "reconmind", "data", "attack_techniques.json")
 

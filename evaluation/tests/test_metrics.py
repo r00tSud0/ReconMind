@@ -1,12 +1,12 @@
 """
-Offline tests for reconmind/ai/metrics.py on hand computed examples.
+Offline tests for evaluation/attack_mapper/metrics.py on hand computed examples.
 
-    python3 -m unittest discover -s tests -v
+    python3 -m unittest discover -s evaluation/tests -t . -v
 """
 
 import unittest
 
-from reconmind.ai.metrics import score
+from evaluation.attack_mapper.metrics import score
 
 A, B, C, D = "T1001", "T1002", "T1003", "T1004"
 LABELS = [A, B, C, D]

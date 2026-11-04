@@ -1,12 +1,12 @@
 """
-Offline tests for reconmind/ai/finetune_utils.py on hand made examples.
+Offline tests for evaluation/attack_mapper/finetune_utils.py on hand made examples.
 
-    python3 -m unittest tests.test_finetune_utils -v
+    python3 -m unittest evaluation.tests.test_finetune_utils -v
 """
 
 import unittest
 
-from reconmind.ai import finetune_utils as fu
+from evaluation.attack_mapper import finetune_utils as fu
 
 A, B, C = "T1001", "T1002", "T1003"
 LABELS = [A, B, C]

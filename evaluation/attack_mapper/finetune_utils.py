@@ -1,7 +1,7 @@
 """
 Helpers for Model B (fine tuned SciBERT) in the ATT&CK mapper experiment.
 Pure python, no torch, so they are unit tested offline. The Colab notebook
-notebooks/train_attack_mapper.ipynb imports them.
+evaluation/notebooks/train_attack_mapper.ipynb imports them.
 
     to_multi_hot(ids, labels)            -> [0, 1, 0, ...]
     from_multi_hot(vector, labels)       -> ["T1059", ...]
@@ -12,14 +12,14 @@ notebooks/train_attack_mapper.ipynb imports them.
     choose_max_length(token_lengths)     -> (256 or 512, share cut at 256)
     compute_pos_weight(targets, cap)     -> one loss weight per label
 
-labels is the ordered label list (the 50 IDs from data/tram/labels.json).
+labels is the ordered label list (the 50 IDs from evaluation/data/tram/labels.json).
 Index i of every vector and probability row belongs to labels[i].
 
-The threshold sweep scores with reconmind/ai/metrics.py, so "micro F1" means
+The threshold sweep scores with evaluation/attack_mapper/metrics.py, so "micro F1" means
 exactly what it means in the final report.
 """
 
-from reconmind.ai import metrics
+from evaluation.attack_mapper import metrics
 
 # 0.05, 0.10, ..., 0.95. Rounded so 0.15 is 0.15, not 0.15000000000000002.
 THRESHOLDS = [round(k * 0.05, 2) for k in range(1, 20)]

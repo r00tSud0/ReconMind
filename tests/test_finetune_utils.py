@@ -134,5 +134,47 @@ class MaxLengthTests(unittest.TestCase):
             fu.choose_max_length([])
 
 
+class PosWeightTests(unittest.TestCase):
+    # 10 sentences, 3 labels: label 0 in 5, label 1 in 1, label 2 in none.
+    TARGETS = [[1, 1, 0]] + [[1, 0, 0]] * 4 + [[0, 0, 0]] * 5
+
+    def test_ratio_below_cap(self):
+        weights = fu.compute_pos_weight(self.TARGETS, cap=30.0)
+        self.assertEqual(weights[0], 1.0)   # 5 negatives / 5 positives
+        self.assertEqual(weights[1], 9.0)   # 9 negatives / 1 positive
+
+    def test_zero_positives_gets_cap(self):
+        weights = fu.compute_pos_weight(self.TARGETS, cap=30.0)
+        self.assertEqual(weights[2], 30.0)
+
+    def test_cap_applies(self):
+        self.assertEqual(fu.compute_pos_weight(self.TARGETS, cap=4.0), [1.0, 4.0, 4.0])
+
+    def test_one_weight_per_label_as_floats(self):
+        weights = fu.compute_pos_weight(self.TARGETS, cap=30)
+        self.assertEqual(len(weights), 3)
+        self.assertTrue(all(isinstance(w, float) for w in weights))
+
+    def test_common_label_can_go_below_one(self):
+        # Present in 3 of 4 sentences: 1 negative / 3 positives.
+        weights = fu.compute_pos_weight([[1], [1], [1], [0]], cap=30.0)
+        self.assertAlmostEqual(weights[0], 1 / 3)
+
+    def test_float_targets(self):
+        self.assertEqual(fu.compute_pos_weight([[1.0], [0.0], [0.0]], cap=30.0), [2.0])
+
+    def test_empty_raises(self):
+        with self.assertRaises(ValueError):
+            fu.compute_pos_weight([], cap=30.0)
+
+    def test_ragged_rows_raise(self):
+        with self.assertRaises(ValueError):
+            fu.compute_pos_weight([[1, 0], [1]], cap=30.0)
+
+    def test_bad_cap_raises(self):
+        with self.assertRaises(ValueError):
+            fu.compute_pos_weight(self.TARGETS, cap=0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,7 @@ notebooks/train_attack_mapper.ipynb imports them.
     sweep_threshold(gold, prob_rows, labels)
                                          -> (threshold, micro F1, table)
     choose_max_length(token_lengths)     -> (256 or 512, share cut at 256)
+    compute_pos_weight(targets, cap)     -> one loss weight per label
 
 labels is the ordered label list (the 50 IDs from data/tram/labels.json).
 Index i of every vector and probability row belongs to labels[i].
@@ -96,3 +97,36 @@ def choose_max_length(token_lengths, short=SHORT_MAX_LENGTH, long=LONG_MAX_LENGT
         raise ValueError("no token lengths given")
     cut = sum(1 for n in token_lengths if n > short) / len(token_lengths)
     return (long if cut > max_cut else short), cut
+
+
+def compute_pos_weight(targets, cap):
+    """
+    One weight per label for BCEWithLogitsLoss(pos_weight=...).
+
+    targets is a list of multi-hot rows (one per training sentence, all the
+    same length). The weight for label i is negatives / positives in column i,
+    so a missed rare technique costs about as much in the loss as all the
+    sentences that correctly lack it. Every weight is capped at cap so a label
+    seen only once or twice cannot dominate training. A label with zero
+    positives gets the cap (its true ratio is infinite).
+
+    Count on the TRAIN split only; using validation or eval rows would leak
+    their label counts into training.
+    """
+    if not targets:
+        raise ValueError("no target rows given")
+    if not cap > 0:
+        raise ValueError("cap must be positive, got {c}".format(c=cap))
+    width = len(targets[0])
+    if width == 0:
+        raise ValueError("target rows are empty")
+    positives = [0] * width
+    for n, row in enumerate(targets):
+        if len(row) != width:
+            raise ValueError("row {n} has {l} entries, expected {w}".format(
+                n=n, l=len(row), w=width))
+        for i, v in enumerate(row):
+            if v:
+                positives[i] += 1
+    total = len(targets)
+    return [min((total - pos) / pos, cap) if pos else float(cap) for pos in positives]

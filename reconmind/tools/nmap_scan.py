@@ -8,14 +8,18 @@ interlock is enforced for every scan: the tool cannot run against a target the
 allowlist did not approve.
 
 Output is a plain dict so the agent and the report builder can read it without
-knowing anything about nmap.
+knowing anything about nmap. Besides the open ports it records how every
+scanned port answered (port_states) and how the scan was run (scan_info).
 """
 
 import re
+import shlex
 import shutil
+import socket
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
+from datetime import datetime
 
 from reconmind.core.authorization import is_authorized
 
@@ -25,6 +29,21 @@ from reconmind.core.authorization import is_authorized
 # range ("3.X - 4.X"); irc-info reads the IRC server's version line
 # ("Unreal3.2.8.1"), which -sV usually leaves empty.
 NMAP_FLAGS = ["-Pn", "-sV", "--script", "smb-os-discovery,irc-info", "-T4"]
+
+# Added to every pass: nmap records why it gave each port its state
+# (syn-ack, reset, no-response, admin-prohibited and so on).
+REASON_FLAG = "--reason"
+
+# Pass 1 of an all ports scan: find the open TCP ports across all 65535,
+# quickly. No version detection and no scripts; pass 2 does the detail work
+# on the open ports only.
+DISCOVERY_FLAGS = ["-Pn", "-p-", "--min-rate", "1000", "--max-retries", "2", "-T4"]
+
+DEFAULT_TIMEOUT = 300    # the single default pass, and pass 2 (detail)
+DISCOVERY_TIMEOUT = 600  # pass 1 (discovery) over every TCP port
+
+MODE_DEFAULT = "top 1000 ports"
+MODE_ALL_PORTS = "all 65535 ports, two pass"
 
 SMB_PORTS = (139, 445)
 
@@ -76,6 +95,7 @@ def _parse_nmap_xml(xml_text):
                 "service": (svc.get("name") if svc is not None else "unknown"),
                 "product": (svc.get("product") if svc is not None else ""),
                 "version": (svc.get("version") if svc is not None else ""),
+                "reason": state.get("reason", ""),
             }
             # Fill the real UnrealIRCd version in when irc-info found one.
             unreal = _unreal_version(port)
@@ -97,16 +117,112 @@ def _parse_nmap_xml(xml_text):
     return ports
 
 
+def _open_tcp_ports(xml_text):
+    """Sorted open TCP port numbers from one nmap XML run."""
+    root = ET.fromstring(xml_text)
+    found = set()
+    for port in root.findall("./host/ports/port"):
+        state = port.find("state")
+        if (port.get("protocol") == "tcp" and state is not None
+                and state.get("state") == "open"):
+            found.add(int(port.get("portid")))
+    return sorted(found)
+
+
+def _parse_port_states(xml_text):
+    """
+    Count every scanned port by state. nmap lists some ports one by one and
+    folds the rest into <extraports> summaries; both are counted, so closed
+    and filtered ports are not dropped. Returns a list of
+    {"state", "count", "reasons": {reason: count}}, largest count first. An
+    "open" entry is always present, even when its count is 0.
+    """
+    root = ET.fromstring(xml_text)
+    states = {}
+
+    def entry(state):
+        return states.setdefault(state, {"state": state, "count": 0, "reasons": {}})
+
+    def add_reason(item, reason, count):
+        if reason:
+            item["reasons"][reason] = item["reasons"].get(reason, 0) + count
+
+    entry("open")
+    for ports in root.findall("./host/ports"):
+        for extra in ports.findall("extraports"):
+            item = entry(extra.get("state", "unknown"))
+            item["count"] += int(extra.get("count", "0"))
+            for why in extra.findall("extrareasons"):
+                add_reason(item, why.get("reason", ""), int(why.get("count", "0")))
+        for port in ports.findall("port"):
+            state = port.find("state")
+            if state is None:
+                continue
+            item = entry(state.get("state", "unknown"))
+            item["count"] += 1
+            add_reason(item, state.get("reason", ""), 1)
+    return sorted(states.values(), key=lambda s: -s["count"])
+
+
+def _run_info(xml_text):
+    """nmap version, start time and elapsed seconds from one XML run."""
+    root = ET.fromstring(xml_text)
+    start = root.get("start", "")
+    if start.isdigit():
+        started = datetime.fromtimestamp(int(start)).strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        started = root.get("startstr", "")
+    finished = root.find("./runstats/finished")
+    try:
+        elapsed = float(finished.get("elapsed")) if finished is not None else 0.0
+    except (TypeError, ValueError):
+        elapsed = 0.0
+    return {"nmap_version": root.get("version", "unknown"),
+            "started": started, "elapsed": elapsed}
+
+
+def _source_ip(target_ip):
+    """
+    The local address this machine would use to reach the target. connect()
+    on a UDP socket sends no packet; it only asks the OS routing table which
+    source address it would pick. Returns "unknown" if that fails.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect((str(target_ip), 9))
+            return sock.getsockname()[0]
+    except (OSError, ValueError):
+        return "unknown"
+
+
+def _run_pass(flags, target_ip, timeout):
+    """Run one nmap pass with XML output. Return (command line, xml text)."""
+    with tempfile.NamedTemporaryFile(suffix=".xml") as tmp:
+        cmd = ["nmap"] + flags + ["-oX", tmp.name, str(target_ip)]
+        subprocess.run(cmd, check=True, capture_output=True, text=True,
+                       timeout=timeout)
+        with open(tmp.name) as fh:
+            xml_text = fh.read()
+    return shlex.join(cmd), xml_text
+
+
 def run_nmap(target_ip, all_ports=False):
     """
     Scan one authorized target and return a dict:
-        {"target", "status", "ports": [...]}
+        {"target", "status", "ports": [...], "port_states": [...],
+         "scan_info": {...}}
     If the gate refuses the target, status is "refused" and nmap never runs.
 
-    By default nmap scans its usual port set with a 300 second timeout. When
-    all_ports is True, "-p-" is added so every TCP port is scanned and the
-    timeout is raised to 900 seconds, because a full sweep takes much longer.
-    NMAP_FLAGS itself is never changed.
+    Default (all_ports=False): one pass, NMAP_FLAGS plus --reason on nmap's
+    default top 1000 ports, 300 second timeout.
+
+    all_ports=True: two passes.
+      Pass 1 (discovery): DISCOVERY_FLAGS plus --reason over all 65535 TCP
+      ports, no -sV and no scripts, 600 second timeout.
+      Pass 2 (detail): NMAP_FLAGS plus --reason plus -p with only the ports
+      pass 1 found open, 300 second timeout. Skipped if none were open.
+    port_states always comes from the pass that covered the whole port range
+    (the single default pass, or pass 1).
     """
     # The gate decides first. Nothing happens if it says no.
     if not is_authorized(target_ip):
@@ -116,24 +232,41 @@ def run_nmap(target_ip, all_ports=False):
     if shutil.which("nmap") is None:
         return {"target": target_ip, "status": "nmap-not-found", "ports": []}
 
-    # A full sweep ("-p-") covers every port and needs a longer timeout. The
-    # default path below is byte for byte what it was before all_ports existed.
-    flags = list(NMAP_FLAGS)
-    timeout = 300
+    commands = []
     if all_ports:
-        flags = flags + ["-p-"]
-        timeout = 900
+        mode = MODE_ALL_PORTS
+        cmd, state_xml = _run_pass(DISCOVERY_FLAGS + [REASON_FLAG], target_ip,
+                                   DISCOVERY_TIMEOUT)
+        commands.append(cmd)
+        runs = [state_xml]
+        ports = []
+        open_ports = _open_tcp_ports(state_xml)
+        if open_ports:
+            detail_flags = NMAP_FLAGS + [REASON_FLAG, "-p",
+                                         ",".join(str(p) for p in open_ports)]
+            cmd, detail_xml = _run_pass(detail_flags, target_ip, DEFAULT_TIMEOUT)
+            commands.append(cmd)
+            runs.append(detail_xml)
+            ports = _parse_nmap_xml(detail_xml)
+    else:
+        mode = MODE_DEFAULT
+        cmd, state_xml = _run_pass(NMAP_FLAGS + [REASON_FLAG], target_ip,
+                                   DEFAULT_TIMEOUT)
+        commands.append(cmd)
+        runs = [state_xml]
+        ports = _parse_nmap_xml(state_xml)
 
-    # Write XML to a temp file, then read and parse it.
-    with tempfile.NamedTemporaryFile(suffix=".xml") as tmp:
-        cmd = ["nmap"] + flags + ["-oX", tmp.name, str(target_ip)]
-        subprocess.run(cmd, check=True, capture_output=True, text=True,
-                       timeout=timeout)
-        tmp.seek(0)
-        xml_text = open(tmp.name).read()
-
-    ports = _parse_nmap_xml(xml_text)
-    return {"target": str(target_ip), "status": "ok", "ports": ports}
+    infos = [_run_info(xml_text) for xml_text in runs]
+    scan_info = {
+        "source_ip": _source_ip(target_ip),
+        "nmap_version": infos[0]["nmap_version"],
+        "mode": mode,
+        "commands": commands,
+        "started": infos[0]["started"],
+        "elapsed_seconds": round(sum(i["elapsed"] for i in infos), 2),
+    }
+    return {"target": str(target_ip), "status": "ok", "ports": ports,
+            "port_states": _parse_port_states(state_xml), "scan_info": scan_info}
 
 
 if __name__ == "__main__":

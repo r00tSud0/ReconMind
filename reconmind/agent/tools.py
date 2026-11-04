@@ -160,6 +160,10 @@ class ToolBox:
             "target": result["target"],
             "open_ports": [self._port_summary(p) for p in result["ports"]],
         }
+        # How every scanned port answered, so the model can tell a firewall
+        # (many filtered, no-response) from a host with nothing listening.
+        if result.get("port_states"):
+            observation["port_states"] = result["port_states"]
         return json.dumps(observation), False
 
     def _exploit_lookup(self, port, product=None, version=None):

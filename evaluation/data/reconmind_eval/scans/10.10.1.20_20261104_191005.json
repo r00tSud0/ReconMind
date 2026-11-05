@@ -1,0 +1,744 @@
+{
+ "target": "10.10.1.20",
+ "status": "ok",
+ "ports": [
+  {
+   "port": 21,
+   "protocol": "tcp",
+   "service": "ftp",
+   "product": "vsftpd",
+   "version": "2.3.4",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "vsftpd 2.3.4 - Backdoor Command Execution (Metasploit)",
+     "edb_id": "17491",
+     "match": "exact_version",
+     "query": "vsftpd 2.3.4"
+    },
+    {
+     "title": "vsftpd 2.3.4 - Backdoor Command Execution",
+     "edb_id": "49757",
+     "match": "exact_version",
+     "query": "vsftpd 2.3.4"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "vsftpd 2.3.4",
+    "vsftpd 2.3"
+   ]
+  },
+  {
+   "port": 22,
+   "protocol": "tcp",
+   "service": "ssh",
+   "product": "OpenSSH",
+   "version": "4.7p1 Debian 8ubuntu1",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "OpenSSH 2.3 < 7.7 - Username Enumeration (PoC)",
+     "edb_id": "45210",
+     "match": "exact_version",
+     "query": "OpenSSH 4.7"
+    },
+    {
+     "title": "OpenSSH 2.3 < 7.7 - Username Enumeration",
+     "edb_id": "45233",
+     "match": "exact_version",
+     "query": "OpenSSH 4.7"
+    },
+    {
+     "title": "OpenSSH < 6.6 SFTP (x64) - Command Execution",
+     "edb_id": "45000",
+     "match": "exact_version",
+     "query": "OpenSSH 4.7"
+    },
+    {
+     "title": "OpenSSH < 6.6 SFTP - Command Execution",
+     "edb_id": "45001",
+     "match": "exact_version",
+     "query": "OpenSSH 4.7"
+    },
+    {
+     "title": "OpenSSH < 7.4 - 'UsePrivilegeSeparation Disabled' Forwarded Unix Domain Sockets Privilege Escalation",
+     "edb_id": "40962",
+     "match": "exact_version",
+     "query": "OpenSSH 4.7"
+    },
+    {
+     "title": "OpenSSH < 7.4 - agent Protocol Arbitrary Library Loading",
+     "edb_id": "40963",
+     "match": "exact_version",
+     "query": "OpenSSH 4.7"
+    },
+    {
+     "title": "OpenSSH < 7.7 - User Enumeration (2)",
+     "edb_id": "45939",
+     "match": "exact_version",
+     "query": "OpenSSH 4.7"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "OpenSSH 4.7"
+   ]
+  },
+  {
+   "port": 23,
+   "protocol": "tcp",
+   "service": "telnet",
+   "product": "Linux telnetd",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "Linux telnetd"
+   ]
+  },
+  {
+   "port": 25,
+   "protocol": "tcp",
+   "service": "smtp",
+   "product": "Postfix smtpd",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "Postfix 1.1.x - Denial of Service (1)",
+     "edb_id": "22981",
+     "match": "product_only",
+     "query": "Postfix"
+    },
+    {
+     "title": "Postfix 1.1.x - Denial of Service (2)",
+     "edb_id": "22982",
+     "match": "product_only",
+     "query": "Postfix"
+    },
+    {
+     "title": "Postfix 2.6-20080814 - 'symlink' Local Privilege Escalation",
+     "edb_id": "6337",
+     "match": "product_only",
+     "query": "Postfix"
+    },
+    {
+     "title": "Postfix < 2.4.9/2.5.5/2.6-20080902 - '.forward' Local Denial of Service",
+     "edb_id": "6472",
+     "match": "product_only",
+     "query": "Postfix"
+    },
+    {
+     "title": "Postfix SMTP 4.2.x < 4.2.48 - 'Shellshock' Remote Command Injection",
+     "edb_id": "34896",
+     "match": "product_only",
+     "query": "Postfix"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "Postfix"
+   ]
+  },
+  {
+   "port": 53,
+   "protocol": "tcp",
+   "service": "domain",
+   "product": "ISC BIND",
+   "version": "9.4.2",
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "BIND 9.4.2",
+    "BIND 9.4"
+   ]
+  },
+  {
+   "port": 80,
+   "protocol": "tcp",
+   "service": "http",
+   "product": "Apache httpd",
+   "version": "2.2.8",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "Apache + PHP < 5.3.12 / < 5.4.2 - cgi-bin Remote Code Execution",
+     "edb_id": "29290",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache + PHP < 5.3.12 / < 5.4.2 - Remote Code Execution + Scanner",
+     "edb_id": "29316",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache < 2.0.64 / < 2.2.21 mod_setenvif - Integer Overflow",
+     "edb_id": "41769",
+     "match": "exact_version",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache < 2.2.34 / < 2.4.27 - OPTIONS Memory Leak",
+     "edb_id": "42745",
+     "match": "exact_version",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache mod_ssl < 2.8.7 OpenSSL - 'OpenFuck.c' Remote Buffer Overflow",
+     "edb_id": "21671",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache mod_ssl < 2.8.7 OpenSSL - 'OpenFuckV2.c' Remote Buffer Overflow (1)",
+     "edb_id": "764",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache mod_ssl < 2.8.7 OpenSSL - 'OpenFuckV2.c' Remote Buffer Overflow (2)",
+     "edb_id": "47080",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache OpenMeetings 1.9.x < 3.1.0 - '.ZIP' File Directory Traversal",
+     "edb_id": "39642",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Apache Xerces-C XML Parser < 3.1.2 - Denial of Service (PoC)",
+     "edb_id": "36906",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    },
+    {
+     "title": "Webfroot Shoutbox < 2.32 (Apache) - Local File Inclusion / Remote Code Execution",
+     "edb_id": "34",
+     "match": "unverified",
+     "query": "Apache 2.2.8"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "Apache 2.2.8",
+    "Apache 2.2"
+   ]
+  },
+  {
+   "port": 111,
+   "protocol": "tcp",
+   "service": "rpcbind",
+   "product": null,
+   "version": "2",
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  },
+  {
+   "port": 139,
+   "protocol": "tcp",
+   "service": "netbios-ssn",
+   "product": "Samba smbd",
+   "version": "3.0.20-Debian",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "Samba 3.0.10 < 3.3.5 - Format String / Security Bypass",
+     "edb_id": "10095",
+     "match": "exact_version",
+     "query": "Samba 3.0.20"
+    },
+    {
+     "title": "Samba 3.0.20 < 3.0.25rc3 - 'Username' map script' Command Execution (Metasploit)",
+     "edb_id": "16320",
+     "match": "exact_version",
+     "query": "Samba 3.0.20"
+    },
+    {
+     "title": "Samba < 3.6.2 (x86) - Denial of Service (PoC)",
+     "edb_id": "36741",
+     "match": "exact_version",
+     "query": "Samba 3.0.20"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "Samba 3.0.20",
+    "Samba 3.0"
+   ]
+  },
+  {
+   "port": 445,
+   "protocol": "tcp",
+   "service": "netbios-ssn",
+   "product": "Samba smbd",
+   "version": "3.0.20-Debian",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "Samba 3.0.10 < 3.3.5 - Format String / Security Bypass",
+     "edb_id": "10095",
+     "match": "exact_version",
+     "query": "Samba 3.0.20"
+    },
+    {
+     "title": "Samba 3.0.20 < 3.0.25rc3 - 'Username' map script' Command Execution (Metasploit)",
+     "edb_id": "16320",
+     "match": "exact_version",
+     "query": "Samba 3.0.20"
+    },
+    {
+     "title": "Samba < 3.6.2 (x86) - Denial of Service (PoC)",
+     "edb_id": "36741",
+     "match": "exact_version",
+     "query": "Samba 3.0.20"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "Samba 3.0.20",
+    "Samba 3.0"
+   ]
+  },
+  {
+   "port": 512,
+   "protocol": "tcp",
+   "service": "exec",
+   "product": "netkit-rsh rexecd",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "netkit-rsh rexecd"
+   ]
+  },
+  {
+   "port": 513,
+   "protocol": "tcp",
+   "service": "login",
+   "product": "OpenBSD or Solaris rlogind",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "OpenBSD or Solaris rlogind"
+   ]
+  },
+  {
+   "port": 514,
+   "protocol": "tcp",
+   "service": "tcpwrapped",
+   "product": null,
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  },
+  {
+   "port": 1099,
+   "protocol": "tcp",
+   "service": "java-rmi",
+   "product": "GNU Classpath grmiregistry",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "GNU Classpath grmiregistry"
+   ]
+  },
+  {
+   "port": 1524,
+   "protocol": "tcp",
+   "service": "bindshell",
+   "product": "Metasploitable root shell",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "Metasploitable root shell"
+   ]
+  },
+  {
+   "port": 2049,
+   "protocol": "tcp",
+   "service": "nfs",
+   "product": null,
+   "version": "2-4",
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  },
+  {
+   "port": 2121,
+   "protocol": "tcp",
+   "service": "ftp",
+   "product": "ProFTPD",
+   "version": "1.3.1",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "ProFTPd 1.3 - 'mod_sql' 'Username' SQL Injection",
+     "edb_id": "32798",
+     "match": "exact_version",
+     "query": "ProFTPD 1.3"
+    },
+    {
+     "title": "ProFTPd IAC 1.3.x - Remote Command Execution",
+     "edb_id": "15449",
+     "match": "unverified",
+     "query": "ProFTPD 1.3"
+    },
+    {
+     "title": "ProFTPd-1.3.3c - Backdoor Command Execution (Metasploit)",
+     "edb_id": "16921",
+     "match": "unverified",
+     "query": "ProFTPD 1.3"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "ProFTPD 1.3.1",
+    "ProFTPD 1.3"
+   ]
+  },
+  {
+   "port": 3306,
+   "protocol": "tcp",
+   "service": "mysql",
+   "product": "MySQL",
+   "version": "5.0.51a-3ubuntu5",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "MySQL < 5.6.35 / < 5.7.17 - Integer Overflow",
+     "edb_id": "41954",
+     "match": "exact_version",
+     "query": "MySQL 5.0.51"
+    },
+    {
+     "title": "Oracle MySQL < 5.1.49 - 'DDL' Statements Denial of Service",
+     "edb_id": "34522",
+     "match": "exact_version",
+     "query": "MySQL 5.0.51"
+    },
+    {
+     "title": "Oracle MySQL < 5.1.49 - 'WITH ROLLUP' Denial of Service",
+     "edb_id": "15467",
+     "match": "exact_version",
+     "query": "MySQL 5.0.51"
+    },
+    {
+     "title": "Oracle MySQL < 5.1.49 - Malformed 'BINLOG' Arguments Denial of Service",
+     "edb_id": "34521",
+     "match": "exact_version",
+     "query": "MySQL 5.0.51"
+    },
+    {
+     "title": "Oracle MySQL < 5.1.50 - Privilege Escalation",
+     "edb_id": "34796",
+     "match": "exact_version",
+     "query": "MySQL 5.0.51"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "MySQL 5.0.51",
+    "MySQL 5.0"
+   ]
+  },
+  {
+   "port": 3632,
+   "protocol": "tcp",
+   "service": "distccd",
+   "product": "distccd",
+   "version": "v1",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "DistCC Daemon - Command Execution (Metasploit)",
+     "edb_id": "9915",
+     "match": "product_only",
+     "query": "distcc"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "distcc"
+   ]
+  },
+  {
+   "port": 5432,
+   "protocol": "tcp",
+   "service": "postgresql",
+   "product": "PostgreSQL DB",
+   "version": "8.3.0 - 8.3.7",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "PostgreSQL 8.2/8.3/8.4 - UDF for Command Execution",
+     "edb_id": "7855",
+     "match": "version_family",
+     "query": "PostgreSQL 8.3"
+    },
+    {
+     "title": "PostgreSQL 8.3.6 - Conversion Encoding Remote Denial of Service",
+     "edb_id": "32849",
+     "match": "version_family",
+     "query": "PostgreSQL 8.3"
+    },
+    {
+     "title": "PostgreSQL 8.3.6 - Low Cost Function Information Disclosure",
+     "edb_id": "32847",
+     "match": "version_family",
+     "query": "PostgreSQL 8.3"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "PostgreSQL 8.3"
+   ]
+  },
+  {
+   "port": 5900,
+   "protocol": "tcp",
+   "service": "vnc",
+   "product": "VNC",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "VNC Keyboard - Remote Code Execution (Metasploit)",
+     "edb_id": "37598",
+     "match": "product_only",
+     "query": "VNC"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "VNC"
+   ]
+  },
+  {
+   "port": 6000,
+   "protocol": "tcp",
+   "service": "X11",
+   "product": null,
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  },
+  {
+   "port": 6667,
+   "protocol": "tcp",
+   "service": "irc",
+   "product": "UnrealIRCd",
+   "version": "3.2.8.1",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "UnrealIRCd 3.2.8.1 - Backdoor Command Execution (Metasploit)",
+     "edb_id": "16922",
+     "match": "exact_version",
+     "query": "UnrealIRCd 3.2.8.1"
+    },
+    {
+     "title": "UnrealIRCd 3.2.8.1 - Local Configuration Stack Overflow",
+     "edb_id": "18011",
+     "match": "exact_version",
+     "query": "UnrealIRCd 3.2.8.1"
+    },
+    {
+     "title": "UnrealIRCd 3.2.8.1 - Remote Downloader/Execute",
+     "edb_id": "13853",
+     "match": "exact_version",
+     "query": "UnrealIRCd 3.2.8.1"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "UnrealIRCd 3.2.8.1",
+    "UnrealIRCd 3.2"
+   ]
+  },
+  {
+   "port": 6697,
+   "protocol": "tcp",
+   "service": "irc",
+   "product": "UnrealIRCd",
+   "version": "3.2.8.1",
+   "reason": "syn-ack",
+   "exploits": [
+    {
+     "title": "UnrealIRCd 3.2.8.1 - Backdoor Command Execution (Metasploit)",
+     "edb_id": "16922",
+     "match": "exact_version",
+     "query": "UnrealIRCd 3.2.8.1"
+    },
+    {
+     "title": "UnrealIRCd 3.2.8.1 - Local Configuration Stack Overflow",
+     "edb_id": "18011",
+     "match": "exact_version",
+     "query": "UnrealIRCd 3.2.8.1"
+    },
+    {
+     "title": "UnrealIRCd 3.2.8.1 - Remote Downloader/Execute",
+     "edb_id": "13853",
+     "match": "exact_version",
+     "query": "UnrealIRCd 3.2.8.1"
+    }
+   ],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "UnrealIRCd 3.2.8.1",
+    "UnrealIRCd 3.2"
+   ]
+  },
+  {
+   "port": 8180,
+   "protocol": "tcp",
+   "service": "unknown",
+   "product": "",
+   "version": "",
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  },
+  {
+   "port": 8787,
+   "protocol": "tcp",
+   "service": "drb",
+   "product": "Ruby DRb RMI",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "Ruby DRb RMI"
+   ]
+  },
+  {
+   "port": 40319,
+   "protocol": "tcp",
+   "service": "nlockmgr",
+   "product": null,
+   "version": "1-4",
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  },
+  {
+   "port": 41165,
+   "protocol": "tcp",
+   "service": "status",
+   "product": null,
+   "version": "1",
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  },
+  {
+   "port": 53961,
+   "protocol": "tcp",
+   "service": "java-rmi",
+   "product": "GNU Classpath grmiregistry",
+   "version": null,
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "ok",
+   "lookup_error": "",
+   "queries_tried": [
+    "GNU Classpath grmiregistry"
+   ]
+  },
+  {
+   "port": 60034,
+   "protocol": "tcp",
+   "service": "mountd",
+   "product": null,
+   "version": "1-3",
+   "reason": "syn-ack",
+   "exploits": [],
+   "exploit_status": "no_product",
+   "lookup_error": "",
+   "queries_tried": []
+  }
+ ],
+ "unconfirmed_ports": [],
+ "port_states": [
+  {
+   "state": "closed",
+   "count": 65506,
+   "reasons": {
+    "reset": 65506
+   }
+  },
+  {
+   "state": "open",
+   "count": 29,
+   "reasons": {
+    "syn-ack": 29
+   }
+  }
+ ],
+ "scan_info": {
+  "source_ip": "10.10.2.105",
+  "nmap_version": "7.991",
+  "mode": "all 65535 ports, two pass",
+  "commands": [
+   "nmap -Pn -p- -T4 --reason -oX /tmp/tmpe3mezu6p.xml 10.10.1.20",
+   "nmap -Pn -sV --script smb-os-discovery,irc-info -T4 --reason -p 21,22,23,25,53,80,111,139,445,512,513,514,1099,1524,2049,2121,3306,3632,5432,5900,6000,6667,6697,8180,8787,40319,41165,53961,60034 -oX /tmp/tmpys02uow8.xml 10.10.1.20"
+  ],
+  "started": "2026-11-04 19:04:06",
+  "elapsed_seconds": 350.96
+ },
+ "raw_xml": [
+  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE nmaprun>\n<?xml-stylesheet href=\"file:///usr/share/nmap/nmap.xsl\" type=\"text/xsl\"?>\n<!-- Nmap 7.991 scan initiated Wed Nov  4 19:04:06 2026 as: /usr/lib/nmap/nmap -&#45;privileged -Pn -p- -T4 -&#45;reason -oX /tmp/tmpe3mezu6p.xml 10.10.1.20 -->\n<nmaprun scanner=\"nmap\" args=\"/usr/lib/nmap/nmap -&#45;privileged -Pn -p- -T4 -&#45;reason -oX /tmp/tmpe3mezu6p.xml 10.10.1.20\" start=\"1793837046\" startstr=\"Wed Nov  4 19:04:06 2026\" version=\"7.991\" xmloutputversion=\"1.05\">\n<scaninfo type=\"syn\" protocol=\"tcp\" numservices=\"65535\" services=\"1-65535\"/>\n<verbose level=\"0\"/>\n<debugging level=\"0\"/>\n<host starttime=\"1793837048\" endtime=\"1793837206\"><status state=\"up\" reason=\"user-set\" reason_ttl=\"0\"/>\n<address addr=\"10.10.1.20\" addrtype=\"ipv4\"/>\n<hostnames>\n</hostnames>\n<ports><extraports state=\"closed\" count=\"65506\">\n<extrareasons reason=\"reset\" count=\"65506\" proto=\"tcp\" ports=\"1-20,24,26-52,54-79,81-110,112-138,140-444,446-511,515-1098,1100-1523,1525-2048,2050-2120,2122-3305,3307-3631,3633-5431,5433-5899,5901-5999,6001-6666,6668-6696,6698-8179,8181-8786,8788-40318,40320-41164,41166-53960,53962-60033,60035-65535\"/>\n</extraports>\n<port protocol=\"tcp\" portid=\"21\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ftp\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"22\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ssh\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"23\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"telnet\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"25\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"smtp\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"53\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"domain\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"80\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"http\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"111\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"rpcbind\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"139\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"netbios-ssn\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"445\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"microsoft-ds\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"512\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"exec\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"513\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"login\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"514\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"shell\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"1099\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"rmiregistry\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"1524\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ingreslock\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"2049\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"nfs\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"2121\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ccproxy-ftp\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"3306\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"mysql\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"3632\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"distccd\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"5432\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"postgresql\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"5900\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"vnc\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"6000\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"X11\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"6667\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"irc\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"6697\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ircs-u\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"8180\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/></port>\n<port protocol=\"tcp\" portid=\"8787\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"msgsrvr\" method=\"table\" conf=\"3\"/></port>\n<port protocol=\"tcp\" portid=\"40319\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/></port>\n<port protocol=\"tcp\" portid=\"41165\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/></port>\n<port protocol=\"tcp\" portid=\"53961\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/></port>\n<port protocol=\"tcp\" portid=\"60034\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/></port>\n</ports>\n<times srtt=\"11835\" rttvar=\"670\" to=\"100000\"/>\n</host>\n<runstats><finished time=\"1793837206\" timestr=\"Wed Nov  4 19:06:46 2026\" summary=\"Nmap done at Wed Nov  4 19:06:46 2026; 1 IP address (1 host up) scanned in 159.81 seconds\" elapsed=\"159.81\" exit=\"success\"/><hosts up=\"1\" down=\"0\" total=\"1\"/>\n</runstats>\n</nmaprun>\n",
+  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE nmaprun>\n<?xml-stylesheet href=\"file:///usr/share/nmap/nmap.xsl\" type=\"text/xsl\"?>\n<!-- Nmap 7.991 scan initiated Wed Nov  4 19:06:46 2026 as: /usr/lib/nmap/nmap -&#45;privileged -Pn -sV -&#45;script smb-os-discovery,irc-info -T4 -&#45;reason -p 21,22,23,25,53,80,111,139,445,512,513,514,1099,1524,2049,2121,3306,3632,5432,5900,6000,6667,6697,8180,8787,40319,41165,53961,60034 -oX /tmp/tmpys02uow8.xml 10.10.1.20 -->\n<nmaprun scanner=\"nmap\" args=\"/usr/lib/nmap/nmap -&#45;privileged -Pn -sV -&#45;script smb-os-discovery,irc-info -T4 -&#45;reason -p 21,22,23,25,53,80,111,139,445,512,513,514,1099,1524,2049,2121,3306,3632,5432,5900,6000,6667,6697,8180,8787,40319,41165,53961,60034 -oX /tmp/tmpys02uow8.xml 10.10.1.20\" start=\"1793837206\" startstr=\"Wed Nov  4 19:06:46 2026\" version=\"7.991\" xmloutputversion=\"1.05\">\n<scaninfo type=\"syn\" protocol=\"tcp\" numservices=\"29\" services=\"21-23,25,53,80,111,139,445,512-514,1099,1524,2049,2121,3306,3632,5432,5900,6000,6667,6697,8180,8787,40319,41165,53961,60034\"/>\n<verbose level=\"0\"/>\n<debugging level=\"0\"/>\n<host starttime=\"1793837208\" endtime=\"1793837397\"><status state=\"up\" reason=\"user-set\" reason_ttl=\"0\"/>\n<address addr=\"10.10.1.20\" addrtype=\"ipv4\"/>\n<hostnames>\n</hostnames>\n<ports><port protocol=\"tcp\" portid=\"21\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ftp\" product=\"vsftpd\" version=\"2.3.4\" ostype=\"Unix\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:vsftpd:vsftpd:2.3.4</cpe></service></port>\n<port protocol=\"tcp\" portid=\"22\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ssh\" product=\"OpenSSH\" version=\"4.7p1 Debian 8ubuntu1\" extrainfo=\"protocol 2.0\" ostype=\"Linux\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:openbsd:openssh:4.7p1</cpe><cpe>cpe:/o:linux:linux_kernel</cpe></service></port>\n<port protocol=\"tcp\" portid=\"23\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"telnet\" product=\"Linux telnetd\" ostype=\"Linux\" method=\"probed\" conf=\"10\"><cpe>cpe:/o:linux:linux_kernel</cpe></service></port>\n<port protocol=\"tcp\" portid=\"25\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"smtp\" product=\"Postfix smtpd\" hostname=\" metasploitable.localdomain\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:postfix:postfix</cpe></service></port>\n<port protocol=\"tcp\" portid=\"53\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"domain\" product=\"ISC BIND\" version=\"9.4.2\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:isc:bind:9.4.2</cpe></service></port>\n<port protocol=\"tcp\" portid=\"80\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"http\" product=\"Apache httpd\" version=\"2.2.8\" extrainfo=\"(Ubuntu) DAV/2\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:apache:http_server:2.2.8</cpe></service><script id=\"http-server-header\" output=\"Apache/2.2.8 (Ubuntu) DAV/2\"><elem>Apache/2.2.8 (Ubuntu) DAV/2</elem>\n</script></port>\n<port protocol=\"tcp\" portid=\"111\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"rpcbind\" version=\"2\" extrainfo=\"RPC #100000\" method=\"probed\" conf=\"10\"/><script id=\"rpcinfo\" output=\"&#xa;  program version    port/proto  service&#xa;  100003  2,3,4       2049/tcp   nfs&#xa;  100003  2,3,4       2049/udp   nfs&#xa;  100005  1,2,3      59982/udp   mountd&#xa;  100005  1,2,3      60034/tcp   mountd&#xa;  100021  1,3,4      40319/tcp   nlockmgr&#xa;  100021  1,3,4      47150/udp   nlockmgr&#xa;\"><table key=\"100005\">\n<table key=\"tcp\">\n<elem key=\"port\">60034</elem>\n<table key=\"version\">\n<elem>1</elem>\n<elem>2</elem>\n<elem>3</elem>\n</table>\n</table>\n<table key=\"udp\">\n<elem key=\"port\">59982</elem>\n<table key=\"version\">\n<elem>1</elem>\n<elem>2</elem>\n<elem>3</elem>\n</table>\n</table>\n</table>\n<table key=\"100003\">\n<table key=\"tcp\">\n<elem key=\"port\">2049</elem>\n<table key=\"version\">\n<elem>2</elem>\n<elem>3</elem>\n<elem>4</elem>\n</table>\n</table>\n<table key=\"udp\">\n<elem key=\"port\">2049</elem>\n<table key=\"version\">\n<elem>2</elem>\n<elem>3</elem>\n<elem>4</elem>\n</table>\n</table>\n</table>\n<table key=\"100021\">\n<table key=\"tcp\">\n<elem key=\"port\">40319</elem>\n<table key=\"version\">\n<elem>1</elem>\n<elem>3</elem>\n<elem>4</elem>\n</table>\n</table>\n<table key=\"udp\">\n<elem key=\"port\">47150</elem>\n<table key=\"version\">\n<elem>1</elem>\n<elem>3</elem>\n<elem>4</elem>\n</table>\n</table>\n</table>\n</script></port>\n<port protocol=\"tcp\" portid=\"139\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"netbios-ssn\" product=\"Samba smbd\" version=\"3.X - 4.X\" extrainfo=\"workgroup: WORKGROUP\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:samba:samba</cpe></service></port>\n<port protocol=\"tcp\" portid=\"445\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"netbios-ssn\" product=\"Samba smbd\" version=\"3.0.20-Debian\" extrainfo=\"workgroup: WORKGROUP\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:samba:samba</cpe></service></port>\n<port protocol=\"tcp\" portid=\"512\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"exec\" product=\"netkit-rsh rexecd\" ostype=\"Linux\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:netkit:netkit</cpe><cpe>cpe:/o:linux:linux_kernel</cpe></service></port>\n<port protocol=\"tcp\" portid=\"513\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"login\" product=\"OpenBSD or Solaris rlogind\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"514\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"tcpwrapped\" method=\"probed\" conf=\"8\"/></port>\n<port protocol=\"tcp\" portid=\"1099\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"java-rmi\" product=\"GNU Classpath grmiregistry\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"1524\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"bindshell\" product=\"Metasploitable root shell\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"2049\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"nfs\" version=\"2-4\" extrainfo=\"RPC #100003\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"2121\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"ftp\" product=\"ProFTPD\" version=\"1.3.1\" ostype=\"Unix\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:proftpd:proftpd:1.3.1</cpe></service></port>\n<port protocol=\"tcp\" portid=\"3306\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"mysql\" product=\"MySQL\" version=\"5.0.51a-3ubuntu5\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:mysql:mysql:5.0.51a-3ubuntu5</cpe></service></port>\n<port protocol=\"tcp\" portid=\"3632\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"distccd\" product=\"distccd\" version=\"v1\" extrainfo=\"(GNU) 4.2.4 (Ubuntu 4.2.4-1ubuntu4)\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"5432\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"postgresql\" product=\"PostgreSQL DB\" version=\"8.3.0 - 8.3.7\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:postgresql:postgresql:8.3</cpe></service></port>\n<port protocol=\"tcp\" portid=\"5900\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"vnc\" product=\"VNC\" extrainfo=\"protocol 3.3\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"6000\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"X11\" extrainfo=\"access denied\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"6667\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"irc\" product=\"UnrealIRCd\" hostname=\"irc.Metasploitable.LAN\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:unrealircd:unrealircd</cpe></service><script id=\"irc-info\" output=\"&#xa;  users: 2&#xa;  servers: 1&#xa;  lusers: 2&#xa;  lservers: 0&#xa;  server: irc.Metasploitable.LAN&#xa;  version: Unreal3.2.8.1. irc.Metasploitable.LAN &#xa;  uptime: 0 days, 1:17:00&#xa;  source ident: nmap&#xa;  source host: 9B664AAF.B7101AD.59935C67.IP&#xa;  error: Closing Link: ndhqlfgzh[10.10.2.105] (Quit: ndhqlfgzh)\"><elem key=\"users\">2</elem>\n<elem key=\"servers\">1</elem>\n<elem key=\"lusers\">2</elem>\n<elem key=\"lservers\">0</elem>\n<elem key=\"server\">irc.Metasploitable.LAN</elem>\n<elem key=\"version\">Unreal3.2.8.1. irc.Metasploitable.LAN </elem>\n<elem key=\"uptime\">0 days, 1:17:00</elem>\n<elem key=\"source ident\">nmap</elem>\n<elem key=\"source host\">9B664AAF.B7101AD.59935C67.IP</elem>\n<elem key=\"error\">Closing Link: ndhqlfgzh[10.10.2.105] (Quit: ndhqlfgzh)</elem>\n</script></port>\n<port protocol=\"tcp\" portid=\"6697\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"irc\" product=\"UnrealIRCd\" hostname=\"irc.Metasploitable.LAN\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:unrealircd:unrealircd</cpe></service><script id=\"irc-info\" output=\"&#xa;  users: 1&#xa;  servers: 1&#xa;  lusers: 1&#xa;  lservers: 0&#xa;  server: irc.Metasploitable.LAN&#xa;  version: Unreal3.2.8.1. irc.Metasploitable.LAN &#xa;  uptime: 0 days, 1:17:00&#xa;  source ident: nmap&#xa;  source host: 9B664AAF.B7101AD.59935C67.IP&#xa;  error: Closing Link: ozyikpzgv[10.10.2.105] (Quit: ozyikpzgv)\"><elem key=\"users\">1</elem>\n<elem key=\"servers\">1</elem>\n<elem key=\"lusers\">1</elem>\n<elem key=\"lservers\">0</elem>\n<elem key=\"server\">irc.Metasploitable.LAN</elem>\n<elem key=\"version\">Unreal3.2.8.1. irc.Metasploitable.LAN </elem>\n<elem key=\"uptime\">0 days, 1:17:00</elem>\n<elem key=\"source ident\">nmap</elem>\n<elem key=\"source host\">9B664AAF.B7101AD.59935C67.IP</elem>\n<elem key=\"error\">Closing Link: ozyikpzgv[10.10.2.105] (Quit: ozyikpzgv)</elem>\n</script></port>\n<port protocol=\"tcp\" portid=\"8180\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/></port>\n<port protocol=\"tcp\" portid=\"8787\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"drb\" product=\"Ruby DRb RMI\" extrainfo=\"Ruby 1.8; path /usr/lib/ruby/1.8/drb\" method=\"probed\" conf=\"10\"><cpe>cpe:/a:ruby-lang:ruby:1.8</cpe></service></port>\n<port protocol=\"tcp\" portid=\"40319\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"nlockmgr\" version=\"1-4\" extrainfo=\"RPC #100021\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"41165\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"status\" version=\"1\" extrainfo=\"RPC #100024\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"53961\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"java-rmi\" product=\"GNU Classpath grmiregistry\" method=\"probed\" conf=\"10\"/></port>\n<port protocol=\"tcp\" portid=\"60034\"><state state=\"open\" reason=\"syn-ack\" reason_ttl=\"62\"/><service name=\"mountd\" version=\"1-3\" extrainfo=\"RPC #100005\" method=\"probed\" conf=\"10\"/></port>\n</ports>\n<hostscript><script id=\"smb-os-discovery\" output=\"&#xa;  OS: Unix (Samba 3.0.20-Debian)&#xa;  Computer name: metasploitable&#xa;  NetBIOS computer name: &#xa;  Domain name: localdomain&#xa;  FQDN: metasploitable.localdomain&#xa;  System time: 2026-11-04T19:09:25-05:00&#xa;\"><elem key=\"os\">Unix</elem>\n<elem key=\"lanmanager\">Samba 3.0.20-Debian</elem>\n<elem key=\"server\"></elem>\n<elem key=\"date\">2026-11-04T19:09:25-05:00</elem>\n<elem key=\"fqdn\">metasploitable.localdomain</elem>\n<elem key=\"domain_dns\">localdomain</elem>\n<elem key=\"workgroup\">WORKGROUP\\x00</elem>\n</script></hostscript><times srtt=\"15223\" rttvar=\"2832\" to=\"100000\"/>\n</host>\n<runstats><finished time=\"1793837397\" timestr=\"Wed Nov  4 19:09:57 2026\" summary=\"Nmap done at Wed Nov  4 19:09:57 2026; 1 IP address (1 host up) scanned in 191.15 seconds\" elapsed=\"191.15\" exit=\"success\"/><hosts up=\"1\" down=\"0\" total=\"1\"/>\n</runstats>\n</nmaprun>\n"
+ ]
+}

@@ -149,7 +149,7 @@ SCAN_INFO = {
     "source_ip": "10.10.1.5", "nmap_version": "7.94",
     "mode": "all 65535 ports, two pass",
     "commands": [
-        "nmap -Pn -p- --min-rate 1000 --max-retries 2 -T4 --reason -oX /tmp/p1.xml 10.10.1.100",
+        "nmap -Pn -p- -T4 --reason -oX /tmp/p1.xml 10.10.1.100",
         "nmap -Pn -sV --script smb-os-discovery,irc-info -T4 --reason -p 21,22,445,3306 "
         "-oX /tmp/p2.xml 10.10.1.100",
     ],
@@ -254,6 +254,89 @@ class ScanDetailsReportTests(unittest.TestCase):
             for e in p["exploits"]:
                 report = report.replace(e["title"], "")
             report = report.replace(p["version"], "")  # nmap data, not our text
+        self.assertNotIn("—", report)
+        self.assertNotIn(" - ", report)
+
+
+LAB_STATES = [
+    {"state": "filtered", "count": 52683, "reasons": {"no-response": 52683}},
+    {"state": "closed", "count": 12840, "reasons": {"reset": 12840}},
+    {"state": "open", "count": 12, "reasons": {"syn-ack": 12}},
+]
+LOST = [
+    {"port": 21, "protocol": "tcp", "pass2_state": "filtered", "pass2_reason": "no-response"},
+    {"port": 22, "protocol": "tcp", "pass2_state": "filtered", "pass2_reason": "no-response"},
+]
+WARNING_HEAD = "**Warning: unconfirmed ports.**"
+
+
+class UnconfirmedReportTests(unittest.TestCase):
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    def lost_scan(self):
+        return {"target": "10.10.1.100", "status": "ok", "ports": [],
+                "unconfirmed_ports": LOST, "scan_info": SCAN_INFO,
+                "port_states": LAB_STATES}
+
+    def test_no_warning_when_key_missing_or_empty(self):
+        self.assertNotIn(WARNING_HEAD, read_report(dict(SCAN, port_states=FILTERED_STATES)))
+        self.assertNotIn(WARNING_HEAD, read_report(
+            dict(SCAN, port_states=FILTERED_STATES, unconfirmed_ports=[])))
+        empty = read_report({"target": "10.10.1.100", "status": "ok", "ports": [],
+                             "unconfirmed_ports": [], "port_states": FILTERED_STATES})
+        self.assertNotIn(WARNING_HEAD, empty)
+        self.assertIn("The scan ran but found no open ports.", empty)
+
+    def test_all_lost_explains_the_empty_result(self):
+        report = read_report(self.lost_scan())
+        self.assertNotIn("found no open ports", report)
+        self.assertIn("The scan ran but no port was confirmed open.", report)
+        self.assertIn(WARNING_HEAD, report)
+        self.assertIn("answered as open in the discovery pass but not in the detail "
+                      "pass: 21/tcp (detail pass: filtered, no-response), 22/tcp "
+                      "(detail pass: filtered, no-response).", report)
+        self.assertIn("packets were lost along the network path", report)
+        self.assertIn("Rerun the scan", report)
+        states = report.index("**Port states:**")
+        self.assertLess(states, report.index(WARNING_HEAD))
+        self.assertLess(report.index(WARNING_HEAD), report.index(FILTERED_NOTE))
+
+    def test_partial_shows_table_and_warning(self):
+        lost = [dict(LOST[0], port=8080)]  # SCAN's own ports are the confirmed ones
+        report = read_report(dict(SCAN, unconfirmed_ports=lost, scan_info=SCAN_INFO,
+                                  port_states=FILTERED_STATES))
+        self.assertIn("## Open ports", report)
+        self.assertNotIn("| 8080 |", report)
+        self.assertLess(report.index("**Port states:**"), report.index(WARNING_HEAD))
+        self.assertLess(report.index(WARNING_HEAD), report.index("## Known exploits"))
+        self.assertIn("8080/tcp (detail pass: filtered, no-response).", report)
+        self.assertIn("1 more port(s) answered as open in discovery only", report)
+
+    def test_warning_without_port_states_or_reason(self):
+        report = read_report({"target": "10.10.1.100", "status": "ok", "ports": [],
+                              "unconfirmed_ports": [{"port": 80, "protocol": "tcp",
+                                                     "pass2_state": "closed",
+                                                     "pass2_reason": ""}]})
+        self.assertIn("80/tcp (detail pass: closed).", report)
+        self.assertIn("no port was confirmed open", report)
+
+    def test_warning_text_has_no_em_dashes_or_dash_separators(self):
+        report = read_report(self.lost_scan())
+        report += read_report(dict(SCAN, unconfirmed_ports=LOST, scan_info=SCAN_INFO,
+                                   port_states=FILTERED_STATES))
+        for p in SCAN["ports"]:
+            for e in p["exploits"]:
+                report = report.replace(e["title"], "")
+            report = report.replace(p["version"], "")  # nmap data, not our text
+        self.assertIn(WARNING_HEAD, report)
         self.assertNotIn("—", report)
         self.assertNotIn(" - ", report)
 

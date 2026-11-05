@@ -89,9 +89,35 @@ def _reasons_text(reasons):
     return " ({r})".format(r=", ".join("{c:,} {r}".format(c=c, r=r) for r, c in ordered))
 
 
-def _port_states_section(lines, port_states):
-    """One line counting every scanned port by state, plus the firewall note."""
+UNCONFIRMED_WARNING = (
+    "**Warning: unconfirmed ports.** These ports answered as open in the "
+    "discovery pass but not in the detail pass: {ports}. This usually means "
+    "packets were lost along the network path, for example by a firewall "
+    "whose state table filled up during discovery. They are not listed as "
+    "findings. Rerun the scan to confirm them.")
+
+
+def _unconfirmed_section(lines, unconfirmed):
+    """Warn about ports pass 1 saw open that pass 2 did not. Only if any."""
+    if not unconfirmed:
+        return
+    items = []
+    for u in unconfirmed:
+        why = ", ".join(x for x in (u.get("pass2_state") or "unknown",
+                                    u.get("pass2_reason") or "") if x)
+        items.append("{port}/{protocol} (detail pass: {why})".format(
+            port=u.get("port", ""), protocol=u.get("protocol") or "tcp", why=why))
+    lines.append(UNCONFIRMED_WARNING.format(ports=", ".join(items)))
+    lines.append("")
+
+
+def _port_states_section(lines, port_states, unconfirmed=()):
+    """
+    One line counting every scanned port by state, then the unconfirmed
+    ports warning (if any), then the firewall note.
+    """
     if not port_states:
+        _unconfirmed_section(lines, unconfirmed)
         return
 
     def count(name):
@@ -110,6 +136,7 @@ def _port_states_section(lines, port_states):
     parts.append("{c:,} open".format(c=count("open")))
     lines.append("**Port states:** {p}.".format(p=", ".join(parts)))
     lines.append("")
+    _unconfirmed_section(lines, unconfirmed)
     if any(_is_filtered(s.get("state", "")) and s.get("count", 0) for s in port_states):
         lines.append(FILTERED_NOTE)
         lines.append("")
@@ -257,6 +284,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     target = scan.get("target", "unknown")
     status = scan.get("status", "unknown")
     ports = scan.get("ports", [])
+    unconfirmed = scan.get("unconfirmed_ports") or []
 
     now = datetime.now()
     stamp = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -286,13 +314,17 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         lines.append("nmap is not installed on this machine, so no scan was run. "
                      "Run this on the Kali box where nmap is present.")
     elif not ports:
-        lines.append("The scan ran but found no open ports.")
-        if scan.get("port_states"):
+        if unconfirmed:
+            lines.append("The scan ran but no port was confirmed open. See the "
+                         "unconfirmed ports warning below.")
+        else:
+            lines.append("The scan ran but found no open ports.")
+        if scan.get("port_states") or unconfirmed:
             lines.append("")
-            _port_states_section(lines, scan["port_states"])
+            _port_states_section(lines, scan.get("port_states"), unconfirmed)
     else:
         _ports_table(lines, ports)
-        _port_states_section(lines, scan.get("port_states"))
+        _port_states_section(lines, scan.get("port_states"), unconfirmed)
         _risky_section(lines, ports)
         _exploits_section(lines, ports)
         all_exploits = [e for p in ports for e in p.get("exploits", [])]
@@ -313,6 +345,10 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         if failed:
             note += (" Exploit lookup failed for {k} port(s), so those services "
                      "were not checked.".format(k=failed))
+        if unconfirmed:
+            note += (" {k} more port(s) answered as open in discovery only and "
+                     "were not confirmed, so they are not counted here.".format(
+                         k=len(unconfirmed)))
         note += " Next stage: map each finding to its MITRE ATT&CK technique."
         lines.append(note)
 

@@ -34,13 +34,15 @@ NMAP_FLAGS = ["-Pn", "-sV", "--script", "smb-os-discovery,irc-info", "-T4"]
 # (syn-ack, reset, no-response, admin-prohibited and so on).
 REASON_FLAG = "--reason"
 
-# Pass 1 of an all ports scan: find the open TCP ports across all 65535,
-# quickly. No version detection and no scripts; pass 2 does the detail work
-# on the open ports only.
-DISCOVERY_FLAGS = ["-Pn", "-p-", "--min-rate", "1000", "--max-retries", "2", "-T4"]
+# Pass 1 of an all ports scan: find the open TCP ports across all 65535.
+# No version detection and no scripts; pass 2 does the detail work on the
+# open ports only. No --min-rate or --max-retries: a forced rate flooded the
+# state tables of firewalls on the path and lost packets, while nmap's own
+# adaptive timing slows down when it sees drops.
+DISCOVERY_FLAGS = ["-Pn", "-p-", "-T4"]
 
-DEFAULT_TIMEOUT = 300    # the single default pass, and pass 2 (detail)
-DISCOVERY_TIMEOUT = 600  # pass 1 (discovery) over every TCP port
+DEFAULT_TIMEOUT = 300     # the single default pass, and pass 2 (detail)
+DISCOVERY_TIMEOUT = 1800  # pass 1 (discovery) over every TCP port
 
 MODE_DEFAULT = "top 1000 ports"
 MODE_ALL_PORTS = "all 65535 ports, two pass"
@@ -129,6 +131,44 @@ def _open_tcp_ports(xml_text):
     return sorted(found)
 
 
+def _unconfirmed_ports(open_ports, detail_xml):
+    """
+    Ports pass 1 found open that pass 2 did not return as open, as a list of
+    {"port", "protocol", "pass2_state", "pass2_reason"} in port order.
+
+    A port pass 2 listed one by one carries its own state and reason. A port
+    pass 2 folded into an <extraports> summary is not named in the XML; it
+    takes the summary's state when there is exactly one summary (and its
+    reason when that summary gives exactly one), otherwise "unknown".
+    """
+    root = ET.fromstring(detail_xml)
+    listed = {}
+    for port in root.findall("./host/ports/port"):
+        if port.get("protocol") != "tcp":
+            continue
+        state = port.find("state")
+        if state is None:
+            listed[int(port.get("portid"))] = ("unknown", "")
+        else:
+            listed[int(port.get("portid"))] = (state.get("state", "unknown"),
+                                               state.get("reason", ""))
+
+    folded = ("unknown", "")
+    extras = root.findall("./host/ports/extraports")
+    if len(extras) == 1:
+        reasons = extras[0].findall("extrareasons")
+        folded = (extras[0].get("state", "unknown"),
+                  reasons[0].get("reason", "") if len(reasons) == 1 else "")
+
+    unconfirmed = []
+    for number in open_ports:
+        state, reason = listed.get(number, folded)
+        if state != "open":
+            unconfirmed.append({"port": number, "protocol": "tcp",
+                                "pass2_state": state, "pass2_reason": reason})
+    return unconfirmed
+
+
 def _parse_port_states(xml_text):
     """
     Count every scanned port by state. nmap lists some ports one by one and
@@ -209,8 +249,8 @@ def _run_pass(flags, target_ip, timeout):
 def run_nmap(target_ip, all_ports=False):
     """
     Scan one authorized target and return a dict:
-        {"target", "status", "ports": [...], "port_states": [...],
-         "scan_info": {...}}
+        {"target", "status", "ports": [...], "unconfirmed_ports": [...],
+         "port_states": [...], "scan_info": {...}, "raw_xml": [...]}
     If the gate refuses the target, status is "refused" and nmap never runs.
 
     Default (all_ports=False): one pass, NMAP_FLAGS plus --reason on nmap's
@@ -218,21 +258,31 @@ def run_nmap(target_ip, all_ports=False):
 
     all_ports=True: two passes.
       Pass 1 (discovery): DISCOVERY_FLAGS plus --reason over all 65535 TCP
-      ports, no -sV and no scripts, 600 second timeout.
+      ports, no -sV and no scripts, 1800 second timeout.
       Pass 2 (detail): NMAP_FLAGS plus --reason plus -p with only the ports
       pass 1 found open, 300 second timeout. Skipped if none were open.
     port_states always comes from the pass that covered the whole port range
     (the single default pass, or pass 1).
+
+    ports holds only confirmed open ports: in two pass mode, the ones pass 2
+    returned as open. A port pass 1 found open but pass 2 did not goes into
+    unconfirmed_ports instead, with its pass 2 state and reason; this usually
+    means packet loss on the network path. unconfirmed_ports is always
+    present and is empty in default mode. raw_xml is the XML of every pass
+    that ran, in pass order, kept as evidence.
     """
     # The gate decides first. Nothing happens if it says no.
     if not is_authorized(target_ip):
-        return {"target": target_ip, "status": "refused", "ports": []}
+        return {"target": target_ip, "status": "refused", "ports": [],
+                "unconfirmed_ports": [], "raw_xml": []}
 
     # Make sure nmap is actually present before trying to call it.
     if shutil.which("nmap") is None:
-        return {"target": target_ip, "status": "nmap-not-found", "ports": []}
+        return {"target": target_ip, "status": "nmap-not-found", "ports": [],
+                "unconfirmed_ports": [], "raw_xml": []}
 
     commands = []
+    unconfirmed = []
     if all_ports:
         mode = MODE_ALL_PORTS
         cmd, state_xml = _run_pass(DISCOVERY_FLAGS + [REASON_FLAG], target_ip,
@@ -248,6 +298,7 @@ def run_nmap(target_ip, all_ports=False):
             commands.append(cmd)
             runs.append(detail_xml)
             ports = _parse_nmap_xml(detail_xml)
+            unconfirmed = _unconfirmed_ports(open_ports, detail_xml)
     else:
         mode = MODE_DEFAULT
         cmd, state_xml = _run_pass(NMAP_FLAGS + [REASON_FLAG], target_ip,
@@ -266,7 +317,9 @@ def run_nmap(target_ip, all_ports=False):
         "elapsed_seconds": round(sum(i["elapsed"] for i in infos), 2),
     }
     return {"target": str(target_ip), "status": "ok", "ports": ports,
-            "port_states": _parse_port_states(state_xml), "scan_info": scan_info}
+            "unconfirmed_ports": unconfirmed,
+            "port_states": _parse_port_states(state_xml), "scan_info": scan_info,
+            "raw_xml": runs}
 
 
 if __name__ == "__main__":

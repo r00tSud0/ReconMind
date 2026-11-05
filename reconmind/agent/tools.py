@@ -42,6 +42,11 @@ MATCH_NOTES = {
 LOOKUP_FAILED_NOTE = ("The exploit lookup failed, so this service was not "
                       "checked. This does not mean there are no exploits.")
 
+UNCONFIRMED_NOTE = ("These ports answered as open in the discovery pass but not "
+                    "in the detail pass, usually because of packet loss on the "
+                    "network path. They are not confirmed findings; the scan "
+                    "should be rerun.")
+
 
 # Tool descriptions in the JSON schema format the LLM API expects.
 TOOL_SPECS = [
@@ -164,6 +169,12 @@ class ToolBox:
         # (many filtered, no-response) from a host with nothing listening.
         if result.get("port_states"):
             observation["port_states"] = result["port_states"]
+        # Ports the discovery pass saw open but the detail pass did not. They
+        # are not findings. raw_xml stays in self.scan and is never sent.
+        unconfirmed = result.get("unconfirmed_ports") or []
+        observation["unconfirmed_ports"] = unconfirmed
+        if unconfirmed:
+            observation["unconfirmed_note"] = UNCONFIRMED_NOTE
         return json.dumps(observation), False
 
     def _exploit_lookup(self, port, product=None, version=None):

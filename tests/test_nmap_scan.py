@@ -219,6 +219,85 @@ ALL_FILTERED_XML = """<?xml version="1.0"?>
 </nmaprun>
 """.format(start=START)
 
+# The lab case: pass 1 across two firewalls sees 21 and 22 open, then pass 2
+# gets no answer from either, so neither is confirmed.
+LOSSY_DISCOVERY_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <extraports state="filtered" count="65533">
+        <extrareasons reason="no-response" count="65533"/>
+      </extraports>
+      <port protocol="tcp" portid="21">
+        <state state="open" reason="syn-ack"/>
+        <service name="ftp"/>
+      </port>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="900.00"/></runstats>
+</nmaprun>
+""".format(start=START)
+
+LOST_DETAIL_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="21">
+        <state state="filtered" reason="no-response"/>
+        <service name="ftp"/>
+      </port>
+      <port protocol="tcp" portid="22">
+        <state state="filtered" reason="no-response"/>
+        <service name="ssh"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="10.00"/></runstats>
+</nmaprun>
+""".format(start=START + 901)
+
+# Pass 2 for DISCOVERY_XML (22 and 8080) where only 22 answers again.
+PARTIAL_DETAIL_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh" product="OpenSSH" version="4.7p1"/>
+      </port>
+      <port protocol="tcp" portid="8080">
+        <state state="filtered" reason="no-response"/>
+        <service name="http-proxy"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="15.00"/></runstats>
+</nmaprun>
+""".format(start=START + 62)
+
+# Pass 2 where nmap folded both lost ports into one extraports summary
+# instead of listing them.
+FOLDED_DETAIL_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <extraports state="filtered" count="2">
+        <extrareasons reason="no-response" count="2"/>
+      </extraports>
+    </ports>
+  </host>
+  <runstats><finished elapsed="10.00"/></runstats>
+</nmaprun>
+""".format(start=START + 901)
+
 
 def fake_nmap(*xml_runs):
     """Stand in for subprocess.run: writes the next canned XML into the -oX file."""
@@ -288,11 +367,19 @@ class ScanModeTests(unittest.TestCase):
         first = run.call_args_list[0]
         cmd = first.args[0]
         tmp_name = cmd[cmd.index("-oX") + 1]
-        self.assertEqual(cmd, ["nmap", "-Pn", "-p-", "--min-rate", "1000", "--max-retries",
-                               "2", "-T4", "--reason", "-oX", tmp_name, TARGET])
+        self.assertEqual(cmd, ["nmap", "-Pn", "-p-", "-T4", "--reason",
+                               "-oX", tmp_name, TARGET])
         self.assertNotIn("-sV", cmd)
         self.assertNotIn("--script", cmd)
-        self.assertEqual(first.kwargs["timeout"], 600)
+        self.assertEqual(first.kwargs["timeout"], 1800)
+
+    def test_discovery_has_no_forced_rate_or_retry_cap(self):
+        self.assertEqual(nmap_scan.DISCOVERY_FLAGS, ["-Pn", "-p-", "-T4"])
+        self.assertEqual(nmap_scan.DISCOVERY_TIMEOUT, 1800)
+        run, _ = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        for cmd in self._cmds(run):
+            self.assertNotIn("--min-rate", cmd)
+            self.assertNotIn("--max-retries", cmd)
 
     def test_all_ports_pass_2_scans_only_open_ports(self):
         run, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
@@ -363,6 +450,62 @@ class ScanModeTests(unittest.TestCase):
             which.assert_not_called()
             source_ip.assert_not_called()
             self.assertEqual(result["status"], "refused")
+
+
+class UnconfirmedAndEvidenceTests(unittest.TestCase):
+    """Ports pass 2 does not confirm, and the raw XML kept as evidence."""
+
+    _run = ScanModeTests._run  # same mocks, without rerunning ScanModeTests
+
+    def test_pass_2_loses_every_port(self):
+        _, result = self._run(LOSSY_DISCOVERY_XML, LOST_DETAIL_XML, all_ports=True)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["ports"], [])
+        self.assertEqual(result["unconfirmed_ports"], [
+            {"port": 21, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"},
+            {"port": 22, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"},
+        ])
+
+    def test_partial_confirmation(self):
+        _, result = self._run(DISCOVERY_XML, PARTIAL_DETAIL_XML, all_ports=True)
+        self.assertEqual([p["port"] for p in result["ports"]], [22])
+        self.assertEqual(result["ports"][0]["product"], "OpenSSH")
+        self.assertEqual(result["unconfirmed_ports"], [
+            {"port": 8080, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"}])
+
+    def test_ports_folded_into_extraports_take_its_state(self):
+        _, result = self._run(LOSSY_DISCOVERY_XML, FOLDED_DETAIL_XML, all_ports=True)
+        self.assertEqual(result["ports"], [])
+        self.assertEqual([(u["port"], u["pass2_state"], u["pass2_reason"])
+                          for u in result["unconfirmed_ports"]],
+                         [(21, "filtered", "no-response"), (22, "filtered", "no-response")])
+
+    def test_all_confirmed_gives_empty_unconfirmed(self):
+        _, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        self.assertEqual(result["unconfirmed_ports"], [])
+
+    def test_default_mode_always_has_empty_unconfirmed(self):
+        _, result = self._run(DEFAULT_XML)
+        self.assertIn("unconfirmed_ports", result)
+        self.assertEqual(result["unconfirmed_ports"], [])
+
+    def test_raw_xml_one_entry_per_pass_default(self):
+        _, result = self._run(DEFAULT_XML)
+        self.assertEqual(result["raw_xml"], [DEFAULT_XML])
+
+    def test_raw_xml_one_entry_per_pass_two_pass(self):
+        _, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        self.assertEqual(result["raw_xml"], [DISCOVERY_XML, DETAIL_XML])
+        _, lossy = self._run(LOSSY_DISCOVERY_XML, LOST_DETAIL_XML, all_ports=True)
+        self.assertEqual(lossy["raw_xml"], [LOSSY_DISCOVERY_XML, LOST_DETAIL_XML])
+
+    def test_raw_xml_when_pass_2_skipped(self):
+        _, result = self._run(ALL_FILTERED_XML, all_ports=True)
+        self.assertEqual(result["raw_xml"], [ALL_FILTERED_XML])
+        self.assertEqual(result["unconfirmed_ports"], [])
 
 
 class PortStateTests(unittest.TestCase):

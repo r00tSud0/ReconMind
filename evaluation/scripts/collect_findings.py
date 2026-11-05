@@ -11,6 +11,11 @@ carries the exact finding_text the ATT&CK mapper will read, plus "labels": null
 so a human can fill the ATT&CK technique IDs in later. Re-running never
 duplicates a finding: a line whose id is already present is skipped.
 
+Exit codes: 0 clean scan, 1 scan failed, 2 target not authorized, 3 the scan
+has unconfirmed ports (open in discovery, not in the detail pass). On 3 the
+scan file and the confirmed findings are still written, and the scan should
+be rerun.
+
 No model is ever called here. The text comes straight from the tool, so the
 labeled set stays an independent check on the mapper.
 """
@@ -39,7 +44,8 @@ def _parse_args(args):
         prog="python3 evaluation/scripts/collect_findings.py")
     parser.add_argument("target", help="IPv4 address of the authorized target")
     parser.add_argument("--all-ports", action="store_true",
-                        help="scan every TCP port (slower, 900 second timeout)")
+                        help="scan every TCP port (slower: up to 1800 seconds "
+                             "for discovery plus 300 for the detail pass)")
     parser.add_argument(
         "--out", default=DEFAULT_OUT,
         help="findings JSONL file (default "
@@ -116,6 +122,17 @@ def main(argv):
     print("Added {a} finding(s), skipped {s} duplicate(s).".format(a=added, s=skipped))
     print("Findings: {o}".format(o=args.out))
     print("Scan:     {s}".format(s=scan_rel))
+
+    # A lossy scan must never pass for a clean one. The scan file above is
+    # already saved as evidence; only confirmed ports became findings.
+    unconfirmed = tb.scan.get("unconfirmed_ports") or []
+    if unconfirmed:
+        listed = ", ".join("{p}/{proto}".format(p=u.get("port"), proto=u.get("protocol"))
+                           for u in unconfirmed)
+        print("WARNING: {n} port(s) answered as open in discovery but not in the "
+              "detail pass: {l}. This usually means packet loss on the network "
+              "path. Rerun the scan.".format(n=len(unconfirmed), l=listed))
+        return 3
     return 0
 
 

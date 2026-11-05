@@ -5,7 +5,9 @@ run_nmap and search_exploits are mocked and all output goes to a temp folder.
     python3 -m unittest discover -s evaluation/tests -t . -v
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import tempfile
@@ -103,6 +105,44 @@ class CollectFindingsTests(unittest.TestCase):
             self.assertEqual(self._run(), 0)
         # The second run adds nothing, so there are still two lines.
         self.assertEqual(len(self._lines()), 2)
+
+    def test_unconfirmed_ports_warn_and_exit_3_after_saving_scan(self):
+        scan = fresh_scan()
+        scan["ports"] = scan["ports"][:1]  # only 21 confirmed
+        scan["unconfirmed_ports"] = [
+            {"port": 22, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"},
+            {"port": 8080, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"},
+        ]
+        out = io.StringIO()
+        with mock.patch.object(cf, "is_authorized", return_value=True), \
+             mock.patch.object(toolmod, "run_nmap", return_value=scan), \
+             mock.patch.object(toolmod, "search_exploits", return_value=[]), \
+             contextlib.redirect_stdout(out):
+            code = self._run("--all-ports")
+        self.assertEqual(code, 3)
+        printed = out.getvalue()
+        self.assertIn("WARNING", printed)
+        self.assertIn("22/tcp, 8080/tcp", printed)
+        self.assertIn("Rerun the scan", printed)
+
+        # The scan file is still written, with the unconfirmed ports in it.
+        saved = os.listdir(self.scans)
+        self.assertEqual(len(saved), 1)
+        with open(os.path.join(self.scans, saved[0])) as fh:
+            self.assertEqual([u["port"] for u in json.load(fh)["unconfirmed_ports"]],
+                             [22, 8080])
+        # Only the confirmed port became a finding.
+        self.assertEqual([r["id"] for r in self._lines()], ["10.10.1.100:21/tcp"])
+
+    def test_empty_unconfirmed_list_exits_0(self):
+        scan = dict(fresh_scan(), unconfirmed_ports=[])
+        with mock.patch.object(cf, "is_authorized", return_value=True), \
+             mock.patch.object(toolmod, "run_nmap", return_value=scan), \
+             mock.patch.object(toolmod, "search_exploits", return_value=[]), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self._run(), 0)
 
 
 if __name__ == "__main__":

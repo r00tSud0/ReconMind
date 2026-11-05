@@ -57,12 +57,19 @@ Run every command from the repo root.
 
 Build the hand labeling queue from a real scan of an authorized target. This
 appends one line per open port to
-`evaluation/data/reconmind_eval/findings.jsonl`, each with `labels` left null to
-fill in by hand, and saves the full scan under
-`evaluation/data/reconmind_eval/scans/`:
+`evaluation/data/reconmind_eval/findings.jsonl` and saves the full scan under
+`evaluation/data/reconmind_eval/scans/`. Findings are questions only, with no
+`labels` field; the ATT&CK answer key is kept in a separate file:
 
 ```
 python3 evaluation/scripts/collect_findings.py TARGET [--all-ports]
+```
+
+To rebuild findings from a scan saved earlier, without scanning or touching
+the network, pass the scan file instead of TARGET:
+
+```
+python3 evaluation/scripts/collect_findings.py --from-scan evaluation/data/reconmind_eval/scans/FILE.json
 ```
 
 ## Where results go

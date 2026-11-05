@@ -66,7 +66,30 @@ class FindingTextTests(unittest.TestCase):
     def test_missing_product_and_version(self):
         self.assertEqual(
             finding_text(port(product="", version="")),
-            "Port 22/tcp is open running ssh:.")
+            "Port 22/tcp is open running ssh.")
+
+    def test_version_without_product(self):
+        self.assertEqual(
+            finding_text(port(port=111, service="rpcbind", product="",
+                              version="2")),
+            "Port 111/tcp is open running rpcbind, version 2.")
+
+    def test_no_product_no_version_has_no_colon(self):
+        self.assertEqual(
+            finding_text(port(port=514, service="tcpwrapped", product="",
+                              version="")),
+            "Port 514/tcp is open running tcpwrapped.")
+
+    def test_unknown_service_is_unidentified(self):
+        self.assertEqual(
+            finding_text(port(port=8180, service="unknown", product="",
+                              version="")),
+            "Port 8180/tcp is open running an unidentified service.")
+
+    def test_empty_service_is_unidentified(self):
+        self.assertEqual(
+            finding_text(port(port=8180, service="", product="", version="")),
+            "Port 8180/tcp is open running an unidentified service.")
 
     def test_lookup_failed_adds_nothing_about_exploits(self):
         p = port(exploits=[], exploit_status="lookup_failed",

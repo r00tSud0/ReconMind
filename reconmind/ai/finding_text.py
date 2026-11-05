@@ -12,8 +12,14 @@ The sentence has up to three parts:
      Risk: {reason}
      Known exploits (Exploit-DB): {title} (EDB-{id}); ...
 
-A missing product or version simply drops that word, with no extra spaces. The
-risk part is added only when risky_services flags the port. The exploit part
+The first sentence takes one of four forms:
+
+    product (with or without version)  running ftp: vsftpd 2.3.4.
+    version but no product             running rpcbind, version 2.
+    neither, service known             running tcpwrapped.
+    neither, service unknown or empty  running an unidentified service.
+
+The risk part is added only when risky_services flags the port. The exploit part
 lists at most three titles and only the confirmed matches (exact_version first,
 then version_family); product_only and unverified matches are left out because
 their version was never pinned down, and a port whose lookup failed has no
@@ -32,12 +38,17 @@ def _service_line(port):
     service = (port.get("service") or "unknown").strip() or "unknown"
     product = (port.get("product") or "").strip()
     version = (port.get("version") or "").strip()
-    facts = " ".join(part for part in (product, version) if part)
-    line = "Port {port}/{protocol} is open running {service}:".format(
-        port=port.get("port"), protocol=port.get("protocol"), service=service)
-    if facts:
-        line += " " + facts
-    return line + "."
+    head = "Port {port}/{protocol} is open running".format(
+        port=port.get("port"), protocol=port.get("protocol"))
+    if product:
+        facts = " ".join(part for part in (product, version) if part)
+        return "{h} {s}: {f}.".format(h=head, s=service, f=facts)
+    if version:
+        # nmap gives RPC services a version with no product.
+        return "{h} {s}, version {v}.".format(h=head, s=service, v=version)
+    if service == "unknown":
+        return "{h} an unidentified service.".format(h=head)
+    return "{h} {s}.".format(h=head, s=service)
 
 
 def _confirmed_exploits(port):

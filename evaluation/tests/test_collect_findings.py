@@ -85,7 +85,9 @@ class CollectFindingsTests(unittest.TestCase):
         lines = self._lines()
         self.assertEqual([r["id"] for r in lines],
                          ["10.10.1.100:21/tcp", "10.10.1.100:22/tcp"])
-        self.assertTrue(all(r["labels"] is None for r in lines))
+        self.assertTrue(all("labels" not in r for r in lines))
+        self.assertEqual(set(lines[0]),
+                         {"id", "target", "port", "protocol", "text", "scan_file"})
         self.assertEqual(lines[0]["port"], 21)
         self.assertEqual(lines[0]["protocol"], "tcp")
         self.assertIn("vsftpd 2.3.4", lines[0]["text"])
@@ -143,6 +145,75 @@ class CollectFindingsTests(unittest.TestCase):
              mock.patch.object(toolmod, "search_exploits", return_value=[]), \
              contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(self._run(), 0)
+
+    def _saved_scan(self):
+        """Write a saved scan file like this script does and return its path."""
+        os.makedirs(self.scans, exist_ok=True)
+        path = os.path.join(self.scans, "10.10.1.100_20261104_120000.json")
+        with open(path, "w") as fh:
+            json.dump(fresh_scan(), fh)
+        return path
+
+    def _run_from_scan(self, path):
+        return cf.main(["collect_findings.py", "--from-scan", path,
+                        "--out", self.out])
+
+    def test_from_scan_builds_findings_without_gate_or_scan(self):
+        path = self._saved_scan()
+        with mock.patch.object(cf, "is_authorized") as gate, \
+             mock.patch.object(toolmod, "run_nmap") as run_nmap, \
+             contextlib.redirect_stdout(io.StringIO()):
+            code = self._run_from_scan(path)
+        self.assertEqual(code, 0)
+        gate.assert_not_called()
+        run_nmap.assert_not_called()
+
+        lines = self._lines()
+        self.assertEqual([r["id"] for r in lines],
+                         ["10.10.1.100:21/tcp", "10.10.1.100:22/tcp"])
+        self.assertTrue(all("labels" not in r for r in lines))
+        self.assertEqual(lines[0]["target"], TARGET)
+        self.assertEqual(lines[0]["text"],
+                         "Port 21/tcp is open running ftp: vsftpd 2.3.4.")
+        self.assertEqual(lines[0]["scan_file"],
+                         os.path.relpath(path, cf.REPO_ROOT))
+        # No new scan file was written next to the saved one.
+        self.assertEqual(os.listdir(self.scans), [os.path.basename(path)])
+
+    def test_from_scan_skips_duplicates(self):
+        path = self._saved_scan()
+        with mock.patch.object(cf, "is_authorized") as gate, \
+             mock.patch.object(toolmod, "run_nmap") as run_nmap, \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self._run_from_scan(path), 0)
+            self.assertEqual(self._run_from_scan(path), 0)
+        gate.assert_not_called()
+        run_nmap.assert_not_called()
+        self.assertEqual(len(self._lines()), 2)
+
+    def test_both_target_and_from_scan_is_an_error(self):
+        path = self._saved_scan()
+        with mock.patch.object(cf, "is_authorized") as gate, \
+             mock.patch.object(toolmod, "run_nmap") as run_nmap, \
+             contextlib.redirect_stderr(io.StringIO()), \
+             self.assertRaises(SystemExit) as ctx:
+            cf.main(["collect_findings.py", TARGET, "--from-scan", path,
+                     "--out", self.out])
+        self.assertEqual(ctx.exception.code, 2)
+        gate.assert_not_called()
+        run_nmap.assert_not_called()
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_neither_target_nor_from_scan_is_an_error(self):
+        with mock.patch.object(cf, "is_authorized") as gate, \
+             mock.patch.object(toolmod, "run_nmap") as run_nmap, \
+             contextlib.redirect_stderr(io.StringIO()), \
+             self.assertRaises(SystemExit) as ctx:
+            cf.main(["collect_findings.py", "--out", self.out])
+        self.assertEqual(ctx.exception.code, 2)
+        gate.assert_not_called()
+        run_nmap.assert_not_called()
+        self.assertFalse(os.path.exists(self.out))
 
 
 if __name__ == "__main__":

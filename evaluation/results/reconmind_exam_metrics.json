@@ -1,0 +1,3051 @@
+{
+ "exam": "reconmind_eval",
+ "findings_sha256": "fd746fa2891d7aa9f8e45453e0514343f9c599a4d3bdc641a32ad25b48491da2",
+ "n_findings": 32,
+ "gold": {
+  "gold_labels": 49,
+  "outside_tram50": 27,
+  "ids": {
+   "T1021": 3,
+   "T1021.004": 1,
+   "T1021.005": 1,
+   "T1039": 1,
+   "T1040": 3,
+   "T1059": 10,
+   "T1059.004": 1,
+   "T1135": 1,
+   "T1499.004": 5,
+   "T1589": 1
+  }
+ },
+ "scorings": {
+  "all_labels": "label set is the 50 TRAM IDs plus every ID in labels.jsonl",
+  "tram50_only": "gold filtered to the 50 TRAM IDs, label set is the 50"
+ },
+ "written": "2026-11-10T01:26:41+00:00",
+ "model_a": {
+  "model_kind": "prompted",
+  "provider": "openrouter",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "batch_size": 25,
+  "max_tokens": 16000,
+  "temperature": 0,
+  "label_table": "TRAM 50",
+  "failed_findings": 0,
+  "raw_file": "evaluation/results/raw/prompted_nvidia_nemotron-3-ultra-550b-a55b_free_reconmind_exam.jsonl",
+  "scores": {
+   "all_labels": {
+    "n_sentences": 32,
+    "n_labeled": 21,
+    "n_unlabeled": 11,
+    "micro": {
+     "precision": 0.8461538461538461,
+     "recall": 0.22448979591836735,
+     "f1": 0.3548387096774194,
+     "tp": 11,
+     "fp": 2,
+     "fn": 38
+    },
+    "macro": {
+     "precision": 0.0625,
+     "recall": 0.049107142857142856,
+     "f1": 0.055,
+     "n_techniques_averaged": 16
+    },
+    "exact_match": 0.34375,
+    "out_of_set": {
+     "count": 0,
+     "ids": {}
+    },
+    "zero_support_techniques": [
+     "T1003.001",
+     "T1012",
+     "T1016",
+     "T1021.001",
+     "T1027",
+     "T1033",
+     "T1036.005",
+     "T1041",
+     "T1047",
+     "T1053.005",
+     "T1055",
+     "T1057",
+     "T1059.003",
+     "T1070.004",
+     "T1071.001",
+     "T1072",
+     "T1074.001",
+     "T1078",
+     "T1082",
+     "T1083",
+     "T1090",
+     "T1095",
+     "T1106",
+     "T1110",
+     "T1112",
+     "T1140",
+     "T1204.002",
+     "T1210",
+     "T1218.011",
+     "T1219",
+     "T1484.001",
+     "T1518.001",
+     "T1543.003",
+     "T1547.001",
+     "T1548.002",
+     "T1552.001",
+     "T1557.001",
+     "T1562.001",
+     "T1564.001",
+     "T1566.001",
+     "T1569.002",
+     "T1570",
+     "T1573.001",
+     "T1574.002"
+    ],
+    "per_technique": [
+     {
+      "id": "T1003.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1005",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1012",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1016",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1021",
+      "support": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1021.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1021.004",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1021.005",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1027",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1033",
+      "support": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "zero_support": true,
+      "precision": 0.0,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1036.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1039",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1040",
+      "support": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1041",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1047",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1053.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1055",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1056.001",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1057",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1059",
+      "support": 10,
+      "tp": 0,
+      "fp": 0,
+      "fn": 10,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1059.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1059.004",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1068",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1070.004",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1071.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1072",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1074.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1078",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1082",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1083",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1090",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1095",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1105",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1106",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1110",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1112",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1113",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1135",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1140",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1190",
+      "support": 14,
+      "tp": 11,
+      "fp": 0,
+      "fn": 3,
+      "zero_support": false,
+      "precision": 1.0,
+      "recall": 0.7857142857142857,
+      "f1": 0.88
+     },
+     {
+      "id": "T1204.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1210",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1218.011",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1219",
+      "support": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "zero_support": true,
+      "precision": 0.0,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1484.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1499.004",
+      "support": 5,
+      "tp": 0,
+      "fp": 0,
+      "fn": 5,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1518.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1543.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1547.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1548.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1552.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1557.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1562.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1564.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1566.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1569.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1570",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1573.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1574.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1589",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     }
+    ]
+   },
+   "tram50_only": {
+    "n_sentences": 32,
+    "n_labeled": 15,
+    "n_unlabeled": 17,
+    "micro": {
+     "precision": 0.8461538461538461,
+     "recall": 0.5,
+     "f1": 0.6285714285714286,
+     "tp": 11,
+     "fp": 2,
+     "fn": 11
+    },
+    "macro": {
+     "precision": 0.16666666666666666,
+     "recall": 0.13095238095238096,
+     "f1": 0.14666666666666667,
+     "n_techniques_averaged": 6
+    },
+    "exact_match": 0.71875,
+    "out_of_set": {
+     "count": 0,
+     "ids": {}
+    },
+    "zero_support_techniques": [
+     "T1003.001",
+     "T1012",
+     "T1016",
+     "T1021.001",
+     "T1027",
+     "T1033",
+     "T1036.005",
+     "T1041",
+     "T1047",
+     "T1053.005",
+     "T1055",
+     "T1057",
+     "T1059.003",
+     "T1070.004",
+     "T1071.001",
+     "T1072",
+     "T1074.001",
+     "T1078",
+     "T1082",
+     "T1083",
+     "T1090",
+     "T1095",
+     "T1106",
+     "T1110",
+     "T1112",
+     "T1140",
+     "T1204.002",
+     "T1210",
+     "T1218.011",
+     "T1219",
+     "T1484.001",
+     "T1518.001",
+     "T1543.003",
+     "T1547.001",
+     "T1548.002",
+     "T1552.001",
+     "T1557.001",
+     "T1562.001",
+     "T1564.001",
+     "T1566.001",
+     "T1569.002",
+     "T1570",
+     "T1573.001",
+     "T1574.002"
+    ],
+    "per_technique": [
+     {
+      "id": "T1003.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1005",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1012",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1016",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1021.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1027",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1033",
+      "support": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "zero_support": true,
+      "precision": 0.0,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1036.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1041",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1047",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1053.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1055",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1056.001",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1057",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1059.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1068",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1070.004",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1071.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1072",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1074.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1078",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1082",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1083",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1090",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1095",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1105",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1106",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1110",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1112",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1113",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1140",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1190",
+      "support": 14,
+      "tp": 11,
+      "fp": 0,
+      "fn": 3,
+      "zero_support": false,
+      "precision": 1.0,
+      "recall": 0.7857142857142857,
+      "f1": 0.88
+     },
+     {
+      "id": "T1204.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1210",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1218.011",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1219",
+      "support": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "zero_support": true,
+      "precision": 0.0,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1484.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1518.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1543.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1547.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1548.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1552.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1557.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1562.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1564.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1566.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1569.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1570",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1573.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1574.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     }
+    ]
+   }
+  }
+ },
+ "model_b": {
+  "model_kind": "finetuned",
+  "provider": "huggingface",
+  "model": "allenai/scibert_scivocab_uncased",
+  "run_name": "run2",
+  "threshold": 0.65,
+  "max_length": 512,
+  "threshold_from": "evaluation/results/finetuned_scibert_run2_metrics.json",
+  "raw_file": "evaluation/results/raw/finetuned_scibert_run2_reconmind_exam.jsonl",
+  "scores": {
+   "all_labels": {
+    "n_sentences": 32,
+    "n_labeled": 21,
+    "n_unlabeled": 11,
+    "micro": {
+     "precision": 0.0,
+     "recall": 0.0,
+     "f1": 0.0,
+     "tp": 0,
+     "fp": 1,
+     "fn": 49
+    },
+    "macro": {
+     "precision": 0.0,
+     "recall": 0.0,
+     "f1": 0.0,
+     "n_techniques_averaged": 16
+    },
+    "exact_match": 0.3125,
+    "out_of_set": {
+     "count": 0,
+     "ids": {}
+    },
+    "zero_support_techniques": [
+     "T1003.001",
+     "T1012",
+     "T1016",
+     "T1021.001",
+     "T1027",
+     "T1033",
+     "T1036.005",
+     "T1041",
+     "T1047",
+     "T1053.005",
+     "T1055",
+     "T1057",
+     "T1059.003",
+     "T1070.004",
+     "T1071.001",
+     "T1072",
+     "T1074.001",
+     "T1078",
+     "T1082",
+     "T1083",
+     "T1090",
+     "T1095",
+     "T1106",
+     "T1110",
+     "T1112",
+     "T1140",
+     "T1204.002",
+     "T1210",
+     "T1218.011",
+     "T1219",
+     "T1484.001",
+     "T1518.001",
+     "T1543.003",
+     "T1547.001",
+     "T1548.002",
+     "T1552.001",
+     "T1557.001",
+     "T1562.001",
+     "T1564.001",
+     "T1566.001",
+     "T1569.002",
+     "T1570",
+     "T1573.001",
+     "T1574.002"
+    ],
+    "per_technique": [
+     {
+      "id": "T1003.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1005",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1012",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1016",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1021",
+      "support": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1021.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1021.004",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1021.005",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1027",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1033",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1036.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1039",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1040",
+      "support": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1041",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1047",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1053.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1055",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1056.001",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1057",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1059",
+      "support": 10,
+      "tp": 0,
+      "fp": 0,
+      "fn": 10,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1059.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1059.004",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1068",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1070.004",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1071.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1072",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1074.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1078",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1082",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1083",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1090",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1095",
+      "support": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "zero_support": true,
+      "precision": 0.0,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1105",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1106",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1110",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1112",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1113",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1135",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1140",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1190",
+      "support": 14,
+      "tp": 0,
+      "fp": 0,
+      "fn": 14,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1204.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1210",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1218.011",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1219",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1484.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1499.004",
+      "support": 5,
+      "tp": 0,
+      "fp": 0,
+      "fn": 5,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1518.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1543.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1547.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1548.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1552.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1557.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1562.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1564.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1566.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1569.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1570",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1573.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1574.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1589",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     }
+    ]
+   },
+   "tram50_only": {
+    "n_sentences": 32,
+    "n_labeled": 15,
+    "n_unlabeled": 17,
+    "micro": {
+     "precision": 0.0,
+     "recall": 0.0,
+     "f1": 0.0,
+     "tp": 0,
+     "fp": 1,
+     "fn": 22
+    },
+    "macro": {
+     "precision": 0.0,
+     "recall": 0.0,
+     "f1": 0.0,
+     "n_techniques_averaged": 6
+    },
+    "exact_match": 0.5,
+    "out_of_set": {
+     "count": 0,
+     "ids": {}
+    },
+    "zero_support_techniques": [
+     "T1003.001",
+     "T1012",
+     "T1016",
+     "T1021.001",
+     "T1027",
+     "T1033",
+     "T1036.005",
+     "T1041",
+     "T1047",
+     "T1053.005",
+     "T1055",
+     "T1057",
+     "T1059.003",
+     "T1070.004",
+     "T1071.001",
+     "T1072",
+     "T1074.001",
+     "T1078",
+     "T1082",
+     "T1083",
+     "T1090",
+     "T1095",
+     "T1106",
+     "T1110",
+     "T1112",
+     "T1140",
+     "T1204.002",
+     "T1210",
+     "T1218.011",
+     "T1219",
+     "T1484.001",
+     "T1518.001",
+     "T1543.003",
+     "T1547.001",
+     "T1548.002",
+     "T1552.001",
+     "T1557.001",
+     "T1562.001",
+     "T1564.001",
+     "T1566.001",
+     "T1569.002",
+     "T1570",
+     "T1573.001",
+     "T1574.002"
+    ],
+    "per_technique": [
+     {
+      "id": "T1003.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1005",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1012",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1016",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1021.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1027",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1033",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1036.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1041",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1047",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1053.005",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1055",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1056.001",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1057",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1059.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1068",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1070.004",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1071.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1072",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1074.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1078",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1082",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1083",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1090",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1095",
+      "support": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "zero_support": true,
+      "precision": 0.0,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1105",
+      "support": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1106",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1110",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1112",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1113",
+      "support": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1140",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1190",
+      "support": 14,
+      "tp": 0,
+      "fp": 0,
+      "fn": 14,
+      "zero_support": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+     },
+     {
+      "id": "T1204.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1210",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1218.011",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1219",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1484.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1518.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1543.003",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1547.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1548.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1552.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1557.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1562.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1564.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1566.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1569.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1570",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1573.001",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     },
+     {
+      "id": "T1574.002",
+      "support": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "zero_support": true,
+      "precision": null,
+      "recall": null,
+      "f1": null
+     }
+    ]
+   }
+  }
+ },
+ "per_finding": [
+  {
+   "id": "10.10.1.20:21/tcp",
+   "gold": [
+    "T1059",
+    "T1190"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:22/tcp",
+   "gold": [
+    "T1021.004",
+    "T1059",
+    "T1190",
+    "T1589"
+   ],
+   "model_a": [
+    "T1033"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:23/tcp",
+   "gold": [
+    "T1021",
+    "T1040"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:25/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:53/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:80/tcp",
+   "gold": [
+    "T1005",
+    "T1190",
+    "T1499.004"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:111/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:139/tcp",
+   "gold": [
+    "T1059",
+    "T1190",
+    "T1499.004"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:445/tcp",
+   "gold": [
+    "T1059",
+    "T1190",
+    "T1499.004"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:512/tcp",
+   "gold": [
+    "T1021",
+    "T1040"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:513/tcp",
+   "gold": [
+    "T1021",
+    "T1040"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:514/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": [
+    "T1095"
+   ]
+  },
+  {
+   "id": "10.10.1.20:1099/tcp",
+   "gold": [
+    "T1190"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:1524/tcp",
+   "gold": [
+    "T1059.004"
+   ],
+   "model_a": [
+    "T1219"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:2049/tcp",
+   "gold": [
+    "T1039",
+    "T1135"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:2121/tcp",
+   "gold": [
+    "T1059",
+    "T1190"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:3306/tcp",
+   "gold": [
+    "T1190",
+    "T1499.004"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:3632/tcp",
+   "gold": [
+    "T1059",
+    "T1190"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:5432/tcp",
+   "gold": [
+    "T1005",
+    "T1059",
+    "T1190",
+    "T1499.004"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:5900/tcp",
+   "gold": [
+    "T1021.005"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:6000/tcp",
+   "gold": [
+    "T1056.001",
+    "T1113"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:6667/tcp",
+   "gold": [
+    "T1059",
+    "T1068",
+    "T1105",
+    "T1190"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:6697/tcp",
+   "gold": [
+    "T1059",
+    "T1068",
+    "T1105",
+    "T1190"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:8180/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:8787/tcp",
+   "gold": [
+    "T1059",
+    "T1190"
+   ],
+   "model_a": [
+    "T1190"
+   ],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:40319/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:41165/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:53961/tcp",
+   "gold": [
+    "T1190"
+   ],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.1.20:60034/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.2.1:53/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.2.1:80/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  },
+  {
+   "id": "10.10.2.1:443/tcp",
+   "gold": [],
+   "model_a": [],
+   "model_b": []
+  }
+ ]
+}

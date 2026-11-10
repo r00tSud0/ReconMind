@@ -13,7 +13,7 @@ Labels were drafted with AI assistance and reviewed by the author against these 
 
 **R1. Only what the finding text says.** No outside knowledge. If the text shows no exploit and no risk, the label set is empty. Models must learn to predict nothing for these.
 
-**R2. A remote exploit is listed:** T1210 Exploitation of Remote Services. ReconMind only scans private internal networks, so these services are not public facing (T1190).
+**R2. A remote exploit is listed:** T1190 Exploit Public-Facing Application. The scanner reaches the service from a separate network, so exploiting it is the attacker's way in (initial access). This follows CTID's "attacker exploits remote system application" scenario.
 
 **R3. What each listed exploit does:**
 * a. Command execution, backdoor, SQL injection: T1059
@@ -29,9 +29,13 @@ Labels were drafted with AI assistance and reviewed by the author against these 
 * a. Unauthenticated root shell: T1059.004
 * b. NFS exposed: T1135 plus T1039
 * c. X11 exposed: T1113 plus T1056.001
-* d. Java RMI registry exposed: T1210
-* e. A service that runs commands or code for anyone who connects (distccd, Ruby DRb): T1210 plus T1059
+* d. Java RMI registry exposed: T1190
+* e. A service that runs commands or code for anyone who connects (distccd, Ruby DRb): T1190 plus T1059
 
 ## Coverage note
 
-Of the 16 techniques used here, only 6 are among the 50 TRAM techniques Model B was trained on (T1210, T1005, T1113, T1056.001, T1068, T1105). Models are scored on all labels and, separately, on the TRAM 50 only.
+Of the 16 techniques used here, only 6 are among the 50 TRAM techniques Model B was trained on (T1190, T1005, T1113, T1056.001, T1068, T1105). Models are scored on all labels and, separately, on the TRAM 50 only.
+
+## Change log
+
+**Version 2 (Nov 9 2026).** Rules R2, R5d and R5e used T1210 Exploitation of Remote Services in version 1. On review, T1190 fits better: the scanner reaches each target from a separate network, which is initial access, and CTID maps remotely exploited server software to T1190. T1210 describes lateral movement after an attacker is already inside a network. This change was made after the first scoring run, so it was seen alongside model output. To keep that transparent, the report gives scores under both versions. Version 1 is in git history at commit 7bc11e5, and its scores are saved in `evaluation/results/reconmind_exam_metrics_labels_v1.json`.

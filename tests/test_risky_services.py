@@ -8,8 +8,9 @@ import unittest
 from reconmind.tools.risky_services import flag_port, flag_ports
 
 
-def port(num, service, product=""):
-    return {"port": num, "protocol": "tcp", "service": service, "product": product}
+def port(num, service, product="", version=""):
+    return {"port": num, "protocol": "tcp", "service": service, "product": product,
+            "version": version}
 
 
 class RiskyServiceTests(unittest.TestCase):
@@ -21,6 +22,15 @@ class RiskyServiceTests(unittest.TestCase):
         # Matched on product alone, whatever nmap calls the service.
         self.assertEqual(flag_port(port(1524, "ingreslock", "Metasploitable root shell"))["severity"],
                          "critical")
+
+    def test_distccd_and_ruby_drb_are_critical(self):
+        # nmap's real service, product and version values.
+        distcc = flag_port(port(3632, "distccd", "distccd", "v1"))
+        self.assertEqual(distcc["severity"], "critical")
+        self.assertIn("distcc compile daemon", distcc["reason"])
+        drb = flag_port(port(8787, "drb", "Ruby DRb RMI"))
+        self.assertEqual(drb["severity"], "critical")
+        self.assertIn("Ruby DRb", drb["reason"])
 
     def test_cleartext_logins_are_high(self):
         self.assertEqual(flag_port(port(23, "telnet", "Linux telnetd"))["severity"], "high")
@@ -49,7 +59,8 @@ class RiskyServiceTests(unittest.TestCase):
         self.assertEqual([p["port"] for p, _ in flagged], [1524, 23, 5900])
 
     def test_no_dash_separators_in_reasons(self):
-        for p in (port(1524, "bindshell"), port(23, "telnet"), port(512, "exec"),
+        for p in (port(1524, "bindshell"), port(3632, "distccd"), port(8787, "drb"),
+                  port(23, "telnet"), port(512, "exec"),
                   port(5900, "vnc"), port(6000, "x11"), port(2049, "nfs"), port(1099, "java-rmi")):
             reason = flag_port(p)["reason"]
             self.assertNotIn(" - ", reason)

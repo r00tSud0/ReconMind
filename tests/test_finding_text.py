@@ -35,6 +35,13 @@ class FindingTextTests(unittest.TestCase):
             "Port 23/tcp is open running telnet: Linux telnetd."))
         self.assertIn(" Risk: Telnet login.", text)
 
+    def test_distccd_port_adds_risk(self):
+        text = finding_text(port(port=3632, service="distccd",
+                                 product="distccd", version="v1"))
+        self.assertTrue(text.startswith(
+            "Port 3632/tcp is open running distccd: distccd v1."))
+        self.assertIn(" Risk: distcc compile daemon exposed.", text)
+
     def test_exact_version_before_version_family(self):
         p = port(exploits=[exploit("family hit", "2", "version_family"),
                            exploit("exact hit", "1", "exact_version")])

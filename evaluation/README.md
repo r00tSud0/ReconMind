@@ -94,6 +94,26 @@ python3 evaluation/scripts/collect_findings.py --from-scan evaluation/data/recon
    `all_labels` (TRAM's 50 IDs plus every ID in the answer key) and
    `tram50_only` (gold filtered to TRAM's 50).
 
+## Prepare run 3 training data
+
+Run 3 trains Model B on data that looks like ReconMind's findings: ATT&CK
+v20.0 procedure examples, MITRE CTID KEV and CVE mappings (CVE text from
+cvelistV5), Exploit-DB titles written in ReconMind's finding format, and
+TRAM's train and val splits. Every source is pinned to one commit and checked
+against its SHA-256. Pass your local Exploit-DB `files_exploits.csv`:
+
+```
+python3 evaluation/scripts/prepare_run3_data.py --exploitdb-csv PATH
+```
+
+Exploit IDs in the ReconMind test set and their CVEs are removed from every
+source, and sentences equal to a TRAM test or eval sentence are removed. The
+answer key is never read. Outputs go to `evaluation/data/run3/` (not
+committed): `train.jsonl`, `val.jsonl`, `labels.json` and `manifest.json`.
+The manifest is also copied to `evaluation/results/run3_data_manifest.json`.
+Downloads are cached under `evaluation/data/run3/cache/`, so a second run
+works offline.
+
 ## Where results go
 
 - `evaluation/results/<run>_metrics.json`: headline and per technique scores

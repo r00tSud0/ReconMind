@@ -72,6 +72,28 @@ the network, pass the scan file instead of TARGET:
 python3 evaluation/scripts/collect_findings.py --from-scan evaluation/data/reconmind_eval/scans/FILE.json
 ```
 
+## Score the ReconMind test set
+
+1. Predict with Model B in Colab (CPU is fine). It loads the run 2 model from
+   your Google Drive. Push the `attack-mapper` branch first, then open:
+
+   https://colab.research.google.com/github/r00tSud0/ReconMind/blob/attack-mapper/evaluation/notebooks/predict_reconmind_exam.ipynb
+
+   Run all, then put the downloaded
+   `finetuned_scibert_run2_reconmind_exam.jsonl` in `evaluation/results/raw/`.
+
+2. Run Model A and score both models against `labels.jsonl`:
+
+   ```
+   python3 evaluation/scripts/score_reconmind_exam.py [--provider NAME] [--model ID] [--skip-model-a]
+   ```
+
+   Model A resumes after a rate limit like `eval_prompted.py`.
+   `--skip-model-a` sends nothing and only scores saved answers. Results go
+   to `evaluation/results/reconmind_exam_metrics.json`, scored two ways:
+   `all_labels` (TRAM's 50 IDs plus every ID in the answer key) and
+   `tram50_only` (gold filtered to TRAM's 50).
+
 ## Where results go
 
 - `evaluation/results/<run>_metrics.json`: headline and per technique scores

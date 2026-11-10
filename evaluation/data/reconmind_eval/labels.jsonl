@@ -1,0 +1,32 @@
+{"id": "10.10.1.20:21/tcp", "labels": ["T1210", "T1059"], "rule": "R2, R3a: backdoor command execution exploits"}
+{"id": "10.10.1.20:22/tcp", "labels": ["T1210", "T1059", "T1589", "T1021.004"], "rule": "R2, R3a: SFTP command execution; R3d: username enumeration; R4: SSH login service"}
+{"id": "10.10.1.20:23/tcp", "labels": ["T1021", "T1040"], "rule": "R4: cleartext telnet login"}
+{"id": "10.10.1.20:25/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.1.20:53/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.1.20:80/tcp", "labels": ["T1210", "T1499.004", "T1005"], "rule": "R2, R3b: integer overflow; R3c: memory leak"}
+{"id": "10.10.1.20:111/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.1.20:139/tcp", "labels": ["T1210", "T1059", "T1499.004"], "rule": "R2, R3a: command execution; R3b: format string and denial of service"}
+{"id": "10.10.1.20:445/tcp", "labels": ["T1210", "T1059", "T1499.004"], "rule": "R2, R3a: command execution; R3b: format string and denial of service"}
+{"id": "10.10.1.20:512/tcp", "labels": ["T1021", "T1040"], "rule": "R4: cleartext rexec login"}
+{"id": "10.10.1.20:513/tcp", "labels": ["T1021", "T1040"], "rule": "R4: cleartext rlogin login"}
+{"id": "10.10.1.20:514/tcp", "labels": [], "rule": "R1: tcpwrapped, nothing identified"}
+{"id": "10.10.1.20:1099/tcp", "labels": ["T1210"], "rule": "R5d: Java RMI registry exposed"}
+{"id": "10.10.1.20:1524/tcp", "labels": ["T1059.004"], "rule": "R5a: unauthenticated root shell"}
+{"id": "10.10.1.20:2049/tcp", "labels": ["T1135", "T1039"], "rule": "R5b: NFS share exposed"}
+{"id": "10.10.1.20:2121/tcp", "labels": ["T1210", "T1059"], "rule": "R2, R3a: SQL injection"}
+{"id": "10.10.1.20:3306/tcp", "labels": ["T1210", "T1499.004"], "rule": "R2, R3b: integer overflow and denial of service"}
+{"id": "10.10.1.20:3632/tcp", "labels": ["T1210", "T1059"], "rule": "R5e: service runs commands for anyone who connects"}
+{"id": "10.10.1.20:5432/tcp", "labels": ["T1210", "T1059", "T1499.004", "T1005"], "rule": "R2, R3a: UDF command execution; R3b: denial of service; R3c: information disclosure"}
+{"id": "10.10.1.20:5900/tcp", "labels": ["T1021.005"], "rule": "R4: VNC remote desktop"}
+{"id": "10.10.1.20:6000/tcp", "labels": ["T1113", "T1056.001"], "rule": "R5c: X11 display server exposed"}
+{"id": "10.10.1.20:6667/tcp", "labels": ["T1210", "T1059", "T1105", "T1068"], "rule": "R2, R3a: backdoor; R3e: download and execute; R3f: local overflow"}
+{"id": "10.10.1.20:6697/tcp", "labels": ["T1210", "T1059", "T1105", "T1068"], "rule": "R2, R3a: backdoor; R3e: download and execute; R3f: local overflow"}
+{"id": "10.10.1.20:8180/tcp", "labels": [], "rule": "R1: unidentified service"}
+{"id": "10.10.1.20:8787/tcp", "labels": ["T1210", "T1059"], "rule": "R5e: service runs code for anyone who connects"}
+{"id": "10.10.1.20:40319/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.1.20:41165/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.1.20:53961/tcp", "labels": ["T1210"], "rule": "R5d: Java RMI registry exposed"}
+{"id": "10.10.1.20:60034/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.2.1:53/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.2.1:80/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}
+{"id": "10.10.2.1:443/tcp", "labels": [], "rule": "R1: no exploit or risk in the finding"}

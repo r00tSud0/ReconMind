@@ -90,7 +90,10 @@ python3 evaluation/scripts/collect_findings.py --from-scan evaluation/data/recon
 
    Model A resumes after a rate limit like `eval_prompted.py`.
    `--skip-model-a` sends nothing and only scores saved answers. Results go
-   to `evaluation/results/reconmind_exam_metrics.json`, scored two ways:
+   to `evaluation/results/reconmind_exam_metrics_run2_tram50.json`, and the
+   version 1 answer key scores go to
+   `evaluation/results/reconmind_exam_metrics_run2_tram50_labels_v1.json`.
+   Both are scored two ways:
    `all_labels` (TRAM's 50 IDs plus every ID in the answer key) and
    `tram50_only` (gold filtered to TRAM's 50).
 
@@ -113,6 +116,43 @@ committed): `train.jsonl`, `val.jsonl`, `labels.json` and `manifest.json`.
 The manifest is also copied to `evaluation/results/run3_data_manifest.json`.
 Downloads are cached under `evaluation/data/run3/cache/`, so a second run
 works offline.
+
+## Run 3
+
+Run 3 trains Model B on the run 3 data in its own notebook. Run 2's notebook
+is unchanged.
+
+1. Prepare the data as above, then commit
+   `evaluation/results/run3_data_manifest.json` and push the `attack-mapper`
+   branch. Its `outputs` section holds the SHA-256 of `train.jsonl`,
+   `val.jsonl` and `labels.json`.
+2. Upload those three files from `evaluation/data/run3/` to the Drive folder
+   `MyDrive/ReconMind/run3_data/`.
+3. Open the notebook in Colab, choose a T4 GPU, then Runtime, Run all:
+
+   https://colab.research.google.com/github/r00tSud0/ReconMind/blob/attack-mapper/evaluation/notebooks/train_attack_mapper_run3.ipynb
+
+   It stops if a file in Drive does not match the manifest. It trains up to
+   12 epochs (patience 3), picks the epoch and threshold on run 3's val
+   split, and scores TRAM's eval set two ways: `tram50_filtered` (predictions
+   limited to TRAM's 50, comparable to run 2 and Model A) and `unfiltered`
+   (IDs outside TRAM's 50 count as out of set). It also predicts the ReconMind
+   findings. The model is saved to `MyDrive/ReconMind/scibert_attack_mapper_run3`.
+4. Put the downloaded `finetuned_scibert_run3_metrics.json` in
+   `evaluation/results/` and `finetuned_scibert_run3_reconmind_exam.jsonl` in
+   `evaluation/results/raw/`, then score:
+
+   ```
+   python3 evaluation/scripts/score_reconmind_exam.py --model-b-run run3 [--model-a-labels tram50|run3] [--skip-model-a]
+   ```
+
+   `--model-a-labels run3` gives Model A run 3's label table. Its raw file
+   ends in `_run3labels.jsonl`, so it never mixes with the TRAM 50 one.
+   Results go to
+   `evaluation/results/reconmind_exam_metrics_<model b run>_<model a labels>.json`;
+   with no flags that is `reconmind_exam_metrics_run2_tram50.json`. The
+   `all_labels` label set is TRAM's 50 plus Model B's label set plus every
+   gold ID.
 
 ## Where results go
 

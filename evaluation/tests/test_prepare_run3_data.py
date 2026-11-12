@@ -560,6 +560,23 @@ class MainTests(unittest.TestCase):
                 self.assertFalse(os.path.exists(os.path.join(run["out_dir"], name)))
             self.assertFalse(os.path.exists(run["copy_path"]))
 
+    def test_manifest_outputs_hold_the_sha256_of_each_written_file(self):
+        names = ("train.jsonl", "val.jsonl", "labels.json")
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self.run_main(tmp, edb_csv([
+                ("100", "Struts 2.3 - Remote Code Execution", "CVE-2020-0001")]))
+            self.assertEqual(run["code"], 0, run["printed"])
+            with open(os.path.join(run["out_dir"], "manifest.json")) as fh:
+                outputs = json.load(fh)["outputs"]
+            with open(run["copy_path"]) as fh:
+                self.assertEqual(json.load(fh)["outputs"], outputs)
+            on_disk = {}
+            for name in names:
+                with open(os.path.join(run["out_dir"], name), "rb") as fh:
+                    on_disk[name] = p3.sha256_hex(fh.read())
+        self.assertEqual(set(outputs), set(names))
+        self.assertEqual(outputs, on_disk)
+
     def test_end_to_end_in_temp_folder(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = self.run_main(tmp, edb_csv([

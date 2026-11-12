@@ -40,6 +40,13 @@ MODEL_B = {"f1": ["T1001"], "f2": ["T1002"], "f3": []}
 
 MODEL = "vendor/m:free"
 RAW_A = "prompted_vendor_m_free_reconmind_exam.jsonl"
+RAW_A_RUN3 = "prompted_vendor_m_free_reconmind_exam_run3labels.jsonl"
+DEFAULT_METRICS = "reconmind_exam_metrics_run2_tram50.json"
+
+# A run 3 label table: TRAM's two IDs plus one only run 3 has.
+RUN3_TABLE = TABLE + [{"id": "T7777", "name": "Run Three Only"}]
+# Model B run 3's label set, from the header line of its raw file.
+RUN3_B_LABELS = ["T1001", "T1002", "T5555"]
 
 
 def load_script():
@@ -65,13 +72,16 @@ class ScoreExamTests(unittest.TestCase):
         self._env.start()
         self.data = os.path.join(self._tmp.name, "exam")
         self.tram = os.path.join(self._tmp.name, "tram")
+        self.run3 = os.path.join(self._tmp.name, "run3")
         self.results = os.path.join(self._tmp.name, "results")
-        for d in (self.data, self.tram, os.path.join(self.results, "raw")):
+        for d in (self.data, self.tram, self.run3, os.path.join(self.results, "raw")):
             os.makedirs(d)
         write_jsonl(os.path.join(self.data, "findings.jsonl"), FINDINGS)
         write_jsonl(os.path.join(self.data, "labels.jsonl"), GOLD)
         with open(os.path.join(self.tram, "labels.json"), "w") as fh:
             json.dump(TABLE, fh)
+        with open(os.path.join(self.run3, "labels.json"), "w") as fh:
+            json.dump(RUN3_TABLE, fh)
         with open(os.path.join(self.results, "finetuned_scibert_run2_metrics.json"), "w") as fh:
             json.dump({"model": "allenai/scibert_scivocab_uncased", "run_name": "run2",
                        "threshold": 0.65, "max_length": 512}, fh)
@@ -81,24 +91,41 @@ class ScoreExamTests(unittest.TestCase):
         os.chdir(self._cwd)
         self._tmp.cleanup()
 
-    def write_model_b(self):
+    def write_model_b(self, run="run2", preds=MODEL_B, labels=None, n_probs=None):
+        """Model B raw file; labels adds a header line, n_probs sets each probs length."""
+        width = n_probs if n_probs is not None else len(labels or TABLE)
+        rows = [{"labels": labels, "run_name": run}] if labels is not None else []
+        rows += [{"id": i, "pred": p, "probs": [0.0] * width} for i, p in preds.items()]
         write_jsonl(os.path.join(self.results, "raw",
-                                 "finetuned_scibert_run2_reconmind_exam.jsonl"),
-                    [{"id": i, "pred": p, "probs": [0.0, 0.0]} for i, p in MODEL_B.items()])
+                                 "finetuned_scibert_{r}_reconmind_exam.jsonl".format(r=run)),
+                    rows)
+
+    def write_run3_b_metrics(self):
+        with open(os.path.join(self.results, "finetuned_scibert_run3_metrics.json"), "w") as fh:
+            json.dump({"model": "allenai/scibert_scivocab_uncased", "run_name": "run3",
+                       "threshold": 0.4, "max_length": 256}, fh)
 
     def main(self, client, *extra):
         out = io.StringIO()
         with mock.patch.object(llm, "make_client", return_value=client) as make, \
-             contextlib.redirect_stdout(out):
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
             code = self.script.main(["score_reconmind_exam.py", "--model", MODEL,
                                      "--data-dir", self.data, "--tram-dir", self.tram,
+                                     "--run3-dir", self.run3,
                                      "--results-dir", self.results] + list(extra))
         self.make_client = make
         return code, out.getvalue()
 
-    def saved(self):
-        with open(os.path.join(self.results, "reconmind_exam_metrics.json")) as fh:
+    def saved(self, name=DEFAULT_METRICS):
+        with open(os.path.join(self.results, name)) as fh:
             return json.load(fh)
+
+    def exists(self, *parts):
+        return os.path.exists(os.path.join(self.results, *parts))
+
+    @staticmethod
+    def technique_ids(res):
+        return {r["id"] for r in res["per_technique"]}
 
     def assertScores(self, res, p, r, f1, macro_f1, exact):
         self.assertAlmostEqual(res["micro"]["precision"], p)
@@ -126,6 +153,15 @@ class ScoreExamTests(unittest.TestCase):
         self.assertEqual(b["model"], "allenai/scibert_scivocab_uncased")
         self.assertScores(b["scores"]["all_labels"], 0.5, 1 / 3, 0.4, 1 / 3, 0.0)
         self.assertScores(b["scores"]["tram50_only"], 0.5, 0.5, 0.5, 0.5, 1 / 3)
+        # Run 2's raw file has no header, so its label set is TRAM's 50.
+        self.assertEqual(b["label_set_from"], "TRAM 50 (raw file has no labels header)")
+        self.assertEqual(b["label_set_size"], 2)
+
+        self.assertEqual(saved["model_b_run"], "run2")
+        self.assertEqual(saved["model_a_labels"], "tram50")
+        self.assertEqual(a["label_table"], "TRAM 50")
+        self.assertFalse(self.exists("reconmind_exam_metrics.json"))
+        self.assertTrue(self.exists("raw", RAW_A))
 
         self.assertEqual(saved["per_finding"], [
             {"id": "f1", "gold": ["T1001", "T9001"], "model_a": ["T1001"], "model_b": ["T1001"]},
@@ -199,9 +235,8 @@ class ScoreExamTests(unittest.TestCase):
         self.assertIn("rate limited", out)
         self.assertIn("1 of 3 findings done", out)
         self.assertNotIn("Traceback", out)
-        self.assertTrue(os.path.exists(os.path.join(self.results, "raw", RAW_A)))
-        self.assertFalse(os.path.exists(
-            os.path.join(self.results, "reconmind_exam_metrics.json")))
+        self.assertTrue(self.exists("raw", RAW_A))
+        self.assertFalse(self.exists(DEFAULT_METRICS))
 
         second = FakeClient()
         code, out = self.main(second, "--batch-size", "1")
@@ -213,6 +248,116 @@ class ScoreExamTests(unittest.TestCase):
         third = FakeClient()
         self.main(third, "--batch-size", "1")
         self.assertEqual(third.requests, [])
+
+    # Tests for the model b run flag.
+
+    def test_model_b_run3_reads_its_own_raw_and_metrics_files(self):
+        # Run 2's file predicts nothing; if it were read, f1 would score 0.
+        self.write_model_b("run2", preds={i: [] for i in MODEL_B})
+        self.write_model_b("run3", labels=RUN3_B_LABELS)
+        self.write_run3_b_metrics()
+        code, out = self.main(FakeClient(), "--skip-model-a", "--model-b-run", "run3")
+        self.assertEqual(code, 0, out)
+        self.assertFalse(self.exists(DEFAULT_METRICS))
+        saved = self.saved("reconmind_exam_metrics_run3_tram50.json")
+        self.assertEqual(saved["model_b_run"], "run3")
+        b = saved["model_b"]
+        self.assertEqual(b["threshold"], 0.4)
+        self.assertEqual(b["run_name"], "run3")
+        self.assertEqual(b["max_length"], 256)
+        self.assertTrue(b["raw_file"].endswith("finetuned_scibert_run3_reconmind_exam.jsonl"))
+        self.assertTrue(b["threshold_from"].endswith("finetuned_scibert_run3_metrics.json"))
+        self.assertEqual([r["model_b"] for r in saved["per_finding"]],
+                         [MODEL_B["f1"], MODEL_B["f2"], MODEL_B["f3"]])
+        self.assertScores(b["scores"]["tram50_only"], 0.5, 0.5, 0.5, 0.5, 1 / 3)
+
+    def test_all_labels_is_tram_plus_model_b_labels_plus_gold(self):
+        self.write_model_b("run3", labels=RUN3_B_LABELS)
+        self.write_run3_b_metrics()
+        code, out = self.main(FakeClient(), "--model-b-run", "run3")
+        self.assertEqual(code, 0, out)
+        saved = self.saved("reconmind_exam_metrics_run3_tram50.json")
+        expected = {"T1001", "T1002", "T5555", "T9001"}  # TRAM, Model B's T5555, gold T9001
+        self.assertEqual(saved["all_labels_size"], 4)
+        self.assertEqual(saved["model_b"]["label_set_size"], 3)
+        self.assertEqual(saved["model_b"]["label_set_from"], "raw file header")
+        for model in ("model_a", "model_b"):
+            scores = saved[model]["scores"]
+            self.assertEqual(self.technique_ids(scores["all_labels"]), expected)
+            self.assertEqual(self.technique_ids(scores["tram50_only"]), {"T1001", "T1002"})
+        # T5555 has no gold support, so the headline numbers match the run 2 case.
+        self.assertScores(saved["model_b"]["scores"]["all_labels"], 0.5, 1 / 3, 0.4, 1 / 3, 0.0)
+        self.assertScores(saved["model_a"]["scores"]["all_labels"], 1.0, 2 / 3, 0.8, 2 / 3, 2 / 3)
+
+    def test_model_b_header_must_match_probs_length(self):
+        self.write_model_b("run3", labels=RUN3_B_LABELS, n_probs=2)
+        code, out = self.main(FakeClient(), "--skip-model-a", "--model-b-run", "run3")
+        self.assertEqual(code, 1)
+        self.assertIn("has 2 probabilities but the header lists 3 labels", out)
+
+    def test_missing_model_b_run3_file_names_the_run3_notebook(self):
+        code, out = self.main(FakeClient(), "--model-b-run", "run3")
+        self.assertEqual(code, 0)
+        self.assertIn("finetuned_scibert_run3_reconmind_exam.jsonl not found", out)
+        self.assertIn("evaluation/notebooks/train_attack_mapper_run3.ipynb", out)
+        self.assertIsNone(self.saved("reconmind_exam_metrics_run3_tram50.json")["model_b"])
+
+    def test_model_b_run_name_must_be_plain(self):
+        code, _ = self.main(FakeClient(), "--model-b-run", "../run2")
+        self.assertEqual(code, 1)
+
+    # Tests for the model a labels flag.
+
+    def test_model_a_run3_labels_use_the_run3_table_and_their_own_raw_file(self):
+        self.write_model_b()
+        client = FakeClient()
+        code, out = self.main(client, "--model-a-labels", "run3")
+        self.assertEqual(code, 0, out)
+        self.assertTrue(client.requests)
+        self.assertIn("T7777  Run Three Only", client.requests[0]["system"])
+        self.assertTrue(self.exists("raw", RAW_A_RUN3))
+        self.assertFalse(self.exists("raw", RAW_A))
+        self.assertFalse(self.exists(DEFAULT_METRICS))
+        saved = self.saved("reconmind_exam_metrics_run2_run3.json")
+        self.assertEqual(saved["model_a_labels"], "run3")
+        a = saved["model_a"]
+        self.assertEqual(a["label_table"], "run3 (3 IDs)")
+        self.assertTrue(a["raw_file"].endswith(RAW_A_RUN3))
+        # Model A's own table is not part of all_labels: TRAM, Model B (TRAM 50), gold.
+        self.assertEqual(self.technique_ids(a["scores"]["all_labels"]),
+                         {"T1001", "T1002", "T9001"})
+        self.assertScores(a["scores"]["tram50_only"], 1.0, 1.0, 1.0, 1.0, 1.0)
+
+    def test_the_two_model_a_raw_files_never_mix(self):
+        self.main(FakeClient(), "--model-a-labels", "run3")
+        tram_client = FakeClient()
+        code, out = self.main(tram_client)  # tram50 must not resume from the run3 file
+        self.assertEqual(code, 0, out)
+        self.assertTrue(tram_client.requests)
+        self.assertNotIn("T7777", tram_client.requests[0]["system"])
+        self.assertTrue(self.exists("raw", RAW_A))
+        self.assertTrue(self.exists("raw", RAW_A_RUN3))
+
+        again = FakeClient()
+        self.main(again, "--model-a-labels", "run3")  # resumes from its own file
+        self.assertEqual(again.requests, [])
+        self.assertTrue(self.exists(DEFAULT_METRICS))
+        self.assertTrue(self.exists("reconmind_exam_metrics_run2_run3.json"))
+
+    def test_model_a_run3_labels_without_the_file_gives_clear_message(self):
+        os.remove(os.path.join(self.run3, "labels.json"))
+        client = FakeClient()
+        code, out = self.main(client, "--model-a-labels", "run3")
+        self.assertEqual(code, 1)
+        self.assertIn("Cannot read the run 3 label table", out)
+        self.assertIn("prepare_run3_data.py", out)
+        self.assertEqual(client.requests, [])
+
+    def test_unknown_model_a_labels_value_is_refused(self):
+        client = FakeClient()
+        code, _ = self.main(client, "--model-a-labels", "run9")
+        self.assertEqual(code, 1)
+        self.assertEqual(client.requests, [])
 
 
 if __name__ == "__main__":

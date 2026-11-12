@@ -1,28 +1,41 @@
 """
-Score Model A (prompted LLM) and Model B (fine tuned SciBERT run 2) on the
+Score Model A (prompted LLM) and Model B (fine tuned SciBERT) on the
 ReconMind test set: evaluation/data/reconmind_eval/findings.jsonl with the
 answer key in labels.jsonl.
 
     python3 evaluation/scripts/score_reconmind_exam.py [--provider NAME] [--model ID]
                                                        [--skip-model-a] [--batch-size 25]
+                                                       [--model-b-run run2]
+                                                       [--model-a-labels tram50|run3]
 
-Model A classifies every finding's text with prompted_mapper, using the same
-50 TRAM technique table, temperature 0 and max tokens default as
-eval_prompted.py. Finished batches are saved to
-evaluation/results/raw/prompted_<model>_reconmind_exam.jsonl and the next run
-resumes from it. --skip-model-a sends nothing and only scores raw files that
-already exist.
+Model A classifies every finding's text with prompted_mapper, at temperature 0
+with the same max tokens default as eval_prompted.py. Its label table is set
+by --model-a-labels:
+  tram50  the 50 TRAM IDs (default). Raw file:
+          evaluation/results/raw/prompted_<model>_reconmind_exam.jsonl
+  run3    evaluation/data/run3/labels.json. Raw file:
+          evaluation/results/raw/prompted_<model>_reconmind_exam_run3labels.jsonl
+The two raw files never mix. Finished batches are saved to the raw file and
+the next run resumes from it. --skip-model-a sends nothing and only scores raw
+files that already exist.
 
-Model B's predictions come from evaluation/notebooks/predict_reconmind_exam.ipynb,
-saved as evaluation/results/raw/finetuned_scibert_run2_reconmind_exam.jsonl.
-Its threshold and base model id are read from
-evaluation/results/finetuned_scibert_run2_metrics.json.
+Model B's run is set by --model-b-run NAME (default run2). Its predictions are
+read from evaluation/results/raw/finetuned_scibert_<NAME>_reconmind_exam.jsonl
+and its threshold and base model id from
+evaluation/results/finetuned_scibert_<NAME>_metrics.json. Run 2's file comes
+from evaluation/notebooks/predict_reconmind_exam.ipynb, later runs' from
+evaluation/notebooks/train_attack_mapper_<NAME>.ipynb. The raw file may start
+with a header line {"labels": [...], ...} giving Model B's label set (the
+order of every probs row); with no header the label set is TRAM's 50, which
+is what run 2 was trained on.
 
 Each model is scored two ways with metrics.score:
-  all_labels   label set is the 50 TRAM IDs plus every ID in labels.jsonl.
+  all_labels   label set is the 50 TRAM IDs plus Model B's label set plus
+               every ID in labels.jsonl.
   tram50_only  gold labels are filtered to the 50 TRAM IDs, label set is the 50.
 
-Results go to evaluation/results/reconmind_exam_metrics.json.
+Results go to
+evaluation/results/reconmind_exam_metrics_<model b run>_<model a labels>.json.
 """
 
 import argparse
@@ -44,19 +57,43 @@ from evaluation.attack_mapper import metrics, prompted_mapper  # noqa: E402
 
 EXAM_DIR = os.path.join(REPO_ROOT, "evaluation", "data", "reconmind_eval")
 TRAM_DIR = os.path.join(REPO_ROOT, "evaluation", "data", "tram")
+RUN3_DIR = os.path.join(REPO_ROOT, "evaluation", "data", "run3")
 RESULTS_DIR = os.path.join(REPO_ROOT, "evaluation", "results")
 ROUTER_MODELS = {"openrouter/free"}
 
 MODEL_B_RUN = "run2"
-MODEL_B_RAW = "finetuned_scibert_run2_reconmind_exam.jsonl"
-MODEL_B_METRICS = "finetuned_scibert_run2_metrics.json"
-NOTEBOOK = "evaluation/notebooks/predict_reconmind_exam.ipynb"
+MODEL_A_LABELS = ("tram50", "run3")
+RUN_NAME_RE = re.compile(r"[A-Za-z0-9_]+")
 SCORINGS = ("all_labels", "tram50_only")
 
 
 def safe_name(model):
     # Same file naming as eval_prompted.py.
     return re.sub(r"[^A-Za-z0-9._-]", "_", model)
+
+
+def model_b_raw_name(run):
+    return "finetuned_scibert_{r}_reconmind_exam.jsonl".format(r=run)
+
+
+def model_b_metrics_name(run):
+    return "finetuned_scibert_{r}_metrics.json".format(r=run)
+
+
+def model_b_notebook(run):
+    if run == "run2":
+        return "evaluation/notebooks/predict_reconmind_exam.ipynb"
+    return "evaluation/notebooks/train_attack_mapper_{r}.ipynb".format(r=run)
+
+
+def model_a_raw_name(model, label_table):
+    """tram50 keeps the original name; run3 adds _run3labels so the two never mix."""
+    suffix = "" if label_table == "tram50" else "_" + label_table + "labels"
+    return "prompted_{m}_reconmind_exam{s}.jsonl".format(m=safe_name(model), s=suffix)
+
+
+def metrics_name(model_b_run, model_a_labels):
+    return "reconmind_exam_metrics_{b}_{a}.json".format(b=model_b_run, a=model_a_labels)
 
 
 def _parse_args(args):
@@ -70,8 +107,16 @@ def _parse_args(args):
     parser.add_argument("--data-dir", default=EXAM_DIR,
                         help="folder with findings.jsonl and labels.jsonl")
     parser.add_argument("--tram-dir", default=TRAM_DIR, help="folder with the TRAM labels.json")
+    parser.add_argument("--run3-dir", default=RUN3_DIR, help="folder with the run 3 labels.json")
     parser.add_argument("--results-dir", default=RESULTS_DIR, help="where results are written")
-    return parser.parse_args(args)
+    parser.add_argument("--model-b-run", default=MODEL_B_RUN, metavar="NAME",
+                        help="Model B training run whose files are read (default run2)")
+    parser.add_argument("--model-a-labels", default="tram50", choices=MODEL_A_LABELS,
+                        help="Model A label table: tram50 (default) or run3")
+    parsed = parser.parse_args(args)
+    if not RUN_NAME_RE.fullmatch(parsed.model_b_run):
+        parser.error("--model-b-run may only hold letters, digits and underscores")
+    return parsed
 
 
 # ---- inputs ----------------------------------------------------------------
@@ -101,45 +146,77 @@ def load_tram_table(tram_dir):
         return json.load(fh)
 
 
-def load_model_b(results_dir, finding_ids):
-    """({id: pred list}, raw path), or (None, raw path) when the file is missing."""
-    path = os.path.join(results_dir, "raw", MODEL_B_RAW)
+def load_model_a_table(args, tram_table):
+    """(label table, description) for Model A's --model-a-labels choice."""
+    if args.model_a_labels == "tram50":
+        return tram_table, "TRAM 50"
+    with open(os.path.join(args.run3_dir, "labels.json")) as fh:
+        table = json.load(fh)
+    return table, "run3 ({n} IDs)".format(n=len(table))
+
+
+def load_model_b(results_dir, finding_ids, run=MODEL_B_RUN):
+    """
+    ({id: pred list}, raw path, label IDs or None). (None, raw path, None) when
+    the file is missing. Label IDs come from a header line {"labels": [...]},
+    which must be the first line; each row's probs must then match its length.
+    """
+    path = os.path.join(results_dir, "raw", model_b_raw_name(run))
     if not os.path.exists(path):
-        return None, path
-    preds = {}
+        return None, path, None
+    preds, labels = {}, None
     with open(path) as fh:
-        for line in fh:
-            if line.strip():
-                rec = json.loads(line)
-                preds[rec["id"]] = sorted(set(rec["pred"]))
+        for n, line in enumerate((x for x in fh if x.strip()), 1):
+            rec = json.loads(line)
+            if "id" not in rec and "labels" in rec:
+                if n != 1:
+                    raise ValueError("{p}: a labels header is only allowed on the first "
+                                     "line".format(p=path))
+                labels = list(rec["labels"])
+                continue
+            if labels is not None and "probs" in rec and len(rec["probs"]) != len(labels):
+                raise ValueError("{p}: {i} has {k} probabilities but the header lists {m} "
+                                 "labels".format(p=path, i=rec["id"], k=len(rec["probs"]),
+                                                 m=len(labels)))
+            preds[rec["id"]] = sorted(set(rec["pred"]))
     missing = sorted(set(finding_ids) - set(preds))
     if missing:
         raise ValueError("{p} has no prediction for {n} findings, for example {e}. "
                          "Run {nb} again.".format(p=path, n=len(missing), e=missing[:3],
-                                                  nb=NOTEBOOK))
-    return {i: preds[i] for i in finding_ids}, path
+                                                  nb=model_b_notebook(run)))
+    return {i: preds[i] for i in finding_ids}, path, labels
 
 
-def load_model_b_info(results_dir):
-    """Threshold and base model id from the run 2 training metrics, if present."""
-    path = os.path.join(results_dir, MODEL_B_METRICS)
+def load_model_b_info(results_dir, run=MODEL_B_RUN):
+    """Threshold and base model id from that run's training metrics, if present."""
+    path = os.path.join(results_dir, model_b_metrics_name(run))
     try:
         with open(path) as fh:
             saved = json.load(fh)
     except (OSError, ValueError):
-        return {"model": None, "run_name": MODEL_B_RUN, "threshold": None,
+        return {"model": None, "run_name": run, "threshold": None,
                 "max_length": None, "info_file": None}
-    return {"model": saved.get("model"), "run_name": saved.get("run_name", MODEL_B_RUN),
+    return {"model": saved.get("model"), "run_name": saved.get("run_name", run),
             "threshold": saved.get("threshold"), "max_length": saved.get("max_length"),
             "info_file": path}
 
 
 # ---- scoring -----------------------------------------------------------------
 
-def score_both(gold, pred, tram_ids):
-    """{"all_labels": ..., "tram50_only": ...} from metrics.score."""
+def all_label_set(gold, tram_ids, model_b_ids=()):
+    """TRAM's 50, plus Model B's label set, plus every gold ID, sorted."""
+    gold_ids = {lab for labs in gold.values() for lab in labs}
+    return sorted(set(tram_ids) | set(model_b_ids) | gold_ids)
+
+
+def score_both(gold, pred, tram_ids, all_labels=None):
+    """
+    {"all_labels": ..., "tram50_only": ...} from metrics.score. all_labels is
+    the label set from all_label_set; without it, TRAM's 50 plus the gold IDs.
+    """
     tram = set(tram_ids)
-    all_labels = sorted(tram | {lab for labs in gold.values() for lab in labs})
+    if all_labels is None:
+        all_labels = all_label_set(gold, tram_ids)
     gold_tram = {i: [lab for lab in labs if lab in tram] for i, labs in gold.items()}
     return {
         "all_labels": metrics.score(gold, pred, all_labels),
@@ -263,10 +340,31 @@ def main(argv):
         print("Run python3 evaluation/scripts/prepare_tram_data.py first.")
         return 1
     tram_ids = [t["id"] for t in table]
+    try:
+        a_table, a_table_name = load_model_a_table(args, table)
+    except (OSError, ValueError) as exc:
+        print("Cannot read the run 3 label table in {d}: {e}".format(d=args.run3_dir, e=exc))
+        print("Run python3 evaluation/scripts/prepare_run3_data.py first.")
+        return 1
     finding_ids = [f["id"] for f in findings]
     rows = [{"id": f["id"], "sentence": f["text"]} for f in findings]
     raw_dir = os.path.join(args.results_dir, "raw")
     os.makedirs(raw_dir, exist_ok=True)
+
+    # Model B is read first: its label set is part of the all_labels scoring.
+    run_b = args.model_b_run
+    try:
+        b_preds, raw_b, b_labels = load_model_b(args.results_dir, finding_ids, run_b)
+    except (OSError, ValueError, KeyError) as exc:
+        print("Model B: cannot read its predictions: {e}".format(e=exc))
+        return 1
+    if b_preds is None:
+        b_label_ids, b_label_source = [], None
+    elif b_labels is not None:
+        b_label_ids, b_label_source = b_labels, "raw file header"
+    else:
+        b_label_ids, b_label_source = tram_ids, "TRAM 50 (raw file has no labels header)"
+    all_labels = all_label_set(gold, tram_ids, b_label_ids)
 
     # Model A
     _load_dotenv()
@@ -279,10 +377,9 @@ def main(argv):
     if model_a_id is None:
         print("Model A: no model id known, pass --model to score its raw file.")
     else:
-        raw_a = os.path.join(raw_dir, "prompted_{m}_reconmind_exam.jsonl".format(
-            m=safe_name(model_a_id)))
-        print("Model A (prompted)  model={m}  batch={b}  max_tokens={t}{s}".format(
-            m=model_a_id, b=args.batch_size, t=prompted_mapper.MAX_TOKENS,
+        raw_a = os.path.join(raw_dir, model_a_raw_name(model_a_id, args.model_a_labels))
+        print("Model A (prompted)  model={m}  labels={l}  batch={b}  max_tokens={t}{s}".format(
+            m=model_a_id, l=a_table_name, b=args.batch_size, t=prompted_mapper.MAX_TOKENS,
             s="  (skip: scoring saved answers only)" if args.skip_model_a else ""))
         if model_a_id in ROUTER_MODELS:
             print("WARNING: {m} routes to different models between runs, so this result "
@@ -297,7 +394,7 @@ def main(argv):
             if state is None:
                 print("Model A: no raw file yet, not scored. Run without --skip-model-a.")
         else:
-            state, code = run_model_a(config, rows, table, exam_sha, raw_a, args.batch_size)
+            state, code = run_model_a(config, rows, a_table, exam_sha, raw_a, args.batch_size)
             if code is not None:
                 return code
         if state is not None:
@@ -314,24 +411,19 @@ def main(argv):
                     "batch_size": args.batch_size,
                     "max_tokens": prompted_mapper.MAX_TOKENS,
                     "temperature": prompted_mapper.TEMPERATURE,
-                    "label_table": "TRAM 50",
+                    "label_table": a_table_name,
                     "failed_findings": p["failed"],
                     "raw_file": os.path.relpath(raw_a, REPO_ROOT),
-                    "scores": score_both(gold, a_preds, tram_ids),
+                    "scores": score_both(gold, a_preds, tram_ids, all_labels),
                 }
 
     # Model B
     model_b = None
-    try:
-        b_preds, raw_b = load_model_b(args.results_dir, finding_ids)
-    except (OSError, ValueError, KeyError) as exc:
-        print("Model B: cannot read its predictions: {e}".format(e=exc))
-        return 1
     if b_preds is None:
         print("Model B: {p} not found. Run {nb} in Colab first, then put the downloaded "
-              "file in evaluation/results/raw/.".format(p=raw_b, nb=NOTEBOOK))
+              "file in evaluation/results/raw/.".format(p=raw_b, nb=model_b_notebook(run_b)))
     else:
-        info = load_model_b_info(args.results_dir)
+        info = load_model_b_info(args.results_dir, run_b)
         model_b = {
             "model_kind": "finetuned",
             "provider": "huggingface",
@@ -342,7 +434,9 @@ def main(argv):
             "threshold_from": (os.path.relpath(info["info_file"], REPO_ROOT)
                                if info["info_file"] else None),
             "raw_file": os.path.relpath(raw_b, REPO_ROOT),
-            "scores": score_both(gold, b_preds, tram_ids),
+            "label_set_size": len(b_label_ids),
+            "label_set_from": b_label_source,
+            "scores": score_both(gold, b_preds, tram_ids, all_labels),
         }
 
     if model_a is None and model_b is None:
@@ -355,10 +449,14 @@ def main(argv):
         "findings_sha256": exam_sha,
         "n_findings": len(findings),
         "gold": outside,
+        "model_b_run": run_b,
+        "model_a_labels": args.model_a_labels,
         "scorings": {
-            "all_labels": "label set is the 50 TRAM IDs plus every ID in labels.jsonl",
+            "all_labels": "label set is the 50 TRAM IDs plus Model B's label set plus "
+                          "every ID in labels.jsonl",
             "tram50_only": "gold filtered to the 50 TRAM IDs, label set is the 50",
         },
+        "all_labels_size": len(all_labels),
         "written": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "model_a": model_a,
         "model_b": model_b,
@@ -369,7 +467,7 @@ def main(argv):
             for i in finding_ids
         ],
     }
-    metrics_path = os.path.join(args.results_dir, "reconmind_exam_metrics.json")
+    metrics_path = os.path.join(args.results_dir, metrics_name(run_b, args.model_a_labels))
     with open(metrics_path, "w") as fh:
         json.dump(out, fh, indent=1)
         fh.write("\n")

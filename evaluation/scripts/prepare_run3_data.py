@@ -41,6 +41,8 @@ came from TRAM.
 Outputs in evaluation/data/run3/ (not committed): train.jsonl and val.jsonl
 with rows {id, sentence, labels, source, group}, labels.json and
 manifest.json. manifest.json is copied to evaluation/results/run3_data_manifest.json.
+Its "outputs" section holds the SHA-256 of train.jsonl, val.jsonl and
+labels.json, which the run 3 training notebook checks before it trains.
 
 Pinned downloads are cached under evaluation/data/run3/cache/ and checked
 against their SHA-256 on every run, cached or not. cvelistV5 files are cached
@@ -791,6 +793,7 @@ def main(argv=None):
         return 1
 
     texts = {name: jsonl_text(result["splits"][name]) for name in SPLITS}
+    labels_text = json.dumps(table, indent=1) + "\n"
     manifest = {
         "sources": sources,
         "cvelist": {
@@ -806,12 +809,15 @@ def main(argv=None):
                           "sha256": sha256_hex(edb_raw)},
         "tram_inputs": {name + ".jsonl": sha256_hex(tram_raw[name]) for name in ("train", "val")},
         **result["report"],
-        "outputs": {name + ".jsonl": sha256_hex(texts[name].encode("utf-8")) for name in SPLITS},
+        # SHA-256 of each output file, checked by train_attack_mapper_run3.ipynb.
+        "outputs": dict({name + ".jsonl": sha256_hex(texts[name].encode("utf-8"))
+                         for name in SPLITS},
+                        **{"labels.json": sha256_hex(labels_text.encode("utf-8"))}),
     }
 
     for name in SPLITS:
         _write(os.path.join(OUT_DIR, name + ".jsonl"), texts[name])
-    _write(os.path.join(OUT_DIR, "labels.json"), json.dumps(table, indent=1) + "\n")
+    _write(os.path.join(OUT_DIR, "labels.json"), labels_text)
     manifest_path = os.path.join(OUT_DIR, "manifest.json")
     _write(manifest_path, json.dumps(manifest, indent=1) + "\n")
     os.makedirs(os.path.dirname(RESULTS_COPY_PATH), exist_ok=True)

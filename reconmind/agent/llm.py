@@ -18,6 +18,21 @@ RECONMIND_MODEL, so a paid model is never picked silently.
 Both client kinds go through _call_with_retry: on an HTTP 429 (rate limited)
 the call waits RATE_LIMIT_WAIT seconds and is retried once. A second 429
 raises RateLimited, which the runner turns into a short message and exit 1.
+
+Reasoning models spend completion tokens on hidden reasoning before the
+answer, so a small max_tokens can leave the visible answer empty. Both client
+kinds therefore:
+
+  - record finish_reason and token_usage (completion_tokens, plus
+    reasoning_tokens when the provider reports them) on every response
+  - retry once with double the max_tokens (capped at LENGTH_RETRY_CAP) when a
+    response has no text and no tool calls and stopped because of length
+  - if it is still empty, return the empty response with
+    empty_reason="length" instead of raising, so callers keep their results
+    and their own fallbacks still work
+
+response_info(response) reads these fields back from either kind, and each
+client keeps its most recent response on .last_response.
 """
 
 import json
@@ -59,6 +74,9 @@ RATE_LIMIT_WAIT = 20  # seconds before the single retry after a 429
 RATE_LIMIT_MESSAGE = ("Model busy (rate limited). Try again in a minute or use "
                       "--model with another model.")
 
+LENGTH_RETRY_CAP = 32000   # max_tokens ceiling for the one empty answer retry
+LENGTH_STOPS = ("length", "max_tokens")  # OpenAI and Anthropic names for it
+
 
 class ConfigError(ValueError):
     """Provider settings are missing or wrong. The message says what to set."""
@@ -90,6 +108,97 @@ def _call_with_retry(fn, **kwargs):
         if _is_rate_limit(exc):
             raise RateLimited(RATE_LIMIT_MESSAGE) from None
         raise
+
+
+# ---- empty answers from reasoning models ---------------------------------
+
+def _ran_out_empty(response):
+    """True when the response has no text, no tool calls and stopped for length."""
+    if response_info(response).get("finish_reason") not in LENGTH_STOPS:
+        return False
+    for block in getattr(response, "content", None) or []:
+        kind = _get(block, "type")
+        if kind == "tool_use":
+            return False
+        if kind == "text" and (_get(block, "text") or "").strip():
+            return False
+    return True
+
+
+def _mark(response, **fields):
+    """Set fields on a response. A native object that refuses is left as is."""
+    for key, value in fields.items():
+        try:
+            setattr(response, key, value)
+        except Exception:  # e.g. a str, or a strict pydantic model
+            pass
+
+
+def _create_with_length_retry(send, kwargs):
+    """
+    send(**kwargs) once. If the answer is empty because the length budget
+    ran out, send once more with double max_tokens (capped). Still empty, or
+    the retry failed with anything but a rate limit: return the empty answer
+    marked empty_reason="length". Never raises for this.
+    """
+    response = send(**kwargs)
+    if not _ran_out_empty(response):
+        return response
+
+    budget = kwargs.get("max_tokens")
+    bigger = min(budget * 2, LENGTH_RETRY_CAP) if budget else None
+    if bigger and bigger > budget:
+        try:
+            retry = send(**dict(kwargs, max_tokens=bigger))
+        except RateLimited:
+            raise
+        except Exception:  # a failed retry must not cost the caller its results
+            retry = None
+        if retry is not None:
+            if not _ran_out_empty(retry):
+                return retry
+            response = retry
+    _mark(response, empty_reason="length")
+    return response
+
+
+def response_info(response):
+    """
+    {finish_reason, completion_tokens, reasoning_tokens, empty_reason} for a
+    response from either client kind. Keys whose value is unknown are left out.
+    """
+    if hasattr(response, "finish_reason"):
+        finish = response.finish_reason
+    else:  # a native Anthropic response
+        finish = getattr(response, "stop_reason", None)
+    usage = getattr(response, "token_usage", None)
+    if not isinstance(usage, dict):
+        usage = _native_usage(getattr(response, "usage", None))
+    info = {
+        "finish_reason": finish,
+        "completion_tokens": usage.get("completion_tokens"),
+        "reasoning_tokens": usage.get("reasoning_tokens"),
+        "empty_reason": getattr(response, "empty_reason", None),
+    }
+    return {k: v for k, v in info.items() if v is not None}
+
+
+def _native_usage(usage):
+    """Token counts from an OpenAI or Anthropic usage object (or dict)."""
+    if usage is None:
+        return {}
+    completion = _get(usage, "completion_tokens")
+    if completion is None:
+        completion = _get(usage, "output_tokens")  # Anthropic
+    reasoning = _get(usage, "reasoning_tokens")
+    if reasoning is None:
+        reasoning = _get(_get(usage, "completion_tokens_details"), "reasoning_tokens")
+    out = {}
+    if isinstance(completion, int):
+        out["completion_tokens"] = completion
+    if isinstance(reasoning, int):
+        out["reasoning_tokens"] = reasoning
+    return out
 
 
 @dataclass
@@ -168,22 +277,34 @@ class ToolUseBlock:
 class Response:
     content: list
     stop_reason: str
+    finish_reason: str = None   # the provider's own value, e.g. "stop", "length"
+    token_usage: dict = field(default_factory=dict)  # completion_tokens, reasoning_tokens
+    empty_reason: str = None    # "length" when the answer stayed empty
 
 
 # ---- clients -------------------------------------------------------------
 
 class AnthropicClient:
     """
-    The native Anthropic client with the 429 retry added. Requests and
-    responses pass through untouched (no translation).
+    The native Anthropic client with the 429 retry and the empty answer
+    retry added. Requests and responses are not translated; each response
+    gets finish_reason and token_usage set on it when the object allows it.
     """
 
     def __init__(self, native):
         self.native = native
         self.messages = self  # so brain's client.messages.create(...) lands here
+        self.last_response = None
+
+    def _send(self, **kwargs):
+        response = _call_with_retry(self.native.messages.create, **kwargs)
+        _mark(response, finish_reason=getattr(response, "stop_reason", None),
+              token_usage=_native_usage(getattr(response, "usage", None)))
+        return response
 
     def create(self, **kwargs):
-        return _call_with_retry(self.native.messages.create, **kwargs)
+        self.last_response = _create_with_length_retry(self._send, kwargs)
+        return self.last_response
 
 
 # ---- translator ----------------------------------------------------------
@@ -197,13 +318,21 @@ class OpenAICompatClient:
     def __init__(self, openai_client):
         self._client = openai_client
         self.messages = self  # so brain's client.messages.create(...) lands here
+        self.last_response = None
 
-    def create(self, model, messages, max_tokens=None, system=None, tools=None, **_ignored):
+    def create(self, model, messages, max_tokens=None, system=None, tools=None,
+               temperature=None, **_ignored):
         request = {"model": model, "messages": to_openai_messages(system, messages)}
         if tools:
             request["tools"] = to_openai_tools(tools)
         if max_tokens:
             request["max_tokens"] = max_tokens
+        if temperature is not None:  # only sent when a caller asks; brain never does
+            request["temperature"] = temperature
+        self.last_response = _create_with_length_retry(self._send, request)
+        return self.last_response
+
+    def _send(self, **request):
         return from_openai_response(
             _call_with_retry(self._client.chat.completions.create, **request))
 
@@ -289,8 +418,10 @@ def _parse_arguments(raw):
 
 def from_openai_response(response):
     choices = _get(response, "choices") or []
+    usage = _native_usage(_get(response, "usage"))
     if not choices:
-        return Response([TextBlock("The model provider returned no answer.")], "end_turn")
+        return Response([TextBlock("The model provider returned no answer.")], "end_turn",
+                        token_usage=usage)
 
     choice = choices[0]
     message = _get(choice, "message")
@@ -310,10 +441,11 @@ def from_openai_response(response):
 
     # Some providers send finish_reason "stop" alongside tool calls, so the
     # presence of calls decides.
+    finish = _get(choice, "finish_reason")
     if any(b.type == "tool_use" for b in content):
         stop = "tool_use"
-    elif _get(choice, "finish_reason") == "length":
+    elif finish == "length":
         stop = "max_tokens"
     else:
         stop = "end_turn"
-    return Response(content, stop)
+    return Response(content, stop, finish_reason=finish, token_usage=usage)

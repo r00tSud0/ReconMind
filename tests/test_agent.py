@@ -91,7 +91,8 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(last_user["content"][0]["tool_use_id"], "t2")
         self.assertFalse(last_user["content"][0]["is_error"])
 
-        report = open(build_report(tb.scan, analyst_summary=summary)).read()
+        with open(build_report(tb.scan, analyst_summary=summary)) as fh:
+            report = fh.read()
         self.assertIn("## Analyst summary", report)
         self.assertIn("EDB-49757", report)
 

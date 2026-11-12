@@ -145,6 +145,15 @@ class TranslatorTests(TmpDirTest):
         self.assertEqual(tb.calls, [])
         self.assertIn("no answer", summary)
 
+    def test_temperature_sent_only_when_given(self):
+        fake = FakeOpenAI([turn("a"), turn("b")])
+        client = llm.OpenAICompatClient(fake)
+        msgs = [{"role": "user", "content": "hi"}]
+        client.messages.create(model="m", messages=msgs, temperature=0)
+        client.messages.create(model="m", messages=msgs)
+        self.assertEqual(fake.requests[0]["temperature"], 0)
+        self.assertNotIn("temperature", fake.requests[1])
+
     def test_brain_refuses_to_pick_a_model(self):
         with self.assertRaises(ValueError):
             brain.run_agent(TARGET, client=llm.OpenAICompatClient(FakeOpenAI([])), trace=False)
@@ -381,6 +390,159 @@ class RateLimitTests(TmpDirTest):
                       "with another model.", out.getvalue())
         self.assertNotIn("Traceback", out.getvalue())
         self.assertFalse(os.path.isdir("reports") and os.listdir("reports"))
+
+
+def empty_length(tokens, reasoning=None):
+    """A reasoning model answer: no text, cut off by the length budget."""
+    details = NS(reasoning_tokens=tokens if reasoning is None else reasoning)
+    return NS(choices=[NS(message=NS(content="", tool_calls=None), finish_reason="length")],
+              usage=NS(completion_tokens=tokens, completion_tokens_details=details))
+
+
+def with_usage(response, completion, reasoning):
+    response.usage = NS(completion_tokens=completion,
+                        completion_tokens_details=NS(reasoning_tokens=reasoning))
+    return response
+
+
+class LengthBudgetTests(TmpDirTest):
+    """Empty answers from reasoning models that ran out of max_tokens."""
+
+    def ask(self, client, max_tokens=2048):
+        return client.messages.create(model="m", max_tokens=max_tokens,
+                                      messages=[{"role": "user", "content": "hi"}])
+
+    def test_finish_reason_and_usage_on_every_response(self):
+        fake = FakeOpenAI([with_usage(turn("fine"), 40, 30)])
+        response = self.ask(llm.OpenAICompatClient(fake))
+        self.assertEqual(response.finish_reason, "stop")
+        self.assertEqual(response.token_usage, {"completion_tokens": 40, "reasoning_tokens": 30})
+        self.assertIsNone(response.empty_reason)
+        self.assertEqual(llm.response_info(response), {
+            "finish_reason": "stop", "completion_tokens": 40, "reasoning_tokens": 30})
+
+    def test_usage_without_reasoning_tokens(self):
+        response = turn("fine")
+        response.usage = NS(completion_tokens=12)
+        info = llm.response_info(self.ask(llm.OpenAICompatClient(FakeOpenAI([response]))))
+        self.assertEqual(info, {"finish_reason": "stop", "completion_tokens": 12})
+
+    def test_empty_length_retries_once_with_double_budget(self):
+        fake = FakeOpenAI([empty_length(2048), with_usage(turn("answer"), 3000, 2900)])
+        client = llm.OpenAICompatClient(fake)
+        response = self.ask(client)
+        self.assertEqual([r["max_tokens"] for r in fake.requests], [2048, 4096])
+        self.assertEqual(response.content[0].text, "answer")
+        self.assertIsNone(response.empty_reason)
+        self.assertEqual(response.token_usage["completion_tokens"], 3000)
+        self.assertIs(client.last_response, response)
+
+    def test_still_empty_returns_empty_reason_without_raising(self):
+        fake = FakeOpenAI([empty_length(2048), empty_length(4096, reasoning=4000)])
+        response = self.ask(llm.OpenAICompatClient(fake))
+        self.assertEqual(len(fake.requests), 2)  # one retry, no more
+        self.assertEqual(response.content, [])
+        self.assertEqual(response.stop_reason, "max_tokens")
+        self.assertEqual(response.empty_reason, "length")
+        self.assertEqual(llm.response_info(response), {
+            "finish_reason": "length", "completion_tokens": 4096,
+            "reasoning_tokens": 4000, "empty_reason": "length"})
+
+    def test_retry_budget_is_capped(self):
+        fake = FakeOpenAI([empty_length(20000), turn("answer")])
+        self.ask(llm.OpenAICompatClient(fake), max_tokens=20000)
+        self.assertEqual(fake.requests[1]["max_tokens"], llm.LENGTH_RETRY_CAP)
+
+    def test_no_retry_at_the_cap(self):
+        fake = FakeOpenAI([empty_length(32000)])
+        response = self.ask(llm.OpenAICompatClient(fake), max_tokens=32000)
+        self.assertEqual(len(fake.requests), 1)
+        self.assertEqual(response.empty_reason, "length")
+
+    def test_retry_error_keeps_the_empty_answer(self):
+        create = Scripted(empty_length(2048), HTTPError(400))
+        client = llm.OpenAICompatClient(NS(chat=NS(completions=NS(create=create))))
+        response = self.ask(client)
+        self.assertEqual(create.calls, 2)
+        self.assertEqual(response.empty_reason, "length")
+
+    def test_retry_rate_limited_still_raises_rate_limited(self):
+        create = Scripted(empty_length(2048), HTTPError(429), HTTPError(429))
+        client = llm.OpenAICompatClient(NS(chat=NS(completions=NS(create=create))))
+        with mock.patch.object(llm.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(llm.RateLimited):
+                self.ask(client)
+
+    def test_text_or_tool_calls_cut_by_length_are_not_retried(self):
+        fake = FakeOpenAI([turn("partial", finish="length"),
+                           turn(None, [call("nmap_scan", {"target": TARGET}, "t1")],
+                                finish="length")])
+        client = llm.OpenAICompatClient(fake)
+        self.assertEqual(self.ask(client).content[0].text, "partial")
+        self.assertEqual(self.ask(client).stop_reason, "tool_use")
+        self.assertEqual(len(fake.requests), 2)
+
+    def test_empty_stop_is_not_retried(self):
+        fake = FakeOpenAI([turn("")])
+        response = self.ask(llm.OpenAICompatClient(fake))
+        self.assertEqual(len(fake.requests), 1)
+        self.assertIsNone(response.empty_reason)
+
+    def test_anthropic_empty_max_tokens_retries_with_double_budget(self):
+        thinking = NS(type="thinking", thinking="...")
+        empty = NS(content=[thinking], stop_reason="max_tokens", usage=NS(output_tokens=2048))
+        good = NS(content=[thinking, NS(type="text", text="answer")], stop_reason="end_turn",
+                  usage=NS(output_tokens=3000))
+        create = mock.Mock(side_effect=[empty, good])
+        client = llm.AnthropicClient(NS(messages=NS(create=create)))
+        response = self.ask(client)
+        self.assertIs(response, good)
+        self.assertEqual([c.kwargs["max_tokens"] for c in create.call_args_list], [2048, 4096])
+        self.assertEqual(llm.response_info(response),
+                         {"finish_reason": "end_turn", "completion_tokens": 3000})
+
+    def test_anthropic_still_empty_is_marked(self):
+        def empty(**_):
+            return NS(content=[], stop_reason="max_tokens", usage=NS(output_tokens=1))
+        client = llm.AnthropicClient(NS(messages=NS(create=mock.Mock(side_effect=empty))))
+        response = self.ask(client)
+        self.assertEqual(response.empty_reason, "length")
+        self.assertEqual(llm.response_info(response)["finish_reason"], "max_tokens")
+        self.assertIs(client.last_response, response)
+
+    def test_agent_prints_length_message_then_falls_back(self):
+        os.environ["OPENROUTER_API_KEY"] = "k"
+        fake = FakeOpenAI([
+            turn(None, [call("nmap_scan", {"target": TARGET}, "t1")]),
+            empty_length(4096), empty_length(8192),  # final answer, then its retry
+            turn("Still no valid summary."),         # the repair call
+        ])
+        fake_sdk = NS(OpenAI=mock.Mock(return_value=fake))
+        out = io.StringIO()
+        with mock.patch.object(toolmod, "run_nmap", return_value=fake_scan()), \
+             mock.patch.object(toolmod, "search_exploits", return_value=FAKE_EXPLOITS), \
+             mock.patch.dict(sys.modules, {"openai": fake_sdk}), \
+             contextlib.redirect_stdout(out):
+            code = main(["reconmind.agent", TARGET])
+        out = out.getvalue()
+        self.assertEqual(code, 0)
+        self.assertIn("summary: model ran out of length budget while reasoning\n", out)
+        notice = out.index("model ran out of length budget")
+        self.assertLess(notice, out.index("summary:     draft failed validation"))
+        self.assertIn("no model text published", out)
+        self.assertIn("open ports:  1", out)  # the scan results survive
+        self.assertNotIn("Traceback", out)
+        self.assertEqual([r.get("max_tokens") for r in fake.requests[1:3]],
+                         [brain.MAX_TOKENS, brain.MAX_TOKENS * 2])
+
+    def test_agent_output_unchanged_without_empty_reason(self):
+        os.environ["OPENROUTER_API_KEY"] = "k"
+        fake = FakeOpenAI([turn("no summary here"), turn("still none")])
+        fake_sdk = NS(OpenAI=mock.Mock(return_value=fake))
+        out = io.StringIO()
+        with mock.patch.dict(sys.modules, {"openai": fake_sdk}), contextlib.redirect_stdout(out):
+            main(["reconmind.agent", TARGET])
+        self.assertNotIn("length budget", out.getvalue())
 
 
 class MissingPackageTests(TmpDirTest):

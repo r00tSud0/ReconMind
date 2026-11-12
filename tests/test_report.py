@@ -145,6 +145,202 @@ class RiskAndFailureReportTests(unittest.TestCase):
         self.assertNotIn(" - ", report)
 
 
+SCAN_INFO = {
+    "source_ip": "10.10.1.5", "nmap_version": "7.94",
+    "mode": "all 65535 ports, two pass",
+    "commands": [
+        "nmap -Pn -p- -T4 --reason -oX /tmp/p1.xml 10.10.1.100",
+        "nmap -Pn -sV --script smb-os-discovery,irc-info -T4 --reason -p 21,22,445,3306 "
+        "-oX /tmp/p2.xml 10.10.1.100",
+    ],
+    "started": "2026-11-04 10:00:00", "elapsed_seconds": 81.7,
+}
+FILTERED_STATES = [
+    {"state": "filtered", "count": 65531, "reasons": {"no-response": 65531}},
+    {"state": "open", "count": 4, "reasons": {"syn-ack": 4}},
+]
+CLOSED_STATES = [
+    {"state": "closed", "count": 996, "reasons": {"reset": 996}},
+    {"state": "open", "count": 4, "reasons": {"syn-ack": 4}},
+]
+FILTERED_NOTE = ("Filtered ports gave no answer or returned a firewall block message, so "
+                 "their true state is unknown from this scan location. A firewall is likely "
+                 "between the scanner and the target.")
+
+
+class ScanDetailsReportTests(unittest.TestCase):
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    def test_scan_details_section(self):
+        report = read_report(dict(SCAN, scan_info=SCAN_INFO, port_states=FILTERED_STATES))
+        self.assertIn("## Scan details", report)
+        self.assertIn("- Scanned from: 10.10.1.5", report)
+        self.assertIn("- nmap version: 7.94", report)
+        self.assertIn("- Mode: all 65535 ports, two pass", report)
+        self.assertIn("- Pass 1 (discovery): `{c}`".format(c=SCAN_INFO["commands"][0]), report)
+        self.assertIn("- Pass 2 (detail): `{c}`".format(c=SCAN_INFO["commands"][1]), report)
+        self.assertIn("- Duration: 81.70 seconds", report)
+        self.assertLess(report.index("**Generated:**"), report.index("## Scan details"))
+        self.assertLess(report.index("## Scan details"), report.index("## Open ports"))
+
+    def test_single_pass_shows_one_command(self):
+        info = dict(SCAN_INFO, mode="top 1000 ports", commands=[
+            "nmap -Pn -sV --script smb-os-discovery,irc-info -T4 --reason -oX /tmp/a.xml "
+            "10.10.1.100"])
+        report = read_report(dict(SCAN, scan_info=info, port_states=CLOSED_STATES))
+        self.assertIn("- Mode: top 1000 ports", report)
+        self.assertIn("- Command: `{c}`".format(c=info["commands"][0]), report)
+        self.assertNotIn("Pass 1", report)
+
+    def test_no_scan_details_without_scan_info(self):
+        report = read_report(SCAN)
+        self.assertNotIn("## Scan details", report)
+        self.assertNotIn("**Port states:**", report)
+
+    def test_port_state_line_under_ports_table(self):
+        report = read_report(dict(SCAN, scan_info=SCAN_INFO, port_states=FILTERED_STATES))
+        line = "**Port states:** 65,531 filtered (no-response), 0 closed, 4 open."
+        self.assertIn(line, report)
+        self.assertLess(report.index("| 22 | tcp | ssh |"), report.index(line))
+        self.assertLess(report.index(line), report.index("## Known exploits"))
+
+    def test_multiple_reasons_are_counted(self):
+        states = [{"state": "filtered", "count": 65531,
+                   "reasons": {"no-response": 65529, "admin-prohibited": 2}},
+                  {"state": "open", "count": 4, "reasons": {"syn-ack": 4}}]
+        report = read_report(dict(SCAN, port_states=states))
+        self.assertIn("**Port states:** 65,531 filtered (65,529 no-response, "
+                      "2 admin-prohibited), 0 closed, 4 open.", report)
+
+    def test_filtered_note_only_when_filtered(self):
+        filtered = read_report(dict(SCAN, scan_info=SCAN_INFO, port_states=FILTERED_STATES))
+        self.assertIn(FILTERED_NOTE, filtered)
+        closed = read_report(dict(SCAN, scan_info=SCAN_INFO, port_states=CLOSED_STATES))
+        self.assertIn("**Port states:** 0 filtered, 996 closed, 4 open.", closed)
+        self.assertNotIn(FILTERED_NOTE, closed)
+
+    def test_no_open_ports_still_shows_states_and_skipped_pass(self):
+        info = dict(SCAN_INFO, commands=SCAN_INFO["commands"][:1])
+        states = [{"state": "filtered", "count": 65535, "reasons": {"no-response": 65535}},
+                  {"state": "open", "count": 0, "reasons": {}}]
+        report = read_report({"target": "10.10.1.100", "status": "ok", "ports": [],
+                              "scan_info": info, "port_states": states})
+        self.assertIn("- Pass 2 (detail): skipped, pass 1 found no open ports.", report)
+        self.assertIn("The scan ran but found no open ports.", report)
+        self.assertIn("**Port states:** 65,535 filtered (no-response), 0 closed, 0 open.",
+                      report)
+        self.assertIn(FILTERED_NOTE, report)
+
+    def test_refused_scan_has_no_scan_details(self):
+        report = read_report({"target": "8.8.8.8", "status": "refused", "ports": [],
+                              "scan_info": SCAN_INFO})
+        self.assertNotIn("## Scan details", report)
+
+    def test_new_text_has_no_em_dashes_or_dash_separators(self):
+        report = read_report(dict(SCAN, scan_info=SCAN_INFO, port_states=FILTERED_STATES))
+        report += read_report(dict(SCAN, scan_info=SCAN_INFO, port_states=CLOSED_STATES))
+        report += read_report({"target": "10.10.1.100", "status": "ok", "ports": [],
+                               "scan_info": dict(SCAN_INFO, commands=SCAN_INFO["commands"][:1]),
+                               "port_states": FILTERED_STATES})
+        for p in SCAN["ports"]:
+            for e in p["exploits"]:
+                report = report.replace(e["title"], "")
+            report = report.replace(p["version"], "")  # nmap data, not our text
+        self.assertNotIn("—", report)
+        self.assertNotIn(" - ", report)
+
+
+LAB_STATES = [
+    {"state": "filtered", "count": 52683, "reasons": {"no-response": 52683}},
+    {"state": "closed", "count": 12840, "reasons": {"reset": 12840}},
+    {"state": "open", "count": 12, "reasons": {"syn-ack": 12}},
+]
+LOST = [
+    {"port": 21, "protocol": "tcp", "pass2_state": "filtered", "pass2_reason": "no-response"},
+    {"port": 22, "protocol": "tcp", "pass2_state": "filtered", "pass2_reason": "no-response"},
+]
+WARNING_HEAD = "**Warning: unconfirmed ports.**"
+
+
+class UnconfirmedReportTests(unittest.TestCase):
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    def lost_scan(self):
+        return {"target": "10.10.1.100", "status": "ok", "ports": [],
+                "unconfirmed_ports": LOST, "scan_info": SCAN_INFO,
+                "port_states": LAB_STATES}
+
+    def test_no_warning_when_key_missing_or_empty(self):
+        self.assertNotIn(WARNING_HEAD, read_report(dict(SCAN, port_states=FILTERED_STATES)))
+        self.assertNotIn(WARNING_HEAD, read_report(
+            dict(SCAN, port_states=FILTERED_STATES, unconfirmed_ports=[])))
+        empty = read_report({"target": "10.10.1.100", "status": "ok", "ports": [],
+                             "unconfirmed_ports": [], "port_states": FILTERED_STATES})
+        self.assertNotIn(WARNING_HEAD, empty)
+        self.assertIn("The scan ran but found no open ports.", empty)
+
+    def test_all_lost_explains_the_empty_result(self):
+        report = read_report(self.lost_scan())
+        self.assertNotIn("found no open ports", report)
+        self.assertIn("The scan ran but no port was confirmed open.", report)
+        self.assertIn(WARNING_HEAD, report)
+        self.assertIn("answered as open in the discovery pass but not in the detail "
+                      "pass: 21/tcp (detail pass: filtered, no-response), 22/tcp "
+                      "(detail pass: filtered, no-response).", report)
+        self.assertIn("packets were lost along the network path", report)
+        self.assertIn("Rerun the scan", report)
+        states = report.index("**Port states:**")
+        self.assertLess(states, report.index(WARNING_HEAD))
+        self.assertLess(report.index(WARNING_HEAD), report.index(FILTERED_NOTE))
+
+    def test_partial_shows_table_and_warning(self):
+        lost = [dict(LOST[0], port=8080)]  # SCAN's own ports are the confirmed ones
+        report = read_report(dict(SCAN, unconfirmed_ports=lost, scan_info=SCAN_INFO,
+                                  port_states=FILTERED_STATES))
+        self.assertIn("## Open ports", report)
+        self.assertNotIn("| 8080 |", report)
+        self.assertLess(report.index("**Port states:**"), report.index(WARNING_HEAD))
+        self.assertLess(report.index(WARNING_HEAD), report.index("## Known exploits"))
+        self.assertIn("8080/tcp (detail pass: filtered, no-response).", report)
+        self.assertIn("1 more port(s) answered as open in discovery only", report)
+
+    def test_warning_without_port_states_or_reason(self):
+        report = read_report({"target": "10.10.1.100", "status": "ok", "ports": [],
+                              "unconfirmed_ports": [{"port": 80, "protocol": "tcp",
+                                                     "pass2_state": "closed",
+                                                     "pass2_reason": ""}]})
+        self.assertIn("80/tcp (detail pass: closed).", report)
+        self.assertIn("no port was confirmed open", report)
+
+    def test_warning_text_has_no_em_dashes_or_dash_separators(self):
+        report = read_report(self.lost_scan())
+        report += read_report(dict(SCAN, unconfirmed_ports=LOST, scan_info=SCAN_INFO,
+                                   port_states=FILTERED_STATES))
+        for p in SCAN["ports"]:
+            for e in p["exploits"]:
+                report = report.replace(e["title"], "")
+            report = report.replace(p["version"], "")  # nmap data, not our text
+        self.assertIn(WARNING_HEAD, report)
+        self.assertNotIn("—", report)
+        self.assertNotIn(" - ", report)
+
+
 class SummarySectionTests(unittest.TestCase):
 
     def setUp(self):

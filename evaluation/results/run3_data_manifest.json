@@ -1,0 +1,330 @@
+{
+ "sources": {
+  "attack": {
+   "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/a8db2f52eb933c9c99060c123e088b3326d3a607/enterprise-attack/enterprise-attack-20.0.json",
+   "commit": "a8db2f52eb933c9c99060c123e088b3326d3a607",
+   "sha256": "2339a3c36353d5ee2c07e98af3fafbf00761e0e3979ede06402657445b7b4278"
+  },
+  "ctid_kev": {
+   "url": "https://raw.githubusercontent.com/center-for-threat-informed-defense/mappings-explorer/59f8d7230f672db0d4b197357561f47880478426/mappings/kev/attack-16.1/kev-07.28.2025/enterprise/kev-07.28.2025_attack-16.1-enterprise.json",
+   "commit": "59f8d7230f672db0d4b197357561f47880478426",
+   "sha256": "b57b3d382809d9159fdda6701d21f0e67a2d655444d89301caab2c39ad54bdc7"
+  },
+  "ctid_cve": {
+   "url": "https://raw.githubusercontent.com/center-for-threat-informed-defense/mappings-explorer/59f8d7230f672db0d4b197357561f47880478426/src/mapex_convert/mappings/Att%26ckToCveMappings.csv",
+   "commit": "59f8d7230f672db0d4b197357561f47880478426",
+   "sha256": "60bd1a47562c1b1e1d594e71dd7f3f7a7d0c7bc12ebcb42a5e616220669a2801"
+  }
+ },
+ "cvelist": {
+  "commit": "e10da37d505d5e4e8875928ddfb25482721a8fa0",
+  "url_template": "https://raw.githubusercontent.com/CVEProject/cvelistV5/e10da37d505d5e4e8875928ddfb25482721a8fa0/cves/{year}/{bucket}xxx/{cve}.json",
+  "requested": 836,
+  "fetched": 830,
+  "skipped": 6,
+  "skipped_cves": {
+   "CVE-2018-15788": "no English description",
+   "CVE-2018-15791": "no English description",
+   "CVE-2019-3791": "no English description",
+   "CVE-2019-9081": "no English description",
+   "CVE-2019-18583": "no English description",
+   "CVE-2019-18586": "no English description"
+  },
+  "texts_sha256": "9efba6b30fcb454637fce7faf46e553dbb544ea8557a504a6ded7f4b0b410fce"
+ },
+ "exploitdb_csv": {
+  "file": "files_exploits.csv",
+  "sha256": "49ed79cb1bf0878931793318485d21cdc947f1d91ef8accbd09d5d4bf99991b8"
+ },
+ "tram_inputs": {
+  "train.jsonl": "db7a82819ceba8bd4d11fce697869fac0cbfff1ab1c55c1f5cbcdfd0fb06a97c",
+  "val.jsonl": "a13563724c546105e1eb9d7eba6b3b791262b96e33d4a9ffb7e1c0004347cc72"
+ },
+ "rows_built": {
+  "attack": 17636,
+  "ctid_kev": 878,
+  "ctid_cve": 388,
+  "exploitdb": 206,
+  "tram": 15864
+ },
+ "dropped_labels": {
+  "attack": {
+   "total": 0,
+   "unknown": {},
+   "revoked": {},
+   "deprecated": {}
+  },
+  "ctid_kev": {
+   "total": 0,
+   "unknown": {},
+   "revoked": {},
+   "deprecated": {}
+  },
+  "ctid_cve": {
+   "total": 17,
+   "unknown": {
+    "T0814": 1,
+    "T0842": 1,
+    "T0855": 2,
+    "T0860": 1,
+    "T0875": 1,
+    "T1477": 2,
+    "T1478": 2,
+    "T1575": 4
+   },
+   "revoked": {
+    "T1562": 3
+   },
+   "deprecated": {}
+  },
+  "exploitdb": {
+   "total": 0,
+   "unknown": {},
+   "revoked": {},
+   "deprecated": {}
+  },
+  "tram": {
+   "total": 135,
+   "unknown": {},
+   "revoked": {
+    "T1562.001": 73,
+    "T1574.002": 62
+   },
+   "deprecated": {}
+  }
+ },
+ "rows_without_valid_labels": {
+  "attack": 0,
+  "ctid_kev": 0,
+  "ctid_cve": 0,
+  "exploitdb": 0
+ },
+ "leakage": {
+  "exam_edb_ids": [
+   "7855",
+   "10095",
+   "13853",
+   "15467",
+   "16320",
+   "16922",
+   "17491",
+   "18011",
+   "32798",
+   "32847",
+   "32849",
+   "34522",
+   "36741",
+   "41769",
+   "41954",
+   "42745",
+   "45000",
+   "45210",
+   "45233",
+   "49757"
+  ],
+  "exam_edb_ids_not_in_exploitdb_csv": [],
+  "exam_cves": [
+   "CVE-2007-2447",
+   "CVE-2009-0542",
+   "CVE-2009-0922",
+   "CVE-2010-2075",
+   "CVE-2010-3676",
+   "CVE-2010-3678",
+   "CVE-2011-2523",
+   "CVE-2011-3607",
+   "CVE-2011-4415",
+   "CVE-2015-0240",
+   "CVE-2017-3599",
+   "CVE-2017-9798",
+   "CVE-2018-15473"
+  ],
+  "rule1_rows_dropped": {
+   "attack": 0,
+   "ctid_kev": 0,
+   "ctid_cve": 0,
+   "exploitdb": 0,
+   "tram": 0
+  },
+  "exam_title_rows_dropped": 0,
+  "rule2_rows_dropped": {
+   "attack": 0,
+   "ctid_kev": 0,
+   "ctid_cve": 0,
+   "exploitdb": 0
+  }
+ },
+ "split": {
+  "seed": 9,
+  "unit": "group",
+  "train_fraction": 0.9,
+  "groups": {
+   "train": 16574,
+   "val": 1842
+  }
+ },
+ "duplicates_removed": {
+  "train": 438,
+  "val": 44
+ },
+ "cross_split_rows_dropped": {
+  "attack": 19,
+  "ctid_kev": 13,
+  "ctid_cve": 1,
+  "exploitdb": 0
+ },
+ "rows_dropped_no_label_in_set": {
+  "train": {
+   "attack": 480,
+   "ctid_kev": 0,
+   "ctid_cve": 1,
+   "exploitdb": 0,
+   "tram": 0
+  },
+  "val": {
+   "attack": 77,
+   "ctid_kev": 2,
+   "ctid_cve": 0,
+   "exploitdb": 0,
+   "tram": 0
+  }
+ },
+ "label_set_min_train_rows": 5,
+ "label_set_size": 394,
+ "rows": {
+  "attack": {
+   "train": 15395,
+   "val": 1665
+  },
+  "ctid_kev": {
+   "train": 776,
+   "val": 63
+  },
+  "ctid_cve": {
+   "train": 339,
+   "val": 46
+  },
+  "exploitdb": {
+   "train": 190,
+   "val": 8
+  },
+  "tram": {
+   "train": 12738,
+   "val": 2677
+  }
+ },
+ "split_totals": {
+  "train": {
+   "rows": 29438,
+   "labeled": 19347,
+   "unlabeled": 10091
+  },
+  "val": {
+   "rows": 4459,
+   "labeled": 2302,
+   "unlabeled": 2157
+  }
+ },
+ "exam_techniques": {
+  "T1005": {
+   "name": "Data from Local System",
+   "train_rows": 337,
+   "train_rows_before_label_set": 337,
+   "in_label_set": true
+  },
+  "T1021": {
+   "name": "Remote Services",
+   "train_rows": 14,
+   "train_rows_before_label_set": 14,
+   "in_label_set": true
+  },
+  "T1021.004": {
+   "name": "Remote Services: SSH",
+   "train_rows": 29,
+   "train_rows_before_label_set": 29,
+   "in_label_set": true
+  },
+  "T1021.005": {
+   "name": "Remote Services: VNC",
+   "train_rows": 11,
+   "train_rows_before_label_set": 11,
+   "in_label_set": true
+  },
+  "T1039": {
+   "name": "Data from Network Shared Drive",
+   "train_rows": 11,
+   "train_rows_before_label_set": 11,
+   "in_label_set": true
+  },
+  "T1040": {
+   "name": "Network Sniffing",
+   "train_rows": 34,
+   "train_rows_before_label_set": 34,
+   "in_label_set": true
+  },
+  "T1056.001": {
+   "name": "Input Capture: Keylogging",
+   "train_rows": 179,
+   "train_rows_before_label_set": 179,
+   "in_label_set": true
+  },
+  "T1059": {
+   "name": "Command and Scripting Interpreter",
+   "train_rows": 438,
+   "train_rows_before_label_set": 438,
+   "in_label_set": true
+  },
+  "T1059.004": {
+   "name": "Command and Scripting Interpreter: Unix Shell",
+   "train_rows": 125,
+   "train_rows_before_label_set": 125,
+   "in_label_set": true
+  },
+  "T1068": {
+   "name": "Exploitation for Privilege Escalation",
+   "train_rows": 212,
+   "train_rows_before_label_set": 212,
+   "in_label_set": true
+  },
+  "T1105": {
+   "name": "Ingress Tool Transfer",
+   "train_rows": 727,
+   "train_rows_before_label_set": 727,
+   "in_label_set": true
+  },
+  "T1113": {
+   "name": "Screen Capture",
+   "train_rows": 191,
+   "train_rows_before_label_set": 191,
+   "in_label_set": true
+  },
+  "T1135": {
+   "name": "Network Share Discovery",
+   "train_rows": 68,
+   "train_rows_before_label_set": 68,
+   "in_label_set": true
+  },
+  "T1190": {
+   "name": "Exploit Public-Facing Application",
+   "train_rows": 580,
+   "train_rows_before_label_set": 580,
+   "in_label_set": true
+  },
+  "T1499.004": {
+   "name": "Endpoint Denial of Service: Application or System Exploitation",
+   "train_rows": 62,
+   "train_rows_before_label_set": 62,
+   "in_label_set": true
+  },
+  "T1589": {
+   "name": "Gather Victim Identity Information",
+   "train_rows": 13,
+   "train_rows_before_label_set": 13,
+   "in_label_set": true
+  }
+ },
+ "outputs": {
+  "train.jsonl": "a309e86b66da3ee72cd89f08a37f061a96e4bac3b61b9fd68a0642454568b94f",
+  "val.jsonl": "c8ea6db6f1d083e1f6deac7dbfc2f984f801bf7e4eb445e711e0233cc761d3a7",
+  "labels.json": "cc9d412b1528f23e44bf9c841a3898fc95b68adbc07bce88f3b648c45f93e825"
+ }
+}

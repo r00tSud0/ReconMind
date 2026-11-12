@@ -41,6 +41,107 @@ def _ports_table(lines, ports):
     lines.append("")
 
 
+FILTERED_NOTE = ("Filtered ports gave no answer or returned a firewall block "
+                 "message, so their true state is unknown from this scan "
+                 "location. A firewall is likely between the scanner and the target.")
+
+PASS_LABELS = ("Pass 1 (discovery)", "Pass 2 (detail)")
+
+
+def _scan_details_section(lines, scan_info):
+    """Where, how and with what the scan ran. Only for scans that ran."""
+    if not scan_info:
+        return
+    mode = scan_info.get("mode") or "unknown"
+    commands = scan_info.get("commands") or []
+    two_pass = "two pass" in mode or len(commands) > 1
+    lines.append("## Scan details")
+    lines.append("")
+    lines.append("- Scanned from: {v}".format(v=scan_info.get("source_ip") or "unknown"))
+    lines.append("- nmap version: {v}".format(v=scan_info.get("nmap_version") or "unknown"))
+    lines.append("- Mode: {v}".format(v=mode))
+    for i, cmd in enumerate(commands):
+        if not two_pass:
+            label = "Command"
+        elif i < len(PASS_LABELS):
+            label = PASS_LABELS[i]
+        else:
+            label = "Pass {n}".format(n=i + 1)
+        lines.append("- {label}: `{cmd}`".format(label=label, cmd=cmd))
+    if two_pass and len(commands) == 1:
+        lines.append("- {label}: skipped, pass 1 found no open ports.".format(
+            label=PASS_LABELS[1]))
+    lines.append("- Duration: {s:.2f} seconds".format(
+        s=float(scan_info.get("elapsed_seconds") or 0)))
+    lines.append("")
+
+
+def _is_filtered(state):
+    return state == "filtered" or state.endswith("|filtered")
+
+
+def _reasons_text(reasons):
+    if not reasons:
+        return ""
+    if len(reasons) == 1:
+        return " ({r})".format(r=next(iter(reasons)))
+    ordered = sorted(reasons.items(), key=lambda kv: -kv[1])
+    return " ({r})".format(r=", ".join("{c:,} {r}".format(c=c, r=r) for r, c in ordered))
+
+
+UNCONFIRMED_WARNING = (
+    "**Warning: unconfirmed ports.** These ports answered as open in the "
+    "discovery pass but not in the detail pass: {ports}. This usually means "
+    "packets were lost along the network path, for example by a firewall "
+    "whose state table filled up during discovery. They are not listed as "
+    "findings. Rerun the scan to confirm them.")
+
+
+def _unconfirmed_section(lines, unconfirmed):
+    """Warn about ports pass 1 saw open that pass 2 did not. Only if any."""
+    if not unconfirmed:
+        return
+    items = []
+    for u in unconfirmed:
+        why = ", ".join(x for x in (u.get("pass2_state") or "unknown",
+                                    u.get("pass2_reason") or "") if x)
+        items.append("{port}/{protocol} (detail pass: {why})".format(
+            port=u.get("port", ""), protocol=u.get("protocol") or "tcp", why=why))
+    lines.append(UNCONFIRMED_WARNING.format(ports=", ".join(items)))
+    lines.append("")
+
+
+def _port_states_section(lines, port_states, unconfirmed=()):
+    """
+    One line counting every scanned port by state, then the unconfirmed
+    ports warning (if any), then the firewall note.
+    """
+    if not port_states:
+        _unconfirmed_section(lines, unconfirmed)
+        return
+
+    def count(name):
+        return sum(s.get("count", 0) for s in port_states if s.get("state") == name)
+
+    others = [s for s in port_states if s.get("state") not in ("open", "closed")]
+    others.sort(key=lambda s: s.get("state") != "filtered")  # filtered first
+    parts = []
+    if not any(s.get("state") == "filtered" for s in others):
+        parts.append("0 filtered")
+    for s in others:
+        parts.append("{c:,} {state}{why}".format(
+            c=s.get("count", 0), state=s.get("state", ""),
+            why=_reasons_text(s.get("reasons"))))
+    parts.append("{c:,} closed".format(c=count("closed")))
+    parts.append("{c:,} open".format(c=count("open")))
+    lines.append("**Port states:** {p}.".format(p=", ".join(parts)))
+    lines.append("")
+    _unconfirmed_section(lines, unconfirmed)
+    if any(_is_filtered(s.get("state", "")) and s.get("count", 0) for s in port_states):
+        lines.append(FILTERED_NOTE)
+        lines.append("")
+
+
 def _lookup_failed(port):
     return port.get("exploit_status") == "lookup_failed"
 
@@ -183,6 +284,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     target = scan.get("target", "unknown")
     status = scan.get("status", "unknown")
     ports = scan.get("ports", [])
+    unconfirmed = scan.get("unconfirmed_ports") or []
 
     now = datetime.now()
     stamp = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -202,6 +304,9 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
                      rate_limited, attack_check)
 
+    if status not in ("refused", "nmap-not-found"):
+        _scan_details_section(lines, scan.get("scan_info"))
+
     if status == "refused":
         lines.append("The target was refused by the authorization gate. "
                       "It is not on the allowlist, so no scan was run.")
@@ -209,9 +314,17 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         lines.append("nmap is not installed on this machine, so no scan was run. "
                      "Run this on the Kali box where nmap is present.")
     elif not ports:
-        lines.append("The scan ran but found no open ports.")
+        if unconfirmed:
+            lines.append("The scan ran but no port was confirmed open. See the "
+                         "unconfirmed ports warning below.")
+        else:
+            lines.append("The scan ran but found no open ports.")
+        if scan.get("port_states") or unconfirmed:
+            lines.append("")
+            _port_states_section(lines, scan.get("port_states"), unconfirmed)
     else:
         _ports_table(lines, ports)
+        _port_states_section(lines, scan.get("port_states"), unconfirmed)
         _risky_section(lines, ports)
         _exploits_section(lines, ports)
         all_exploits = [e for p in ports for e in p.get("exploits", [])]
@@ -232,6 +345,10 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         if failed:
             note += (" Exploit lookup failed for {k} port(s), so those services "
                      "were not checked.".format(k=failed))
+        if unconfirmed:
+            note += (" {k} more port(s) answered as open in discovery only and "
+                     "were not confirmed, so they are not counted here.".format(
+                         k=len(unconfirmed)))
         note += " Next stage: map each finding to its MITRE ATT&CK technique."
         lines.append(note)
 

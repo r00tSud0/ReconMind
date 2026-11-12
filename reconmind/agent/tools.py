@@ -42,6 +42,11 @@ MATCH_NOTES = {
 LOOKUP_FAILED_NOTE = ("The exploit lookup failed, so this service was not "
                       "checked. This does not mean there are no exploits.")
 
+UNCONFIRMED_NOTE = ("These ports answered as open in the discovery pass but not "
+                    "in the detail pass, usually because of packet loss on the "
+                    "network path. They are not confirmed findings; the scan "
+                    "should be rerun.")
+
 
 # Tool descriptions in the JSON schema format the LLM API expects.
 TOOL_SPECS = [
@@ -98,8 +103,12 @@ TOOL_SPECS = [
 class ToolBox:
     """Holds the scope lock and the results gathered during one agent run."""
 
-    def __init__(self, target):
+    def __init__(self, target, all_ports=False):
         self.target = str(target).strip()
+        # Passed straight through to run_nmap. Default False, so the agent and
+        # brain.py scan exactly as before; only callers that ask for a full
+        # sweep set it.
+        self.all_ports = all_ports
         # Same shape the report builder already reads.
         self.scan = {"target": self.target, "status": "not-run", "ports": []}
         self.calls = []  # (tool name, input) history, for the trace and tests
@@ -137,7 +146,7 @@ class ToolBox:
                 "target is {s}.".format(t=target, s=self.target))
 
         # run_nmap asks the authorization gate again before nmap starts.
-        result = run_nmap(self.target)
+        result = run_nmap(self.target, all_ports=self.all_ports)
         self.scan = result
 
         if result["status"] == "refused":
@@ -156,6 +165,16 @@ class ToolBox:
             "target": result["target"],
             "open_ports": [self._port_summary(p) for p in result["ports"]],
         }
+        # How every scanned port answered, so the model can tell a firewall
+        # (many filtered, no-response) from a host with nothing listening.
+        if result.get("port_states"):
+            observation["port_states"] = result["port_states"]
+        # Ports the discovery pass saw open but the detail pass did not. They
+        # are not findings. raw_xml stays in self.scan and is never sent.
+        unconfirmed = result.get("unconfirmed_ports") or []
+        observation["unconfirmed_ports"] = unconfirmed
+        if unconfirmed:
+            observation["unconfirmed_note"] = UNCONFIRMED_NOTE
         return json.dumps(observation), False
 
     def _exploit_lookup(self, port, product=None, version=None):

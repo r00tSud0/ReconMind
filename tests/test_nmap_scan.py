@@ -1,9 +1,13 @@
 """
 Offline tests for the nmap wrapper: XML parsing with smb-os-discovery output,
-the scan flags, and the authorization gate running before nmap.
+the scan flags, the one pass and two pass modes, port state counts, scan info,
+and the authorization gate running before nmap. subprocess.run is replaced by
+a fake that writes canned XML, so nmap never runs.
 """
 
+import shlex
 import unittest
+from datetime import datetime
 from unittest import mock
 
 from reconmind.tools import nmap_scan
@@ -121,6 +125,196 @@ class IrcInfoTests(unittest.TestCase):
         self.assertIsNone(ports[6667]["version"])
 
 
+TARGET = "10.10.1.100"
+START = 1762250000
+
+# Default single pass on the top 1000 ports: two open, 997 closed folded into
+# extraports, one closed port listed on its own.
+DEFAULT_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}" startstr="Tue Nov  4 10:00:00 2025">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <extraports state="closed" count="997">
+        <extrareasons reason="reset" count="997"/>
+      </extraports>
+      <port protocol="tcp" portid="21">
+        <state state="open" reason="syn-ack"/>
+        <service name="ftp" product="vsftpd" version="2.3.4"/>
+      </port>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh" product="OpenSSH" version="4.7p1"/>
+      </port>
+      <port protocol="tcp" portid="3306">
+        <state state="closed" reason="reset"/>
+        <service name="mysql"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="12.50"/></runstats>
+</nmaprun>
+""".format(start=START)
+
+# Pass 1 over all 65535 ports behind a firewall: 65532 filtered, two open,
+# one closed.
+DISCOVERY_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <extraports state="filtered" count="65532">
+        <extrareasons reason="no-response" count="65530"/>
+        <extrareasons reason="admin-prohibited" count="2"/>
+      </extraports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh"/>
+      </port>
+      <port protocol="tcp" portid="8080">
+        <state state="open" reason="syn-ack"/>
+        <service name="http-proxy"/>
+      </port>
+      <port protocol="tcp" portid="113">
+        <state state="closed" reason="reset"/>
+        <service name="ident"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="61.20"/></runstats>
+</nmaprun>
+""".format(start=START)
+
+DETAIL_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh" product="OpenSSH" version="4.7p1"/>
+      </port>
+      <port protocol="tcp" portid="8080">
+        <state state="open" reason="syn-ack"/>
+        <service name="http" product="Apache Tomcat" version="5.5"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="20.50"/></runstats>
+</nmaprun>
+""".format(start=START + 62)
+
+# Pass 1 that found nothing open.
+ALL_FILTERED_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <extraports state="filtered" count="65535">
+        <extrareasons reason="no-response" count="65535"/>
+      </extraports>
+    </ports>
+  </host>
+  <runstats><finished elapsed="70.00"/></runstats>
+</nmaprun>
+""".format(start=START)
+
+# The lab case: pass 1 across two firewalls sees 21 and 22 open, then pass 2
+# gets no answer from either, so neither is confirmed.
+LOSSY_DISCOVERY_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <extraports state="filtered" count="65533">
+        <extrareasons reason="no-response" count="65533"/>
+      </extraports>
+      <port protocol="tcp" portid="21">
+        <state state="open" reason="syn-ack"/>
+        <service name="ftp"/>
+      </port>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="900.00"/></runstats>
+</nmaprun>
+""".format(start=START)
+
+LOST_DETAIL_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="21">
+        <state state="filtered" reason="no-response"/>
+        <service name="ftp"/>
+      </port>
+      <port protocol="tcp" portid="22">
+        <state state="filtered" reason="no-response"/>
+        <service name="ssh"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="10.00"/></runstats>
+</nmaprun>
+""".format(start=START + 901)
+
+# Pass 2 for DISCOVERY_XML (22 and 8080) where only 22 answers again.
+PARTIAL_DETAIL_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh" product="OpenSSH" version="4.7p1"/>
+      </port>
+      <port protocol="tcp" portid="8080">
+        <state state="filtered" reason="no-response"/>
+        <service name="http-proxy"/>
+      </port>
+    </ports>
+  </host>
+  <runstats><finished elapsed="15.00"/></runstats>
+</nmaprun>
+""".format(start=START + 62)
+
+# Pass 2 where nmap folded both lost ports into one extraports summary
+# instead of listing them.
+FOLDED_DETAIL_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap" version="7.94" start="{start}">
+  <host>
+    <address addr="10.10.1.100" addrtype="ipv4"/>
+    <ports>
+      <extraports state="filtered" count="2">
+        <extrareasons reason="no-response" count="2"/>
+      </extraports>
+    </ports>
+  </host>
+  <runstats><finished elapsed="10.00"/></runstats>
+</nmaprun>
+""".format(start=START + 901)
+
+
+def fake_nmap(*xml_runs):
+    """Stand in for subprocess.run: writes the next canned XML into the -oX file."""
+    outputs = list(xml_runs)
+
+    def run(cmd, **kwargs):
+        with open(cmd[cmd.index("-oX") + 1], "w") as fh:
+            fh.write(outputs.pop(0))
+        return mock.Mock(returncode=0)
+
+    return mock.Mock(side_effect=run)
+
+
+def states_by_name(port_states):
+    return {s["state"]: s for s in port_states}
+
+
 class RunTests(unittest.TestCase):
 
     def test_flags_name_only_safe_discovery_scripts(self):
@@ -136,6 +330,232 @@ class RunTests(unittest.TestCase):
         self.assertEqual(result["status"], "refused")
         run.assert_not_called()
         which.assert_not_called()
+
+
+class ScanModeTests(unittest.TestCase):
+    """Default is one pass on the top 1000 ports; all_ports is two passes."""
+
+    def _run(self, *xml_runs, **kwargs):
+        run = fake_nmap(*xml_runs)
+        with mock.patch.object(nmap_scan, "is_authorized", return_value=True), \
+             mock.patch.object(nmap_scan.shutil, "which", return_value="/usr/bin/nmap"), \
+             mock.patch.object(nmap_scan, "_source_ip", return_value="10.10.1.5"), \
+             mock.patch.object(nmap_scan.subprocess, "run", run):
+            result = nmap_scan.run_nmap(TARGET, **kwargs)
+        return run, result
+
+    @staticmethod
+    def _cmds(run):
+        return [c.args[0] for c in run.call_args_list]
+
+    def test_default_is_one_pass_with_reason_and_300_timeout(self):
+        run, result = self._run(DEFAULT_XML)
+        self.assertEqual(run.call_count, 1)
+        cmd = run.call_args.args[0]
+        tmp_name = cmd[cmd.index("-oX") + 1]
+        self.assertEqual(
+            cmd, ["nmap"] + nmap_scan.NMAP_FLAGS + ["--reason", "-oX", tmp_name, TARGET])
+        self.assertNotIn("-p-", cmd)
+        self.assertNotIn("-p", cmd)
+        self.assertEqual(run.call_args.kwargs["timeout"], 300)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual([p["port"] for p in result["ports"]], [21, 22])
+
+    def test_all_ports_pass_1_is_discovery_only(self):
+        run, _ = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        self.assertEqual(run.call_count, 2)
+        first = run.call_args_list[0]
+        cmd = first.args[0]
+        tmp_name = cmd[cmd.index("-oX") + 1]
+        self.assertEqual(cmd, ["nmap", "-Pn", "-p-", "-T4", "--reason",
+                               "-oX", tmp_name, TARGET])
+        self.assertNotIn("-sV", cmd)
+        self.assertNotIn("--script", cmd)
+        self.assertEqual(first.kwargs["timeout"], 1800)
+
+    def test_discovery_has_no_forced_rate_or_retry_cap(self):
+        self.assertEqual(nmap_scan.DISCOVERY_FLAGS, ["-Pn", "-p-", "-T4"])
+        self.assertEqual(nmap_scan.DISCOVERY_TIMEOUT, 1800)
+        run, _ = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        for cmd in self._cmds(run):
+            self.assertNotIn("--min-rate", cmd)
+            self.assertNotIn("--max-retries", cmd)
+
+    def test_all_ports_pass_2_scans_only_open_ports(self):
+        run, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        second = run.call_args_list[1]
+        cmd = second.args[0]
+        self.assertEqual(cmd[1:1 + len(nmap_scan.NMAP_FLAGS)], nmap_scan.NMAP_FLAGS)
+        self.assertIn("--reason", cmd)
+        self.assertEqual(cmd[cmd.index("-p") + 1], "22,8080")  # 113 was closed
+        self.assertNotIn("-p-", cmd)
+        self.assertEqual(cmd[-1], TARGET)
+        self.assertEqual(second.kwargs["timeout"], 300)
+        ports = {p["port"]: p for p in result["ports"]}
+        self.assertEqual(ports[8080]["product"], "Apache Tomcat")  # detail from pass 2
+
+    def test_all_ports_states_come_from_pass_1(self):
+        _, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        states = states_by_name(result["port_states"])
+        self.assertEqual(states["filtered"]["count"], 65532)
+        self.assertEqual(states["closed"]["count"], 1)
+        self.assertEqual(states["open"]["count"], 2)
+        self.assertEqual(sum(s["count"] for s in result["port_states"]), 65535)
+
+    def test_no_open_ports_skips_pass_2(self):
+        run, result = self._run(ALL_FILTERED_XML, all_ports=True)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["ports"], [])
+        self.assertEqual(len(result["scan_info"]["commands"]), 1)
+        self.assertEqual(states_by_name(result["port_states"])["filtered"]["count"], 65535)
+        self.assertEqual(states_by_name(result["port_states"])["open"]["count"], 0)
+
+    def test_scan_info_default(self):
+        run, result = self._run(DEFAULT_XML)
+        info = result["scan_info"]
+        self.assertEqual(info["source_ip"], "10.10.1.5")
+        self.assertEqual(info["nmap_version"], "7.94")
+        self.assertEqual(info["mode"], "top 1000 ports")
+        self.assertEqual(info["commands"], [shlex.join(run.call_args.args[0])])
+        self.assertEqual(info["started"],
+                         datetime.fromtimestamp(START).strftime("%Y-%m-%d %H:%M:%S"))
+        self.assertEqual(info["elapsed_seconds"], 12.5)
+
+    def test_scan_info_two_pass(self):
+        run, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        info = result["scan_info"]
+        self.assertEqual(info["mode"], "all 65535 ports, two pass")
+        self.assertEqual(info["commands"], [shlex.join(c) for c in self._cmds(run)])
+        self.assertEqual(info["elapsed_seconds"], 81.7)  # both passes
+        self.assertEqual(info["started"],
+                         datetime.fromtimestamp(START).strftime("%Y-%m-%d %H:%M:%S"))
+
+    def test_no_udp_or_evasion_flags_in_any_pass(self):
+        run_default, _ = self._run(DEFAULT_XML)
+        run_all, _ = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        banned = {"-sU", "-D", "-f", "--mtu", "-g", "--source-port", "-S",
+                  "--spoof-mac", "--data-length", "--badsum"}
+        for cmd in self._cmds(run_default) + self._cmds(run_all):
+            self.assertFalse(banned & set(cmd), cmd)
+
+    def test_refused_target_never_reaches_subprocess_in_either_mode(self):
+        for all_ports in (False, True):
+            with mock.patch.object(nmap_scan, "is_authorized", return_value=False), \
+                 mock.patch.object(nmap_scan.shutil, "which") as which, \
+                 mock.patch.object(nmap_scan, "_source_ip") as source_ip, \
+                 mock.patch.object(nmap_scan.subprocess, "run") as run:
+                result = nmap_scan.run_nmap("8.8.8.8", all_ports=all_ports)
+            run.assert_not_called()
+            which.assert_not_called()
+            source_ip.assert_not_called()
+            self.assertEqual(result["status"], "refused")
+
+
+class UnconfirmedAndEvidenceTests(unittest.TestCase):
+    """Ports pass 2 does not confirm, and the raw XML kept as evidence."""
+
+    _run = ScanModeTests._run  # same mocks, without rerunning ScanModeTests
+
+    def test_pass_2_loses_every_port(self):
+        _, result = self._run(LOSSY_DISCOVERY_XML, LOST_DETAIL_XML, all_ports=True)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["ports"], [])
+        self.assertEqual(result["unconfirmed_ports"], [
+            {"port": 21, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"},
+            {"port": 22, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"},
+        ])
+
+    def test_partial_confirmation(self):
+        _, result = self._run(DISCOVERY_XML, PARTIAL_DETAIL_XML, all_ports=True)
+        self.assertEqual([p["port"] for p in result["ports"]], [22])
+        self.assertEqual(result["ports"][0]["product"], "OpenSSH")
+        self.assertEqual(result["unconfirmed_ports"], [
+            {"port": 8080, "protocol": "tcp", "pass2_state": "filtered",
+             "pass2_reason": "no-response"}])
+
+    def test_ports_folded_into_extraports_take_its_state(self):
+        _, result = self._run(LOSSY_DISCOVERY_XML, FOLDED_DETAIL_XML, all_ports=True)
+        self.assertEqual(result["ports"], [])
+        self.assertEqual([(u["port"], u["pass2_state"], u["pass2_reason"])
+                          for u in result["unconfirmed_ports"]],
+                         [(21, "filtered", "no-response"), (22, "filtered", "no-response")])
+
+    def test_all_confirmed_gives_empty_unconfirmed(self):
+        _, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        self.assertEqual(result["unconfirmed_ports"], [])
+
+    def test_default_mode_always_has_empty_unconfirmed(self):
+        _, result = self._run(DEFAULT_XML)
+        self.assertIn("unconfirmed_ports", result)
+        self.assertEqual(result["unconfirmed_ports"], [])
+
+    def test_raw_xml_one_entry_per_pass_default(self):
+        _, result = self._run(DEFAULT_XML)
+        self.assertEqual(result["raw_xml"], [DEFAULT_XML])
+
+    def test_raw_xml_one_entry_per_pass_two_pass(self):
+        _, result = self._run(DISCOVERY_XML, DETAIL_XML, all_ports=True)
+        self.assertEqual(result["raw_xml"], [DISCOVERY_XML, DETAIL_XML])
+        _, lossy = self._run(LOSSY_DISCOVERY_XML, LOST_DETAIL_XML, all_ports=True)
+        self.assertEqual(lossy["raw_xml"], [LOSSY_DISCOVERY_XML, LOST_DETAIL_XML])
+
+    def test_raw_xml_when_pass_2_skipped(self):
+        _, result = self._run(ALL_FILTERED_XML, all_ports=True)
+        self.assertEqual(result["raw_xml"], [ALL_FILTERED_XML])
+        self.assertEqual(result["unconfirmed_ports"], [])
+
+
+class PortStateTests(unittest.TestCase):
+
+    def test_extraports_and_reasons_parsed(self):
+        states = states_by_name(nmap_scan._parse_port_states(DISCOVERY_XML))
+        self.assertEqual(states["filtered"],
+                         {"state": "filtered", "count": 65532,
+                          "reasons": {"no-response": 65530, "admin-prohibited": 2}})
+        self.assertEqual(states["closed"],
+                         {"state": "closed", "count": 1, "reasons": {"reset": 1}})
+        self.assertEqual(states["open"],
+                         {"state": "open", "count": 2, "reasons": {"syn-ack": 2}})
+
+    def test_listed_closed_ports_add_to_extraports(self):
+        states = states_by_name(nmap_scan._parse_port_states(DEFAULT_XML))
+        self.assertEqual(states["closed"]["count"], 998)  # 997 folded plus 3306
+        self.assertEqual(states["closed"]["reasons"], {"reset": 998})
+        self.assertNotIn("filtered", states)
+
+    def test_largest_count_first_and_open_always_present(self):
+        port_states = nmap_scan._parse_port_states(ALL_FILTERED_XML)
+        self.assertEqual(port_states[0]["state"], "filtered")
+        self.assertEqual(states_by_name(port_states)["open"]["count"], 0)
+
+    def test_open_port_carries_reason(self):
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(DETAIL_XML)}
+        self.assertEqual(ports[22]["reason"], "syn-ack")
+
+    def test_missing_reason_is_empty(self):
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(SAMPLE_XML)}
+        self.assertEqual(ports[22]["reason"], "")
+
+
+class SourceIpTests(unittest.TestCase):
+
+    def test_udp_connect_only_no_data_sent(self):
+        sock = mock.MagicMock()
+        sock.__enter__.return_value = sock
+        sock.getsockname.return_value = ("10.10.1.5", 40000)
+        with mock.patch.object(nmap_scan.socket, "socket", return_value=sock) as make:
+            self.assertEqual(nmap_scan._source_ip(TARGET), "10.10.1.5")
+        make.assert_called_once_with(nmap_scan.socket.AF_INET, nmap_scan.socket.SOCK_DGRAM)
+        sock.connect.assert_called_once_with((TARGET, 9))
+        sock.send.assert_not_called()
+        sock.sendto.assert_not_called()
+
+    def test_failure_gives_unknown(self):
+        with mock.patch.object(nmap_scan.socket, "socket", side_effect=OSError("no route")):
+            self.assertEqual(nmap_scan._source_ip(TARGET), "unknown")
 
 
 if __name__ == "__main__":

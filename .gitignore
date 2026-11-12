@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 .env.*
 *.save
+evaluation/data/tram/
+evaluation/data/run3/
+evaluation/results/raw/

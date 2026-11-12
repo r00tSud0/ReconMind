@@ -21,6 +21,20 @@ RULES = [
                   "root command prompt without logging in.",
     },
     {
+        "severity": "critical",
+        "services": {"distccd"},
+        "products": ("distccd",),
+        "reason": "distcc compile daemon exposed. Without host restrictions it "
+                  "runs commands sent by anyone who connects, as its service user.",
+    },
+    {
+        "severity": "critical",
+        "services": {"drb"},
+        "products": ("ruby drb",),
+        "reason": "Ruby DRb (distributed Ruby) service exposed. Without access "
+                  "control, anyone who connects can make it run code.",
+    },
+    {
         "severity": "high",
         "services": {"telnet"},
         "products": ("telnetd",),

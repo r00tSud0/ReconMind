@@ -243,8 +243,10 @@ TOOL_SPECS = [
         "name": "cve_lookup",
         "description": (
             "Look up known CVEs in the NVD database for every product nmap_scan "
-            "found with a versioned CPE, plus PHP when web_fingerprint reported "
-            "a PHP version. Only the CPE strings are sent to NVD, never the "
+            "found with a versioned CPE (or a versionless CPE plus a port "
+            "version), plus PHP when web_fingerprint reported a PHP version. "
+            "Each CPE is first matched to NVD's official CPE dictionary name. "
+            "Only the CPE strings are sent to NVD, never the "
             "target or any other scan detail. Returns, per product, the CPE, "
             "the CVE count by severity, every CVE in the CISA KEV catalog and "
             "the 5 highest CVSS CVEs with id, score and severity, plus the "
@@ -687,6 +689,10 @@ class ToolBox:
         for p in result.get("products", []):
             item = {"product": p.get("product", ""), "ports": p.get("ports", []),
                     "cpe": p.get("cpe", ""), "status": p.get("status", "")}
+            if p.get("resolved_from") and p.get("resolved_from") != p.get("cpe"):
+                item["resolved_from"] = p["resolved_from"]
+            if p.get("version_from"):
+                item["version_from"] = p["version_from"]
             if p.get("status") != nvd_lookup.STATUS_OK:
                 item["error"] = p.get("error", "")
                 item["note"] = "This product was not checked. This does not mean it has no CVEs."

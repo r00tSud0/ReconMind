@@ -1,0 +1,60 @@
+{
+  "resultsPerPage": 6,
+  "startIndex": 0,
+  "totalResults": 6,
+  "format": "NVD_CPE",
+  "version": "2.0",
+  "timestamp": "2026-11-12T15:04:11.873",
+  "products": [
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:alpha:widget:1.2.3:*:*:*:*:*:*:*",
+        "cpeNameId": "00000000-0000-4000-8000-000000000101",
+        "titles": [{"title": "Alpha Widget 1.2.3", "lang": "en"}]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:beta:widget:1.2.3:*:*:*:*:*:*:*",
+        "cpeNameId": "00000000-0000-4000-8000-000000000102",
+        "titles": [{"title": "Beta Widget 1.2.3", "lang": "en"}]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": true,
+        "cpeName": "cpe:2.3:a:gamma:widget:1.2.3:*:*:*:*:*:*:*",
+        "cpeNameId": "00000000-0000-4000-8000-000000000103",
+        "deprecatedBy": [{"cpeName": "cpe:2.3:a:alpha:widget:1.2.3:*:*:*:*:*:*:*",
+                          "cpeNameId": "00000000-0000-4000-8000-000000000101"}],
+        "titles": [{"title": "Gamma Widget 1.2.3", "lang": "en"}]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:alpha:widget:1.2.30:*:*:*:*:*:*:*",
+        "cpeNameId": "00000000-0000-4000-8000-000000000104",
+        "titles": [{"title": "Alpha Widget 1.2.30", "lang": "en"}]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:alpha:widget_pro:1.2.3:*:*:*:*:*:*:*",
+        "cpeNameId": "00000000-0000-4000-8000-000000000105",
+        "titles": [{"title": "Alpha Widget Pro 1.2.3", "lang": "en"}]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:alpha:widget:1.2.3:beta:*:*:*:*:*:*",
+        "cpeNameId": "00000000-0000-4000-8000-000000000106",
+        "titles": [{"title": "Alpha Widget 1.2.3 beta", "lang": "en"}]
+      }
+    }
+  ]
+}

@@ -12,7 +12,9 @@ from datetime import datetime
 
 from reconmind.tools.exploit_lookup import exploit_url, primary_label
 from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
-from reconmind.tools.nvd_lookup import NO_RESULTS_NOTE, PATCH_NOTE, by_score, severity_counts
+from reconmind.tools.nvd_lookup import (
+    NO_RESULTS_NOTE, NOT_IN_DICTIONARY, PATCH_NOTE, RANGE_NOTE, RESOLUTION_FAILED,
+    VERSION_FROM_PORT, by_score, severity_counts)
 from reconmind.tools.risky_services import flag_ports
 from reconmind.tools.smb_enum import format_value, os_summary, policy_fields, smb_ports
 from reconmind.tools.testssl_scan import (
@@ -223,6 +225,11 @@ CVE_FAILED = ("_NVD lookup failed (status {s}), so this product was not checked.
               "does not mean it has no CVEs._")
 CVE_NONE = "_{n}_".format(n=NO_RESULTS_NOTE)
 CVE_SKIPPED = "**Skipped, no version:** {items}."
+CVE_AMBIGUOUS = "**Skipped, no single NVD CPE name:** {items}."
+CVE_CPE_RESOLVED = "NVD dictionary name for `{f}`"
+CVE_CPE_NOT_IN_DICTIONARY = "not found in NVD's CPE dictionary, kept as found"
+CVE_CPE_RESOLUTION_FAILED = "NVD's CPE dictionary could not be checked, kept as found"
+CVE_VERSION_FROM_PORT = "version from nmap's port version"
 CVE_MORE = "...and {n} more stored in the scan data."
 CVE_CONFIRMED = "confirmed live by nuclei"
 CVE_SHOWN = 10
@@ -298,7 +305,20 @@ def _cve_product(lines, product, confirmed):
     lines.append("**{p}**{o}".format(p=product.get("product") or product.get("cpe", ""),
                                       o=" ({x})".format(x=ports) if ports else ""))
     lines.append("")
-    lines.append("CPE: `{c}`".format(c=product.get("cpe", "")))
+    cpe = product.get("cpe", "")
+    notes = []
+    origin = product.get("resolved_from")
+    resolution = product.get("cpe_resolution")
+    if resolution == NOT_IN_DICTIONARY:
+        notes.append(CVE_CPE_NOT_IN_DICTIONARY)
+    elif resolution == RESOLUTION_FAILED:
+        notes.append(CVE_CPE_RESOLUTION_FAILED)
+    elif origin and origin != cpe:
+        notes.append(CVE_CPE_RESOLVED.format(f=origin))
+    if product.get("version_from") == VERSION_FROM_PORT:
+        notes.append(CVE_VERSION_FROM_PORT)
+    lines.append("CPE: `{c}`{n}".format(c=cpe, n=" ({x})".format(x="; ".join(notes))
+                                         if notes else ""))
     lines.append("")
     if product.get("status") != "ok":
         lines.append(CVE_FAILED.format(s=product.get("status") or "unknown"))
@@ -334,7 +354,7 @@ def _cve_section(lines, ports, nvd, nuclei):
         return
     lines.append(CVE_HEAD)
     lines.append("")
-    lines.append(PATCH_NOTE)
+    lines.append(PATCH_NOTE + " " + RANGE_NOTE)
     lines.append("")
     if nvd.get("status") != "ok":
         lines.append(CVE_NO_CPE if nvd.get("status") == "no-cpe"
@@ -344,14 +364,17 @@ def _cve_section(lines, ports, nvd, nuclei):
     for product in nvd.get("products") or []:
         _cve_product(lines, product, confirmed)
     skipped = nvd.get("skipped") or []
-    if skipped:
+    for template, group in ((CVE_SKIPPED, [s for s in skipped if not s.get("candidates")]),
+                            (CVE_AMBIGUOUS, [s for s in skipped if s.get("candidates")])):
+        if not group:
+            continue
         items = []
-        for s in skipped:
+        for s in group:
             where = ", ".join(s.get("ports") or [])
             items.append("{c}{w} ({r})".format(c=s.get("cpe", ""),
                                                 w=" on " + where if where else "",
                                                 r=s.get("reason", "")))
-        lines.append(CVE_SKIPPED.format(items="; ".join(items)))
+        lines.append(template.format(items="; ".join(items)))
         lines.append("")
 
 

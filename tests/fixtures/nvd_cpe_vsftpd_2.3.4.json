@@ -1,0 +1,20 @@
+{
+  "resultsPerPage": 1,
+  "startIndex": 0,
+  "totalResults": 1,
+  "format": "NVD_CPE",
+  "version": "2.0",
+  "timestamp": "2026-11-12T15:04:11.873",
+  "products": [
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:vsftpd_project:vsftpd:2.3.4:*:*:*:*:*:*:*",
+        "cpeNameId": "00000000-0000-4000-8000-000000000001",
+        "lastModified": "2011-07-08T16:03:42.380",
+        "created": "2011-07-08T16:03:42.380",
+        "titles": [{"title": "vsftpd 2.3.4", "lang": "en"}]
+      }
+    }
+  ]
+}

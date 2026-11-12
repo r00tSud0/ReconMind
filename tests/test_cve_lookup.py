@@ -15,11 +15,16 @@ from reconmind.core.report import build_report
 from reconmind.tools import nvd_lookup
 
 from tests.test_nvd_lookup import (
-    APACHE_CPE, FIXTURE_BYTES, PHP_CPE, TARGET, VULNS, NVDTestCase, http_error, page)
+    APACHE_CPE, FIXTURE_BYTES, PHP_CPE, SAMBA_CPE, SAMBA_CPE_BYTES, SAMBA_MATCH, TARGET,
+    VSFTPD_CPE_BYTES, VSFTPD_MATCH, VSFTPD_NVD_CPE, VULNS, WIDGET, NVDTestCase, http_error,
+    page)
 
 PATCH_NOTE = ("NVD matches the upstream version. Linux distributions often fix CVEs "
               "without changing the version number, so some of these may already be "
               "patched on the target.")
+RANGE_NOTE = ("NVD version ranges sometimes have no lower bound, so CVEs for newer code "
+              "can be listed against older versions. Confirm high impact CVEs against "
+              "the vendor advisory.")
 
 SCAN = {
     "target": TARGET, "status": "ok",
@@ -88,6 +93,27 @@ class CveLookupToolTests(NVDTestCase):
         self.assertEqual(len(nvd["products"][0]["cves"]), 3)
         self.assertEqual(nvd["skipped"][0]["cpe"], "cpe:/o:linux:linux_kernel")
         self.assertEqual(len(fake.requests), 3)
+        self.assertEqual(len(fake.cpe_requests), 3)
+        self.assertEqual([p["cpe_resolution"] for p in nvd["products"]],
+                         ["not-in-dictionary"] * 3)
+
+    def test_observation_shows_resolved_name_and_port_version(self):
+        scan = copy.deepcopy(SCAN)
+        scan["ports"] = [{"port": 445, "protocol": "tcp", "service": "microsoft-ds",
+                          "product": "Samba smbd", "version": "3.0.20-Debian", "tunnel": "",
+                          "cpe": ["cpe:/a:samba:samba"]},
+                         {"port": 21, "protocol": "tcp", "service": "ftp", "product": "vsftpd",
+                          "version": "2.3.4", "tunnel": "", "cpe": ["cpe:/a:vsftpd:vsftpd:2.3.4"]}]
+        scan["web"] = {}
+        self.fake(page([], total=0), page([], total=0),
+                  cpes={SAMBA_MATCH: SAMBA_CPE_BYTES, VSFTPD_MATCH: VSFTPD_CPE_BYTES})
+        data = json.loads(self.toolbox(scan).call("cve_lookup", {})[0])
+        samba, vsftpd = data["products"]
+        self.assertEqual(samba["cpe"], SAMBA_CPE)
+        self.assertEqual(samba["version_from"], "nmap port version")
+        self.assertNotIn("resolved_from", samba)  # same name as built
+        self.assertEqual(vsftpd["cpe"], VSFTPD_NVD_CPE)
+        self.assertEqual(vsftpd["resolved_from"], "cpe:2.3:a:vsftpd:vsftpd:2.3.4:*:*:*:*:*:*:*")
 
     def test_compact_observation(self):
         self.fake(FIXTURE_BYTES, page([], total=0), page([], total=0))
@@ -156,11 +182,13 @@ class CveLookupToolTests(NVDTestCase):
         self.assertEqual(json.loads(obs)["status"], "no-cpe")
         self.assertEqual(tb.scan["nvd"]["status"], "no-cpe")
         self.assertEqual(fake.requests, [])
+        self.assertEqual(fake.cpe_requests, [])
 
     def test_target_never_sent(self):
         fake = self.fake(FIXTURE_BYTES, FIXTURE_BYTES, FIXTURE_BYTES)
         self.toolbox().call("cve_lookup", {})
-        for request, _ in fake.requests:
+        self.assertEqual(len(fake.cpe_requests), 3)
+        for request, _ in fake.requests + fake.cpe_requests:
             self.assertNotIn(TARGET, request.full_url)
             self.assertNotIn(TARGET, json.dumps(request.header_items()))
 
@@ -219,6 +247,49 @@ class CveReportTests(unittest.TestCase):
         self.assertIn("By severity: CRITICAL 1, HIGH 2, MEDIUM 0, LOW 0 (3 total)", report)
         self.assertIn("**Skipped, no version:** cpe:/o:linux:linux_kernel on 22/tcp, 80/tcp "
                       "(no version in the CPE).", report)
+
+    def test_range_note_next_to_patch_note(self):
+        report = self.report(nvd_result(PARSED))
+        self.assertIn(PATCH_NOTE + " " + RANGE_NOTE, report)
+        self.assertEqual(report.count(RANGE_NOTE), 1)
+        self.assertEqual(nvd_lookup.RANGE_NOTE, RANGE_NOTE)
+
+    def test_cpe_line_shows_resolution_and_port_version(self):
+        nvd = nvd_result(PARSED)
+        product = nvd["products"][0]
+        product.update({"cpe": VSFTPD_NVD_CPE, "cpe_resolution": "nvd-dictionary",
+                        "resolved_from": "cpe:2.3:a:vsftpd:vsftpd:2.3.4:*:*:*:*:*:*:*"})
+        samba = dict(product, cpe=SAMBA_CPE, resolved_from=SAMBA_CPE,
+                     version_from="nmap port version")
+        kept = dict(product, cpe=PHP_CPE, resolved_from=PHP_CPE,
+                    cpe_resolution="not-in-dictionary")
+        failed = dict(kept, cpe_resolution="lookup-failed")
+        nvd["products"] += [samba, kept, failed]
+        report = self.report(nvd)
+        self.assertIn("CPE: `{c}` (NVD dictionary name for "
+                      "`cpe:2.3:a:vsftpd:vsftpd:2.3.4:*:*:*:*:*:*:*`)".format(c=VSFTPD_NVD_CPE),
+                      report)
+        self.assertIn("CPE: `{c}` (version from nmap's port version)".format(c=SAMBA_CPE), report)
+        self.assertIn("CPE: `{c}` (not found in NVD's CPE dictionary, kept as found)".format(
+            c=PHP_CPE), report)
+        self.assertIn("CPE: `{c}` (NVD's CPE dictionary could not be checked, kept as "
+                      "found)".format(c=PHP_CPE), report)
+
+    def test_ambiguous_cpe_listed_apart_with_candidates(self):
+        nvd = nvd_result(PARSED)
+        candidates = [WIDGET.format(v="alpha"), WIDGET.format(v="beta")]
+        nvd["skipped"].append({
+            "cpe": WIDGET.format(v="gamma"), "ports": ["8000/tcp"],
+            "reason": "several NVD CPE names match and none has the vendor gamma: "
+                      + ", ".join(candidates),
+            "candidates": candidates})
+        report = self.report(nvd)
+        self.assertIn("**Skipped, no version:** cpe:/o:linux:linux_kernel on 22/tcp, 80/tcp "
+                      "(no version in the CPE).", report)
+        self.assertIn("**Skipped, no single NVD CPE name:** {g} on 8000/tcp (several NVD CPE "
+                      "names match and none has the vendor gamma: {a}, {b}).".format(
+                          g=WIDGET.format(v="gamma"), a=candidates[0], b=candidates[1]),
+                      report)
 
     def test_order_without_nuclei_is_kev_then_cvss(self):
         lines = self.cve_lines(self.report(nvd_result(PARSED)))
@@ -290,6 +361,7 @@ class CveReportTests(unittest.TestCase):
         self.assertIn("**Not checked:** open ports carry CPEs, but cve_lookup did not run, "
                       "so no CVEs were looked up.", report)
         self.assertNotIn(PATCH_NOTE, report)
+        self.assertNotIn(RANGE_NOTE, report)
 
     def test_no_section_without_cpes_or_results(self):
         scan = copy.deepcopy(SCAN)

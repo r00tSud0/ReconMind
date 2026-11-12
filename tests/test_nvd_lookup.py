@@ -4,7 +4,14 @@ a fake that serves a small NVD API 2.0 fixture, time.sleep and the clock are
 mocked, and the cache lives in a temp directory, so nothing reaches NVD and
 no test waits.
 
-The fixture follows NVD's API 2.0 answer shape, trimmed for the tests.
+The fixtures follow NVD's API 2.0 answer shapes, trimmed for the tests. The
+CPE dictionary fixtures use placeholder cpeNameId values, and the widget one
+is synthetic: two live vendors, one deprecated vendor, and names that differ
+only in version, product or update.
+
+CPE dictionary requests are routed by their cpeMatchString to FakeNVD's cpes
+map; an unknown match string gets an empty dictionary answer, so the
+original CPE is kept and older tests see the CVE requests unchanged.
 """
 
 import json
@@ -24,8 +31,25 @@ with open(FIXTURE, "rb") as _fh:
     FIXTURE_BYTES = _fh.read()
 VULNS = json.loads(FIXTURE_BYTES)["vulnerabilities"]
 
+
+def _fixture(name):
+    with open(os.path.join(os.path.dirname(FIXTURE), name), "rb") as fh:
+        return fh.read()
+
+
+VSFTPD_CPE_BYTES = _fixture("nvd_cpe_vsftpd_2.3.4.json")
+SAMBA_CPE_BYTES = _fixture("nvd_cpe_samba_3.0.20.json")
+WIDGET_CPE_BYTES = _fixture("nvd_cpe_widget_1.2.3.json")
+
 PHP_CPE = "cpe:2.3:a:php:php:5.2.4:*:*:*:*:*:*:*"
 APACHE_CPE = "cpe:2.3:a:apache:http_server:2.2.8:*:*:*:*:*:*:*"
+VSFTPD_NMAP_CPE = "cpe:2.3:a:vsftpd:vsftpd:2.3.4:*:*:*:*:*:*:*"
+VSFTPD_NVD_CPE = "cpe:2.3:a:vsftpd_project:vsftpd:2.3.4:*:*:*:*:*:*:*"
+SAMBA_CPE = "cpe:2.3:a:samba:samba:3.0.20:*:*:*:*:*:*:*"
+WIDGET = "cpe:2.3:a:{v}:widget:1.2.3:*:*:*:*:*:*:*"
+VSFTPD_MATCH = "cpe:2.3:a:*:vsftpd:2.3.4"
+SAMBA_MATCH = "cpe:2.3:a:*:samba:3.0.20"
+WIDGET_MATCH = "cpe:2.3:a:*:widget:1.2.3"
 NOW = 1800000000.0
 
 
@@ -35,6 +59,22 @@ def page(vulns, total, start=0):
                        "totalResults": total, "format": "NVD_CVE", "version": "2.0",
                        "timestamp": "2026-11-12T15:04:11.873",
                        "vulnerabilities": vulns}).encode("utf-8")
+
+
+def cpe_page(names, deprecated=(), total=None, start=0):
+    """One NVD CPE API 2.0 answer listing the given CPE names."""
+    products = [{"cpe": {"deprecated": name in deprecated, "cpeName": name,
+                         "cpeNameId": "00000000-0000-4000-8000-{n:012d}".format(n=start + n),
+                         "titles": [{"title": name, "lang": "en"}]}}
+                for n, name in enumerate(names)]
+    return json.dumps({"resultsPerPage": len(products), "startIndex": start,
+                       "totalResults": len(products) if total is None else total,
+                       "format": "NVD_CPE", "version": "2.0",
+                       "timestamp": "2026-11-12T15:04:11.873",
+                       "products": products}).encode("utf-8")
+
+
+EMPTY_CPE_ANSWER = cpe_page([])
 
 
 def http_error(code):
@@ -56,23 +96,39 @@ class FakeResponse:
 
 
 class FakeNVD:
-    """Stands in for urlopen. Serves the answers in order; an exception is raised."""
+    """
+    Stands in for urlopen. CVE requests get the answers in order. CPE
+    dictionary requests get cpes[cpeMatchString] (a list is served in order),
+    or an empty dictionary answer. An exception answer is raised.
+    """
 
-    def __init__(self, *answers):
+    def __init__(self, *answers, cpes=None):
         self.answers = list(answers)
+        self.cpes = dict(cpes or {})
         self.requests = []
+        self.cpe_requests = []
 
     def __call__(self, request, timeout=None):
-        self.requests.append((request, timeout))
-        if not self.answers:
-            raise AssertionError("unexpected NVD request: " + request.full_url)
-        answer = self.answers.pop(0)
+        if request.full_url.startswith(nvd_lookup.CPE_URL + "?"):
+            self.cpe_requests.append((request, timeout))
+            match = parse_qs(urlsplit(request.full_url).query).get("cpeMatchString", [""])[0]
+            answer = self.cpes.get(match, EMPTY_CPE_ANSWER)
+            if isinstance(answer, list):
+                answer = answer.pop(0) if answer else EMPTY_CPE_ANSWER
+        else:
+            self.requests.append((request, timeout))
+            if not self.answers:
+                raise AssertionError("unexpected NVD request: " + request.full_url)
+            answer = self.answers.pop(0)
         if isinstance(answer, Exception):
             raise answer
         return FakeResponse(answer)
 
     def query(self, n):
         return parse_qs(urlsplit(self.requests[n][0].full_url).query)
+
+    def cpe_query(self, n):
+        return parse_qs(urlsplit(self.cpe_requests[n][0].full_url).query)
 
 
 def product(cpe, label="PHP 5.2.4", ports=("80/tcp",)):
@@ -100,8 +156,8 @@ class NVDTestCase(unittest.TestCase):
         os.environ.pop("NVD_API_KEY", None)
         self.addCleanup(self._tmp.cleanup)
 
-    def fake(self, *answers):
-        fake = FakeNVD(*answers)
+    def fake(self, *answers, cpes=None):
+        fake = FakeNVD(*answers, cpes=cpes)
         p = mock.patch.object(nvd_lookup, "urlopen", fake)
         p.start()
         self.addCleanup(p.stop)
@@ -354,15 +410,17 @@ class QueryTests(NVDTestCase):
             self.assertNotIn("env-key", fh.read())
 
     def test_wait_six_seconds_between_requests_without_key(self):
-        self.fake(FIXTURE_BYTES, FIXTURE_BYTES, FIXTURE_BYTES)
+        fake = self.fake(FIXTURE_BYTES, FIXTURE_BYTES, FIXTURE_BYTES)
         nvd_lookup.run_cve_lookup([product(PHP_CPE), product(APACHE_CPE),
                                    product("cpe:2.3:a:openbsd:openssh:4.7p1:*:*:*:*:*:*:*")])
-        self.assertEqual(self.sleeps, [6, 6])
+        # Three CPE dictionary requests and three CVE requests share one pace.
+        self.assertEqual((len(fake.cpe_requests), len(fake.requests)), (3, 3))
+        self.assertEqual(self.sleeps, [6] * 5)
 
     def test_wait_one_second_between_requests_with_key(self):
         self.fake(FIXTURE_BYTES, FIXTURE_BYTES)
         nvd_lookup.run_cve_lookup([product(PHP_CPE), product(APACHE_CPE)], api_key="k")
-        self.assertEqual(self.sleeps, [1])
+        self.assertEqual(self.sleeps, [1] * 3)
 
 
 class CacheTests(NVDTestCase):
@@ -499,6 +557,7 @@ class FailureTests(NVDTestCase):
         self.assertEqual(result["skipped"], skipped)
         self.assertIn("nothing was looked up", result["error"])
         self.assertEqual(fake.requests, [])
+        self.assertEqual(fake.cpe_requests, [])
 
 
 class PrivacyTests(NVDTestCase):
@@ -531,6 +590,291 @@ class PrivacyTests(NVDTestCase):
             self.assertEqual(urlsplit(request.full_url).netloc, "services.nvd.nist.gov")
         self.assertEqual(sent_cpes, {APACHE_CPE, PHP_CPE,
                                      "cpe:2.3:a:openbsd:openssh:4.7:p1:*:*:*:*:*:*"})
+        self.assertEqual(len(fake.cpe_requests), 3)
+        for request, _ in fake.cpe_requests:
+            sent = request.full_url + " " + json.dumps(request.header_items())
+            for detail in (TARGET, "10.10.1", "syn-ack", "Ubuntu", "DAV", "Debian", ":80"):
+                self.assertNotIn(detail, sent)
+            query = parse_qs(urlsplit(request.full_url).query)
+            self.assertEqual(set(query), {"cpeMatchString", "resultsPerPage", "startIndex"})
+            self.assertEqual([k for k, _ in request.header_items()], ["Apikey"])
+            self.assertEqual(urlsplit(request.full_url).netloc, "services.nvd.nist.gov")
+
+    def test_target_never_in_a_request_with_port_versions_and_resolution(self):
+        ports = [
+            nmap_port(445, "Samba smbd", "3.0.20-Debian", ["cpe:/a:samba:samba"]),
+            nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"]),
+            nmap_port(6667, "UnrealIRCd", "3.2.8.1", ["cpe:/a:unrealircd:unrealircd"]),
+        ]
+        for p in ports:
+            p.update({"reason": "syn-ack", "host": TARGET})
+        web = {80: {"status": "ok", "url": "http://{t}:80/".format(t=TARGET),
+                    "components": [{"name": "IP", "strings": [TARGET]}]}}
+        fake = self.fake(page([], total=0), page([], total=0), page([], total=0),
+                         cpes={SAMBA_MATCH: SAMBA_CPE_BYTES, VSFTPD_MATCH: VSFTPD_CPE_BYTES})
+        products, skipped = nvd_lookup.lookup_targets(ports, web)
+        nvd_lookup.run_cve_lookup(products, skipped)
+        self.assertEqual((len(fake.cpe_requests), len(fake.requests)), (3, 3))
+        for request, _ in fake.cpe_requests + fake.requests:
+            sent = request.full_url + " " + json.dumps(request.header_items())
+            for detail in (TARGET, "10.10.1", "syn-ack", "Debian", "smbd"):
+                self.assertNotIn(detail, sent)
+        self.assertEqual(sorted(fake.cpe_query(n)["cpeMatchString"][0] for n in range(3)),
+                         [SAMBA_MATCH, "cpe:2.3:a:*:unrealircd:3.2.8.1", VSFTPD_MATCH])
+
+
+def nmap_port(number, name, version, cpes):
+    return {"port": number, "protocol": "tcp", "product": name, "version": version,
+            "cpe": list(cpes)}
+
+
+class VersionCompletionTests(unittest.TestCase):
+
+    def test_samba_version_comes_from_the_port(self):
+        ports = [nmap_port(139, "Samba smbd", "3.0.20-Debian", ["cpe:/a:samba:samba"]),
+                 nmap_port(445, "Samba smbd", "3.0.20-Debian", ["cpe:/a:samba:samba"])]
+        products, skipped = nvd_lookup.lookup_targets(ports)
+        self.assertEqual(skipped, [])
+        self.assertEqual(products, [{"product": "Samba smbd 3.0.20-Debian", "cpe": SAMBA_CPE,
+                                     "source": ["nmap"], "from": ["cpe:/a:samba:samba"],
+                                     "ports": ["139/tcp", "445/tcp"],
+                                     "version_from": "nmap port version"}])
+
+    def test_unrealircd_version_from_irc_info(self):
+        products, _ = nvd_lookup.lookup_targets(
+            [nmap_port(6667, "UnrealIRCd", "3.2.8.1", ["cpe:/a:unrealircd:unrealircd"])])
+        self.assertEqual(products[0]["cpe"],
+                         "cpe:2.3:a:unrealircd:unrealircd:3.2.8.1:*:*:*:*:*:*:*")
+        self.assertEqual(products[0]["version_from"], nvd_lookup.VERSION_FROM_PORT)
+
+    def test_cpe_version_wins_and_records_no_version_from(self):
+        products, _ = nvd_lookup.lookup_targets(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])])
+        self.assertEqual(products[0]["cpe"], VSFTPD_NMAP_CPE)
+        self.assertNotIn("version_from", products[0])
+
+    def test_os_cpe_never_gets_the_port_version(self):
+        products, skipped = nvd_lookup.lookup_targets([nmap_port(
+            445, "Samba smbd", "3.0.20-Debian", ["cpe:/a:samba:samba", "cpe:/o:linux:linux_kernel"])])
+        self.assertEqual([p["cpe"] for p in products], [SAMBA_CPE])
+        self.assertEqual(skipped, [{"cpe": "cpe:/o:linux:linux_kernel", "ports": ["445/tcp"],
+                                    "reason": nvd_lookup.REASON_NO_VERSION}])
+
+    def test_two_application_cpes_get_no_port_version(self):
+        products, skipped = nvd_lookup.lookup_targets([nmap_port(
+            80, "Apache httpd", "2.2.8", ["cpe:/a:apache:http_server", "cpe:/a:php:php"])])
+        self.assertEqual(products, [])
+        self.assertEqual([s["reason"] for s in skipped], [nvd_lookup.REASON_NO_VERSION] * 2)
+
+    def test_no_port_version_is_still_skipped(self):
+        for version in ("", None, "unknown"):
+            with self.subTest(version=version):
+                products, skipped = nvd_lookup.lookup_targets(
+                    [nmap_port(445, "Samba smbd", version, ["cpe:/a:samba:samba"])])
+                self.assertEqual(products, [])
+                self.assertEqual(skipped[0]["reason"], nvd_lookup.REASON_NO_VERSION)
+
+    def test_nmap_version_range_is_skipped(self):
+        products, skipped = nvd_lookup.lookup_targets(
+            [nmap_port(445, "Samba smbd", "3.X - 4.X", ["cpe:/a:samba:samba"])])
+        self.assertEqual(products, [])
+        self.assertEqual(skipped[0]["reason"], nvd_lookup.REASON_VERSION_RANGE)
+
+    def test_openssh_update_rule_still_applies(self):
+        self.assertEqual(nvd_lookup.port_version_cpe("cpe:/a:openbsd:openssh",
+                                                     "4.7p1 Debian 8ubuntu1"),
+                         ("cpe:2.3:a:openbsd:openssh:4.7:p1:*:*:*:*:*:*", ""))
+
+
+class ResolutionTests(NVDTestCase):
+
+    def run_ports(self, ports, cpes, *answers, api_key=None):
+        fake = self.fake(*answers, cpes=cpes)
+        products, skipped = nvd_lookup.lookup_targets(ports)
+        return fake, nvd_lookup.run_cve_lookup(products, skipped, api_key=api_key)
+
+    def widget(self, vendor, port=8000):
+        return [nmap_port(port, "Widget", "1.2.3", ["cpe:/a:{v}:widget:1.2.3".format(v=vendor)])]
+
+    def test_vsftpd_resolves_to_vsftpd_project(self):
+        fake, result = self.run_ports(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])],
+            {VSFTPD_MATCH: VSFTPD_CPE_BYTES}, page([], total=0))
+        item = result["products"][0]
+        self.assertEqual(item["cpe"], VSFTPD_NVD_CPE)
+        self.assertEqual(item["resolved_from"], VSFTPD_NMAP_CPE)
+        self.assertEqual(item["cpe_resolution"], "nvd-dictionary")
+        self.assertEqual(item["status"], "ok")
+        self.assertEqual(fake.cpe_query(0), {"cpeMatchString": [VSFTPD_MATCH],
+                                             "resultsPerPage": ["10000"], "startIndex": ["0"]})
+        self.assertTrue(fake.cpe_requests[0][0].full_url.startswith(
+            "https://services.nvd.nist.gov/rest/json/cpes/2.0?"))
+        self.assertEqual(fake.cpe_requests[0][1], 30)
+        self.assertEqual(fake.query(0)["cpeName"], [VSFTPD_NVD_CPE])
+        self.assertEqual(self.sleeps, [6])  # one gap between the CPE and the CVE request
+
+    def test_samba_gets_port_version_and_resolves(self):
+        fake, result = self.run_ports(
+            [nmap_port(445, "Samba smbd", "3.0.20-Debian", ["cpe:/a:samba:samba"])],
+            {SAMBA_MATCH: SAMBA_CPE_BYTES}, page(VULNS[:1], total=1))
+        item = result["products"][0]
+        self.assertEqual(item["cpe"], SAMBA_CPE)
+        self.assertEqual(item["version_from"], "nmap port version")
+        self.assertEqual(item["cpe_resolution"], "nvd-dictionary")
+        self.assertEqual(fake.cpe_query(0)["cpeMatchString"], [SAMBA_MATCH])
+        self.assertEqual(fake.query(0)["cpeName"], [SAMBA_CPE])
+        self.assertEqual(len(item["cves"]), 1)
+
+    def test_two_vendors_picks_the_scan_vendor(self):
+        fake, result = self.run_ports(self.widget("beta"), {WIDGET_MATCH: WIDGET_CPE_BYTES},
+                                      page([], total=0))
+        item = result["products"][0]
+        self.assertEqual(item["cpe"], WIDGET.format(v="beta"))
+        self.assertEqual(item["cpe_resolution"], "nvd-dictionary")
+        self.assertEqual(fake.query(0)["cpeName"], [WIDGET.format(v="beta")])
+
+    def test_two_vendors_none_matching_is_skipped_with_candidates(self):
+        # gamma is in the dictionary only as a deprecated name.
+        fake, result = self.run_ports(self.widget("gamma"), {WIDGET_MATCH: WIDGET_CPE_BYTES})
+        candidates = [WIDGET.format(v="alpha"), WIDGET.format(v="beta")]
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["products"], [])
+        self.assertEqual(result["skipped"], [{
+            "cpe": WIDGET.format(v="gamma"), "ports": ["8000/tcp"],
+            "reason": "several NVD CPE names match and none has the vendor gamma: "
+                      + ", ".join(candidates),
+            "candidates": candidates}])
+        self.assertEqual(fake.requests, [])  # no CVE query for a skipped product
+
+    def test_only_exact_product_version_and_update_count(self):
+        # alpha also has widget 1.2.30, widget_pro 1.2.3 and widget 1.2.3 update
+        # beta in the fixture; none of them may make alpha ambiguous.
+        _, result = self.run_ports(self.widget("alpha"), {WIDGET_MATCH: WIDGET_CPE_BYTES},
+                                   page([], total=0))
+        self.assertEqual(result["products"][0]["cpe"], WIDGET.format(v="alpha"))
+
+    def test_no_match_keeps_the_original_cpe(self):
+        fake, result = self.run_ports(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])], {},
+            page([], total=0))
+        item = result["products"][0]
+        self.assertEqual(item["cpe"], VSFTPD_NMAP_CPE)
+        self.assertEqual(item["resolved_from"], VSFTPD_NMAP_CPE)
+        self.assertEqual(item["cpe_resolution"], "not-in-dictionary")
+        self.assertEqual(fake.query(0)["cpeName"], [VSFTPD_NMAP_CPE])
+
+    def test_deprecated_names_are_ignored(self):
+        old, new = VSFTPD_NMAP_CPE, VSFTPD_NVD_CPE
+        _, result = self.run_ports(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])],
+            {VSFTPD_MATCH: cpe_page([old, new], deprecated=[old])}, page([], total=0))
+        # The deprecated name has the scan's vendor and still loses.
+        self.assertEqual(result["products"][0]["cpe"], new)
+
+    def test_only_deprecated_names_keep_the_original_cpe(self):
+        _, result = self.run_ports(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])],
+            {VSFTPD_MATCH: cpe_page([VSFTPD_NVD_CPE], deprecated=[VSFTPD_NVD_CPE])},
+            page([], total=0))
+        self.assertEqual(result["products"][0]["cpe"], VSFTPD_NMAP_CPE)
+        self.assertEqual(result["products"][0]["cpe_resolution"], "not-in-dictionary")
+
+    def test_openssh_update_must_match(self):
+        names = ["cpe:2.3:a:openbsd:openssh:4.7:{u}:*:*:*:*:*:*".format(u=u)
+                 for u in ("*", "p1", "p2")]
+        fake, result = self.run_ports(
+            [nmap_port(22, "OpenSSH", "4.7p1 Debian 8ubuntu1", ["cpe:/a:openbsd:openssh:4.7p1"])],
+            {"cpe:2.3:a:*:openssh:4.7": cpe_page(names)}, page([], total=0))
+        self.assertEqual(result["products"][0]["cpe"], names[1])
+        self.assertEqual(fake.cpe_query(0)["cpeMatchString"], ["cpe:2.3:a:*:openssh:4.7"])
+
+    def test_several_names_with_the_scan_vendor_are_ambiguous(self):
+        names = [{"cpeName": "cpe:2.3:a:alpha:widget:1.2.3:*:*:*:*:*:*:*", "deprecated": False},
+                 {"cpeName": "cpe:2.3:a:Alpha:widget:1.2.3:*:*:*:*:*:*:*", "deprecated": False}]
+        choice = nvd_lookup.choose_cpe(WIDGET.format(v="alpha"), names)
+        self.assertEqual(choice["outcome"], "ambiguous")
+        self.assertEqual(choice["candidates"], [n["cpeName"] for n in names])
+        self.assertTrue(choice["reason"].startswith(
+            "several NVD CPE names match with the vendor alpha: "))
+
+    def test_pagination_is_followed(self):
+        other, mine = WIDGET.format(v="alpha"), WIDGET.format(v="beta")
+        fake, result = self.run_ports(
+            self.widget("beta"),
+            {WIDGET_MATCH: [cpe_page([other], total=2), cpe_page([mine], total=2, start=1)]},
+            page([], total=0))
+        self.assertEqual([fake.cpe_query(n)["startIndex"] for n in range(2)], [["0"], ["1"]])
+        self.assertEqual(result["products"][0]["cpe"], mine)
+
+    def test_retry_on_rate_limit(self):
+        fake, result = self.run_ports(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])],
+            {VSFTPD_MATCH: [http_error(429), VSFTPD_CPE_BYTES]}, page([], total=0))
+        self.assertEqual(len(fake.cpe_requests), 2)
+        self.assertEqual(self.sleeps[0], 30)
+        self.assertEqual(result["products"][0]["cpe"], VSFTPD_NVD_CPE)
+
+    def test_failed_resolution_keeps_the_cpe_and_says_so(self):
+        _, result = self.run_ports(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])],
+            {VSFTPD_MATCH: [http_error(500)]}, page([], total=0))
+        item = result["products"][0]
+        self.assertEqual(item["cpe"], VSFTPD_NMAP_CPE)
+        self.assertEqual(item["cpe_resolution"], "lookup-failed")
+        self.assertEqual(item["resolution_error"], "NVD answered HTTP 500.")
+        self.assertEqual(item["status"], "ok")  # the CVE query still ran
+
+    def test_api_key_header_on_cpe_requests(self):
+        fake, _ = self.run_ports(
+            [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])],
+            {VSFTPD_MATCH: VSFTPD_CPE_BYTES}, page([], total=0), api_key="secret-key")
+        self.assertEqual(fake.cpe_requests[0][0].get_header("Apikey"), "secret-key")
+        self.assertEqual(self.sleeps, [1])
+
+
+class CpeCacheTests(NVDTestCase):
+
+    def test_cpe_answer_cached_and_reused_within_24_hours(self):
+        fake = self.fake(cpes={VSFTPD_MATCH: [VSFTPD_CPE_BYTES]})
+        first = nvd_lookup.resolve_cpe(VSFTPD_NMAP_CPE)
+        self.now = NOW + 24 * 3600 - 1
+        second = nvd_lookup.resolve_cpe(VSFTPD_NMAP_CPE)
+        self.assertEqual(len(fake.cpe_requests), 1)
+        self.assertFalse(first["from_cache"])
+        self.assertTrue(second["from_cache"])
+        self.assertEqual(second["names"], first["names"])
+        self.assertEqual(second["names"], [{"cpeName": VSFTPD_NVD_CPE, "deprecated": False}])
+        with open(os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])) as fh:
+            entry = json.load(fh)
+        self.assertEqual(entry["match"], VSFTPD_MATCH)
+        self.assertEqual(entry["fetched_epoch"], NOW)
+
+    def test_cpe_cache_expires_after_24_hours(self):
+        fake = self.fake(cpes={VSFTPD_MATCH: [VSFTPD_CPE_BYTES, EMPTY_CPE_ANSWER]})
+        nvd_lookup.resolve_cpe(VSFTPD_NMAP_CPE)
+        self.now = NOW + 24 * 3600
+        again = nvd_lookup.resolve_cpe(VSFTPD_NMAP_CPE)
+        self.assertEqual(len(fake.cpe_requests), 2)
+        self.assertFalse(again["from_cache"])
+        self.assertEqual(again["names"], [])
+
+    def test_failed_cpe_lookup_is_not_cached(self):
+        fake = self.fake(cpes={VSFTPD_MATCH: [URLError("down"), VSFTPD_CPE_BYTES]})
+        self.assertEqual(nvd_lookup.resolve_cpe(VSFTPD_NMAP_CPE)["status"], "network-error")
+        self.assertEqual(os.listdir(self.cache_dir), [])
+        self.assertEqual(nvd_lookup.resolve_cpe(VSFTPD_NMAP_CPE)["status"], "ok")
+        self.assertEqual(len(fake.cpe_requests), 2)
+
+    def test_second_run_makes_no_cpe_request(self):
+        ports = [nmap_port(21, "vsftpd", "2.3.4", ["cpe:/a:vsftpd:vsftpd:2.3.4"])]
+        fake = self.fake(page([], total=0), cpes={VSFTPD_MATCH: [VSFTPD_CPE_BYTES]})
+        nvd_lookup.run_cve_lookup(*nvd_lookup.lookup_targets(ports))
+        del self.sleeps[:]
+        result = nvd_lookup.run_cve_lookup(*nvd_lookup.lookup_targets(ports))
+        self.assertEqual(len(fake.cpe_requests), 1)
+        self.assertEqual(len(fake.requests), 1)
+        self.assertEqual(self.sleeps, [])
+        self.assertEqual(result["products"][0]["cpe"], VSFTPD_NVD_CPE)
 
 
 if __name__ == "__main__":

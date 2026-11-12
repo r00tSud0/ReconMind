@@ -380,6 +380,8 @@ class ToolBox:
                              "This port was not checked.".format(
                                  p=number, s=status, e=result.get("error", "")).replace("  ", " "))
 
+        # Findings only. The per cipher rows ("ciphers") and the full JSON
+        # ("raw_json") stay in self.scan as evidence and are never sent.
         findings = result.get("findings", [])
         counts = {sev: sum(1 for f in findings if str(f.get("severity", "")).upper() == sev)
                   for sev in SEVERITY_ORDER}

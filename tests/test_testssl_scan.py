@@ -1,7 +1,8 @@
 """
 Offline tests for the testssl.sh wrapper: the authorization gate running
 before testssl.sh, a missing binary, the command for a direct TLS port and for
-STARTTLS smtp, JSON parsing with the severity filter, the not-tls status and
+STARTTLS smtp, JSON parsing with the severity filter, per cipher rows kept
+apart from findings, the raw JSON kept as evidence, the not-tls status and
 clean error statuses. subprocess.run is replaced by a fake that writes a
 canned JSON file, so testssl.sh never runs.
 """
@@ -215,6 +216,99 @@ class ParseTests(Base):
         self.assertEqual(ranks, [0, 1, 2, 3, 4, 4, 4])
 
 
+CIPHER_ENTRIES = [
+    {"id": "TLS1_2", "severity": "OK", "finding": "offered"},
+    {"id": "cipherlist_3DES_IDEA", "severity": "MEDIUM", "finding": "offered",
+     "cwe": "CWE-327"},
+    {"id": "cipher_order", "severity": "LOW", "finding": "not enforced by server"},
+    {"id": "cipher_order-tls1_2", "severity": "LOW",
+     "finding": "NOT a cipher order configured"},
+    {"id": "cipher-tls1_2_x0a", "severity": "MEDIUM",
+     "finding": "TLSv1.2   x0a     DES-CBC3-SHA   RSA   3DES   168   "
+                "TLS_RSA_WITH_3DES_EDE_CBC_SHA"},
+    {"id": "cipher-tls1_2_x2f", "severity": "OK",
+     "finding": "TLSv1.2   x2f     AES128-SHA   RSA   AES   128   TLS_RSA_WITH_AES_128_CBC_SHA"},
+    {"id": "cipher_order-tls1", "severity": "INFO", "finding": "server"},
+    {"id": "SWEET32", "severity": "LOW", "finding": "VULNERABLE, uses 64 bit block ciphers",
+     "cve": "CVE-2016-2183 CVE-2016-6329", "cwe": "CWE-327"},
+]
+
+
+class CipherTests(Base):
+
+    def test_cipher_rows_go_to_ciphers_not_findings(self):
+        result = self._run(fake_testssl(json.dumps(CIPHER_ENTRIES)))
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual([f["id"] for f in result["findings"]],
+                         ["TLS1_2", "cipherlist_3DES_IDEA", "cipher_order", "SWEET32"])
+        # Every per cipher and per protocol cipher order row, whatever its
+        # severity, in testssl.sh order.
+        self.assertEqual([c["id"] for c in result["ciphers"]],
+                         ["cipher_order-tls1_2", "cipher-tls1_2_x0a", "cipher-tls1_2_x2f",
+                          "cipher_order-tls1"])
+
+    def test_cipher_rows_keep_their_text_exactly(self):
+        result = self._run(fake_testssl(json.dumps(CIPHER_ENTRIES)))
+        by_id = {c["id"]: c for c in result["ciphers"]}
+        self.assertEqual(by_id["cipher-tls1_2_x0a"], {
+            "id": "cipher-tls1_2_x0a", "severity": "MEDIUM",
+            "finding": CIPHER_ENTRIES[4]["finding"], "cve": "", "cwe": ""})
+
+    def test_is_cipher_row(self):
+        for entry_id in ("cipher-tls1_2_xc030", "cipher-tls1_3_x1302", "cipher_order-tls1_2",
+                         "cipher_order-tls1_3"):
+            self.assertTrue(testssl_scan.is_cipher_row({"id": entry_id}), entry_id)
+        for entry_id in ("cipher_order", "cipherlist_NULL", "cipherlist_EXPORT",
+                         "cipher_negotiated", "TLS1_2", "RC4", ""):
+            self.assertFalse(testssl_scan.is_cipher_row({"id": entry_id}), entry_id)
+
+    def test_fixture_has_empty_ciphers(self):
+        result = self._run(fake_testssl(JSON_TEXT))
+        self.assertEqual(result["ciphers"], [])
+
+    def test_only_cipher_rows_and_fatal_is_ok(self):
+        entries = [{"id": "cipher-tls1_2_x2f", "severity": "OK", "finding": "AES128-SHA"},
+                   {"id": "scanProblem", "severity": "FATAL", "finding": "something late"}]
+        result = self._run(fake_testssl(json.dumps(entries)))
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["findings"], [])
+        self.assertEqual(len(result["ciphers"]), 1)
+
+    def test_error_results_have_empty_ciphers(self):
+        for json_text in (None, "", "not json"):
+            self.assertEqual(self._run(fake_testssl(json_text))["ciphers"], [])
+
+
+class RawJsonTests(Base):
+
+    def test_raw_json_is_the_whole_file(self):
+        result = self._run(fake_testssl(JSON_TEXT))
+        self.assertEqual(result["raw_json"], JSON_TEXT)
+
+    def test_raw_json_kept_with_cipher_rows(self):
+        text = json.dumps(CIPHER_ENTRIES)
+        result = self._run(fake_testssl(text))
+        self.assertEqual(result["raw_json"], text)
+        self.assertIn("cipher-tls1_2_x2f", result["raw_json"])
+
+    def test_raw_json_kept_when_json_is_broken(self):
+        text = '[{"id": "SSLv2", "sever'
+        result = self._run(fake_testssl(text))
+        self.assertEqual(result["status"], "bad-json")
+        self.assertEqual(result["raw_json"], text)
+
+    def test_raw_json_empty_when_nothing_ran_or_was_written(self):
+        self.assertEqual(self._run(fake_testssl(None))["raw_json"], "")
+        with mock.patch.object(testssl_scan, "is_authorized", return_value=False):
+            self.assertEqual(testssl_scan.run_testssl("8.8.8.8", 443)["raw_json"], "")
+        with mock.patch.object(testssl_scan, "is_authorized", return_value=True), \
+             mock.patch.object(testssl_scan.shutil, "which", return_value=None):
+            self.assertEqual(testssl_scan.run_testssl(TARGET, 443)["raw_json"], "")
+
+
+NO_STARTTLS = "No STARTTLS found in handshake"
+
+
 class NotTlsTests(Base):
 
     def test_not_tls_from_json(self):
@@ -230,6 +324,36 @@ class NotTlsTests(Base):
         result = self._run(run, port=22)
         self.assertEqual(result["status"], "not-tls")
         self.assertNotIn("exited with code", result["error"])
+
+    def test_no_starttls_in_handshake_from_json(self):
+        entries = [{"id": "scanProblem", "severity": "FATAL",
+                    "finding": NO_STARTTLS}]
+        result = self._run(fake_testssl(json.dumps(entries), returncode=246),
+                           port=25, starttls="smtp")
+        self.assertEqual(result["status"], "not-tls")
+        self.assertEqual(result["findings"], [])
+        self.assertEqual(result["ciphers"], [])
+        self.assertNotIn("exited with code", result["error"])
+
+    def test_no_starttls_in_handshake_from_output_without_json(self):
+        run = fake_testssl(None, returncode=246,
+                           stdout=" Fatal error: {m}".format(m=NO_STARTTLS))
+        result = self._run(run, port=25, starttls="smtp")
+        self.assertEqual(result["status"], "not-tls")
+        self.assertNotIn("exited with code", result["error"])
+
+    def test_no_starttls_in_handshake_from_stderr(self):
+        run = fake_testssl(None, returncode=246,
+                           stderr="Fatal error: {m}\n".format(m=NO_STARTTLS))
+        result = self._run(run, port=110, starttls="pop3")
+        self.assertEqual(result["status"], "not-tls")
+
+    def test_other_fatal_is_still_failed(self):
+        entries = [{"id": "scanProblem", "severity": "FATAL",
+                    "finding": "Can't connect to 10.10.1.100:25"}]
+        result = self._run(fake_testssl(json.dumps(entries), returncode=246),
+                           port=25, starttls="smtp")
+        self.assertEqual(result["status"], "failed")
 
 
 class BadJsonTests(Base):

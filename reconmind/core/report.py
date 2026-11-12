@@ -270,6 +270,7 @@ TLS_FAILED = "_testssl.sh did not complete (status {s}), so this port was not ch
 TLS_NOT_TLS = "_testssl.sh reports this port does not speak TLS._"
 TLS_NO_FINDINGS = "_No findings of LOW severity or higher._"
 TLS_NO_CERT = "_No certificate findings._"
+TLS_CIPHERS_KEPT = "{n} individual cipher entries kept in the stored scan data."
 
 # testssl.sh protocol ids and how the report names them.
 PROTOCOL_NAMES = {"SSLv2": "SSLv2", "SSLv3": "SSLv3", "TLS1": "TLS 1.0",
@@ -307,6 +308,10 @@ def _tls_port_result(lines, result):
         lines.append(TLS_NO_FINDINGS)
     for f in rated:
         lines.append(_tls_finding_line(f))
+    # Per cipher rows are evidence: counted here, never listed. raw_json is
+    # never printed.
+    lines.append("")
+    lines.append(TLS_CIPHERS_KEPT.format(n=len(result.get("ciphers") or [])))
 
 
 def _tls_section(lines, ports, tls):

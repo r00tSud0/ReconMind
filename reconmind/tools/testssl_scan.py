@@ -8,7 +8,9 @@ target is allowed. If the gate says no, testssl.sh is never launched.
 
 testssl.sh runs with its default checks only. Results are read from its flat
 JSON file. Finding text, CVE and CWE values are kept exactly as testssl.sh
-wrote them; nothing is rewritten or guessed.
+wrote them; nothing is rewritten or guessed. Rows for one individual cipher or
+one protocol's cipher order are evidence, not findings, and are kept apart in
+"ciphers". The whole JSON file is kept as evidence in "raw_json".
 
 Output is a plain dict so the agent and the report builder can read it
 without knowing anything about testssl.sh.
@@ -45,10 +47,17 @@ SEVERITY_ORDER = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
 # certificate details.
 PROTOCOL_IDS = ("SSLv2", "SSLv3", "TLS1", "TLS1_1", "TLS1_2", "TLS1_3")
 CERT_PREFIX = "cert_"
+# One row per individual cipher (cipher-tls1_2_xc030) or per protocol cipher
+# order (cipher_order-tls1_2). Evidence, not findings. cipherlist_* and plain
+# cipher_order stay findings.
+CIPHER_PREFIXES = ("cipher-", "cipher_order-")
 
-# What testssl.sh says when the port does not speak TLS.
+# What testssl.sh says when the port does not speak TLS. A STARTTLS port that
+# never offers STARTTLS gives "Fatal error: No STARTTLS found in handshake"
+# (exit code 246).
 NOT_TLS_PATTERN = re.compile(
-    r"doesn.t seem to be a TLS/SSL enabled server|not a TLS/SSL enabled server",
+    r"doesn.t seem to be a TLS/SSL enabled server|not a TLS/SSL enabled server"
+    r"|No STARTTLS found in handshake",
     re.IGNORECASE)
 
 STATUS_OK = "ok"
@@ -99,6 +108,11 @@ def severity_rank(severity):
     return SEVERITY_ORDER.index(severity) if severity in SEVERITY_ORDER else len(SEVERITY_ORDER)
 
 
+def is_cipher_row(entry):
+    """True for a per cipher or per protocol cipher order row."""
+    return str(entry.get("id", "")).startswith(CIPHER_PREFIXES)
+
+
 def _keep(entry):
     entry_id = str(entry.get("id", ""))
     if str(entry.get("severity", "")).upper() in SEVERITY_ORDER:
@@ -113,9 +127,10 @@ def _finding(entry):
 
 
 def _result(status, target="", port=None, starttls=None, command="", findings=None,
-            error=""):
+            error="", ciphers=None, raw_json=""):
     result = {"status": status, "target": target, "port": port, "starttls": starttls,
-              "command": command, "findings": findings or []}
+              "command": command, "findings": findings or [], "ciphers": ciphers or [],
+              "raw_json": raw_json or ""}
     if error:
         result["error"] = error
     return result
@@ -123,42 +138,50 @@ def _result(status, target="", port=None, starttls=None, command="", findings=No
 
 def _parse_json(text, output=""):
     """
-    Read testssl.sh's flat JSON file. Return (status, findings, error).
-    output is testssl.sh's stdout and stderr, used only to spot the
-    not TLS message when the JSON does not carry it.
+    Read testssl.sh's flat JSON file. Return (status, findings, ciphers, error).
+    ciphers holds every per cipher and per protocol cipher order row,
+    whatever its severity; findings never holds one. output is testssl.sh's
+    stdout and stderr, used only to spot the not TLS message when the JSON
+    does not carry it.
     """
+    not_tls = "testssl.sh reports the service does not speak TLS."
     if NOT_TLS_PATTERN.search(output or ""):
-        return STATUS_NOT_TLS, [], "testssl.sh reports the service does not speak TLS."
+        return STATUS_NOT_TLS, [], [], not_tls
     if not text.strip():
-        return STATUS_EMPTY_JSON, [], "testssl.sh wrote an empty JSON file."
+        return STATUS_EMPTY_JSON, [], [], "testssl.sh wrote an empty JSON file."
     try:
         data = json.loads(text)
     except ValueError as exc:
-        return STATUS_BAD_JSON, [], "testssl.sh JSON is not valid: {e}".format(e=exc)
+        return STATUS_BAD_JSON, [], [], "testssl.sh JSON is not valid: {e}".format(e=exc)
     if isinstance(data, dict) and isinstance(data.get("scanResult"), list):
-        return STATUS_BAD_JSON, [], "testssl.sh wrote pretty JSON, not the flat format."
+        return STATUS_BAD_JSON, [], [], "testssl.sh wrote pretty JSON, not the flat format."
     if not isinstance(data, list):
-        return STATUS_BAD_JSON, [], "testssl.sh JSON is not a list."
+        return STATUS_BAD_JSON, [], [], "testssl.sh JSON is not a list."
 
     entries = [e for e in data if isinstance(e, dict) and e.get("id")]
     if any(NOT_TLS_PATTERN.search(str(e.get("finding", ""))) for e in entries):
-        return STATUS_NOT_TLS, [], "testssl.sh reports the service does not speak TLS."
-    findings = [_finding(e) for e in entries if _keep(e)]
+        return STATUS_NOT_TLS, [], [], not_tls
+    ciphers = [_finding(e) for e in entries if is_cipher_row(e)]
+    findings = [_finding(e) for e in entries if not is_cipher_row(e) and _keep(e)]
     fatal = [e for e in entries if str(e.get("severity", "")).upper() == "FATAL"]
-    if fatal and not findings:
-        return STATUS_FAILED, [], "testssl.sh stopped: {f}".format(
+    if fatal and not findings and not ciphers:
+        return STATUS_FAILED, [], [], "testssl.sh stopped: {f}".format(
             f=fatal[0].get("finding", "no reason given"))
     if not entries:
-        return STATUS_EMPTY_JSON, [], "testssl.sh JSON has no findings."
-    return STATUS_OK, findings, ""
+        return STATUS_EMPTY_JSON, [], [], "testssl.sh JSON has no findings."
+    return STATUS_OK, findings, ciphers, ""
 
 
 def run_testssl(target_ip, port, starttls=None):
     """
     Check TLS on one port of one authorized target and return a dict:
         {"status", "target", "port", "starttls", "command",
-         "findings": [{"id", "severity", "finding", "cve", "cwe"}]}
-    plus "error" when status is not "ok". If the gate refuses the target,
+         "findings": [{"id", "severity", "finding", "cve", "cwe"}],
+         "ciphers": [same shape], "raw_json": "..."}
+    plus "error" when status is not "ok". ciphers holds the per cipher and per
+    protocol cipher order rows, kept as evidence apart from findings. raw_json
+    is testssl.sh's whole JSON file, kept as evidence like nmap's raw_xml; it
+    is never sent to the model or printed in the report. If the gate refuses the target,
     status is "refused" and testssl.sh never runs. If testssl.sh is not
     installed, status is "testssl-not-found". If testssl.sh says the port does
     not speak TLS, status is "not-tls".
@@ -226,12 +249,13 @@ def run_testssl(target_ip, port, starttls=None):
         except OSError:
             pass
 
-    status, findings, error = _parse_json(text, output)
+    status, findings, ciphers, error = _parse_json(text, output)
     if status not in (STATUS_OK, STATUS_NOT_TLS) and getattr(proc, "returncode", 0):
         stderr = (getattr(proc, "stderr", "") or "").strip().splitlines()
         error += " testssl.sh exited with code {c}".format(c=proc.returncode)
         error += (": {s}".format(s=stderr[0]) if stderr else ".")
-    return _result(status, str(target_ip), port, starttls, command, findings, error)
+    return _result(status, str(target_ip), port, starttls, command, findings, error,
+                   ciphers=ciphers, raw_json=text)
 
 
 if __name__ == "__main__":
@@ -251,3 +275,4 @@ if __name__ == "__main__":
         print("  [{s}] {i}: {t}{c}".format(
             s=f["severity"], i=f["id"], t=f["finding"],
             c=" ({c})".format(c=f["cve"]) if f["cve"] else ""))
+    print("  {n} individual cipher entries kept apart.".format(n=len(result["ciphers"])))

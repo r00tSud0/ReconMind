@@ -23,8 +23,23 @@ TARGET = "10.10.1.100"
 FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "fixtures", "testssl_scan.json")
 with open(FIXTURE) as _fh:
-    _status, FIXTURE_FINDINGS, _error = testssl_scan._parse_json(_fh.read())
+    FIXTURE_JSON = _fh.read()
+_status, FIXTURE_FINDINGS, _ciphers, _error = testssl_scan._parse_json(FIXTURE_JSON)
 assert _status == "ok"
+
+# Per cipher rows as testssl_scan stores them under "ciphers". Rated MEDIUM
+# and LOW on purpose: they must still stay out of counts and findings.
+CIPHERS = [
+    {"id": "cipher_order-tls1", "severity": "LOW", "finding": "NOT a cipher order configured",
+     "cve": "", "cwe": ""},
+    {"id": "cipher-tls1_xc011", "severity": "MEDIUM",
+     "finding": "TLSv1   xc011   ECDHE-RSA-RC4-SHA   ECDH 256   RC4   128   "
+                "TLS_ECDHE_RSA_WITH_RC4_128_SHA", "cve": "", "cwe": ""},
+    {"id": "cipher-tls1_x0a", "severity": "MEDIUM",
+     "finding": "TLSv1   x0a   DES-CBC3-SHA   RSA   3DES   168   TLS_RSA_WITH_3DES_EDE_CBC_SHA",
+     "cve": "", "cwe": ""},
+]
+RAW_MARKER = "RAW_JSON_MARKER_do_not_send"
 
 SCAN = {
     "target": TARGET, "status": "ok",
@@ -53,7 +68,8 @@ def ok_result(port=443, starttls=None):
     return {"status": "ok", "target": TARGET, "port": port, "starttls": starttls,
             "command": "testssl --quiet --color 0 --warnings off --jsonfile /tmp/x/testssl.json "
                        "{t}:{p}".format(t=TARGET, p=port),
-            "findings": copy.deepcopy(FIXTURE_FINDINGS)}
+            "findings": copy.deepcopy(FIXTURE_FINDINGS), "ciphers": copy.deepcopy(CIPHERS),
+            "raw_json": FIXTURE_JSON + RAW_MARKER}
 
 
 def toolbox():
@@ -144,6 +160,27 @@ class TlsCheckTests(unittest.TestCase):
             "cve": "CVE-2014-3566", "cwe": "CWE-310"})
         export = next(f for f in data["findings"] if f["id"] == "cipherlist_EXPORT")
         self.assertNotIn("cve", export)  # empty values are left out
+
+    def test_observation_leaves_out_raw_json_and_cipher_rows(self):
+        tb = toolbox()
+        result = ok_result()
+        with mock.patch.object(toolmod, "run_testssl", return_value=result):
+            obs, is_error = tb.call("tls_check", {"port": 443})
+        self.assertFalse(is_error)
+        data = json.loads(obs)
+        self.assertNotIn("raw_json", data)
+        self.assertNotIn("ciphers", data)
+        self.assertNotIn(RAW_MARKER, obs)
+        self.assertNotIn("engine_problem", obs)  # only in the raw JSON
+        for c in CIPHERS:
+            self.assertNotIn(c["id"], obs)
+            self.assertNotIn(c["finding"], obs)
+        # Counts come from findings only; the MEDIUM and LOW cipher rows add nothing.
+        self.assertEqual(data["severity_counts"],
+                         {"CRITICAL": 3, "HIGH": 3, "MEDIUM": 3, "LOW": 1})
+        # Both stay in the stored result as evidence.
+        self.assertEqual(tb.scan["tls"][443]["ciphers"], CIPHERS)
+        self.assertIn(RAW_MARKER, tb.scan["tls"][443]["raw_json"])
 
     def test_several_ports_are_all_stored(self):
         tb = toolbox()
@@ -296,6 +333,28 @@ class TlsReportTests(unittest.TestCase):
         self.assertNotIn("] cert_commonName", section)
         self.assertNotIn("] TLS1:", section)
 
+    def test_cipher_count_line_and_no_cipher_rows(self):
+        section = tls_part(read_report(TLS_SCAN))
+        self.assertIn("(CVE-2016-2183 CVE-2016-6329)\n\n"
+                      "3 individual cipher entries kept in the stored scan data.\n", section)
+        for c in CIPHERS:
+            self.assertNotIn(c["id"], section)
+            self.assertNotIn(c["finding"], section)
+        # Only the ok port gets the line; the timed out port does not.
+        self.assertEqual(section.count("individual cipher entries kept"), 1)
+
+    def test_cipher_count_line_with_no_ciphers(self):
+        scan = copy.deepcopy(TLS_SCAN)
+        del scan["tls"][443]["ciphers"]  # results stored before this field existed
+        section = tls_part(read_report(scan))
+        self.assertIn("0 individual cipher entries kept in the stored scan data.", section)
+
+    def test_raw_json_never_printed(self):
+        report = read_report(TLS_SCAN)
+        self.assertNotIn(RAW_MARKER, report)
+        self.assertNotIn("engine_problem", report)
+        self.assertNotIn("raw_json", report)
+
     def test_failed_run_says_not_checked(self):
         section = tls_part(read_report(TLS_SCAN))
         self.assertIn("**25/tcp** (STARTTLS smtp)\n"
@@ -353,7 +412,7 @@ class TlsReportTests(unittest.TestCase):
         self.assertNotIn(" - ", text)
         for constant in (reportmod.TLS_HEAD, reportmod.TLS_NOT_CHECKED, reportmod.TLS_FAILED,
                          reportmod.TLS_NOT_TLS, reportmod.TLS_NO_FINDINGS,
-                         reportmod.TLS_NO_CERT):
+                         reportmod.TLS_NO_CERT, reportmod.TLS_CIPHERS_KEPT):
             self.assertNotIn("—", constant)
             self.assertNotIn(" - ", constant)
 

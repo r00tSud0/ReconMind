@@ -12,6 +12,9 @@ from datetime import datetime
 
 from reconmind.tools.exploit_lookup import exploit_url, primary_label
 from reconmind.tools.risky_services import flag_ports
+from reconmind.tools.testssl_scan import (
+    CERT_PREFIX, PROTOCOL_IDS, SEVERITY_ORDER, is_tls_capable, severity_rank,
+    starttls_protocol)
 from reconmind.tools.whatweb_scan import is_web_service
 
 REPORT_DIR = "reports"
@@ -260,6 +263,86 @@ def _web_section(lines, ports, web):
         lines.append("")
 
 
+TLS_HEAD = "## TLS checks (testssl.sh)"
+TLS_NOT_CHECKED = ("**Not checked:** these TLS or STARTTLS capable ports were not "
+                   "checked with testssl.sh: {ports}.")
+TLS_FAILED = "_testssl.sh did not complete (status {s}), so this port was not checked._"
+TLS_NOT_TLS = "_testssl.sh reports this port does not speak TLS._"
+TLS_NO_FINDINGS = "_No findings of LOW severity or higher._"
+TLS_NO_CERT = "_No certificate findings._"
+
+# testssl.sh protocol ids and how the report names them.
+PROTOCOL_NAMES = {"SSLv2": "SSLv2", "SSLv3": "SSLv3", "TLS1": "TLS 1.0",
+                  "TLS1_1": "TLS 1.1", "TLS1_2": "TLS 1.2", "TLS1_3": "TLS 1.3"}
+
+
+def _tls_finding_line(f):
+    line = "- [{s}] {i}: {t}".format(s=f.get("severity", ""), i=f.get("id", ""),
+                                    t=f.get("finding", ""))
+    if f.get("cve"):
+        line += " ({c})".format(c=f["cve"])
+    return line
+
+
+def _tls_port_result(lines, result):
+    findings = result.get("findings") or []
+    offered = [PROTOCOL_NAMES[f.get("id")] for f in findings
+               if f.get("id") in PROTOCOL_IDS
+               and str(f.get("finding", "")).lower().startswith("offered")]
+    lines.append("Protocols offered: {p}".format(p=", ".join(offered) or "none reported"))
+    lines.append("")
+    lines.append("Certificate:")
+    cert = [f for f in findings if str(f.get("id", "")).startswith(CERT_PREFIX)]
+    if not cert:
+        lines.append(TLS_NO_CERT)
+    for f in cert:
+        lines.append("- {i}: {t} ({s})".format(i=f.get("id", ""), t=f.get("finding", ""),
+                                               s=f.get("severity", "")))
+    lines.append("")
+    lines.append("Findings, most severe first:")
+    rated = sorted((f for f in findings
+                    if str(f.get("severity", "")).upper() in SEVERITY_ORDER),
+                   key=lambda f: severity_rank(f.get("severity")))
+    if not rated:
+        lines.append(TLS_NO_FINDINGS)
+    for f in rated:
+        lines.append(_tls_finding_line(f))
+
+
+def _tls_section(lines, ports, tls):
+    """Only runs if at least one open port is TLS or STARTTLS capable."""
+    tls_ports = [p for p in ports if is_tls_capable(p)]
+    if not tls_ports:
+        return
+    tls = tls or {}
+    lines.append(TLS_HEAD)
+    lines.append("")
+    not_checked = []
+    for p in tls_ports:
+        label = "{port}/{protocol}".format(port=p.get("port", ""),
+                                           protocol=p.get("protocol") or "tcp")
+        proto = starttls_protocol(p)
+        how = "STARTTLS {s}".format(s=proto) if proto else "direct TLS"
+        # int keys from the agent; str keys if the scan was reloaded from JSON
+        result = tls.get(p.get("port")) or tls.get(str(p.get("port")))
+        if not result:
+            not_checked.append("{l} ({s}, {h})".format(
+                l=label, s=p.get("service") or "unknown", h=how))
+            continue
+        lines.append("**{l}** ({h})".format(l=label, h=how))
+        status = result.get("status")
+        if status == "not-tls":
+            lines.append(TLS_NOT_TLS)
+        elif status != "ok":
+            lines.append(TLS_FAILED.format(s=status or "unknown"))
+        else:
+            _tls_port_result(lines, result)
+        lines.append("")
+    if not_checked:
+        lines.append(TLS_NOT_CHECKED.format(ports=", ".join(not_checked)))
+        lines.append("")
+
+
 SUMMARY_LABEL = "_AI interpretation. The tables below are the verified tool results._"
 SUMMARY_UNAVAILABLE = "Analyst summary unavailable: the model output failed validation."
 SUMMARY_RATE_LIMITED = "Analyst summary unavailable: the model was busy (rate limited)."
@@ -380,6 +463,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         _risky_section(lines, ports)
         _exploits_section(lines, ports)
         _web_section(lines, ports, scan.get("web"))
+        _tls_section(lines, ports, scan.get("tls"))
         all_exploits = [e for p in ports for e in p.get("exploits", [])]
         counts = {k: sum(1 for e in all_exploits if e.get("match") == k)
                   for k in MATCH_WORDING}

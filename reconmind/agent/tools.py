@@ -25,6 +25,11 @@ from reconmind.tools.exploit_lookup import (
 from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
 from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
+from reconmind.tools.testssl_scan import (
+    SEVERITY_ORDER, is_tls_capable, run_testssl, severity_rank, starttls_protocol)
+
+# Severities shown in full in the tls_check observation.
+TLS_OBSERVED_SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM")
 
 # How many titles each port shows in the compact nmap_scan summary. The full
 # list comes from exploit_lookup and is always stored for the report.
@@ -120,6 +125,29 @@ TOOL_SPECS = [
             "required": ["port"],
         },
     },
+    {
+        "name": "tls_check",
+        "description": (
+            "Check the TLS setup of one open port found by nmap_scan, using "
+            "testssl.sh with its default checks. Allowed ports: ports where "
+            "nmap saw an SSL tunnel or a service named https or ssl/something, "
+            "and smtp, ftp, imap, pop3 or postgresql ports, which are checked "
+            "through STARTTLS. Returns counts of LOW, MEDIUM, HIGH and "
+            "CRITICAL findings plus every finding rated MEDIUM or higher, with "
+            "the text, CVE and CWE exactly as testssl.sh reported them. Run "
+            "nmap_scan first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open TLS or STARTTLS capable port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
 ]
 
 
@@ -149,6 +177,7 @@ class ToolBox:
             "nmap_scan": self._nmap_scan,
             "exploit_lookup": self._exploit_lookup,
             "web_fingerprint": self._web_fingerprint,
+            "tls_check": self._tls_check,
         }.get(name)
 
         if handler is None:
@@ -299,6 +328,75 @@ class ToolBox:
             components.append(item)
         observation = {"port": number, "url": result.get("url", ""),
                        "http_status": result.get("http_status"), "components": components}
+        return json.dumps(observation), False
+
+    @staticmethod
+    def _tls_port_label(port):
+        proto = starttls_protocol(port)
+        label = str(port.get("port"))
+        return label + (" (STARTTLS {s})".format(s=proto) if proto else "")
+
+    def _tls_check(self, port):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        tls_ports = [p for p in self.scan.get("ports", []) if is_tls_capable(p)]
+        allowed = ", ".join(self._tls_port_label(p) for p in tls_ports) or "none"
+        try:
+            number = int(port)
+        except (TypeError, ValueError):
+            return self._err("Port must be a number. TLS ports you can check: "
+                             "{a}.".format(a=allowed))
+
+        match = next((p for p in self.scan.get("ports", []) if p.get("port") == number), None)
+        if match is None:
+            return self._err("Port {p} was not found open in the scan. TLS ports you can "
+                             "check: {a}.".format(p=number, a=allowed))
+        if not is_tls_capable(match):
+            return self._err("Port {p} ({s}) is not a TLS or STARTTLS capable service. TLS "
+                             "ports you can check: {a}.".format(
+                                 p=number, s=match.get("service") or "unknown", a=allowed))
+
+        # Scope lock: testssl.sh only ever runs against this run's target, and
+        # run_testssl asks the authorization gate again before it starts.
+        starttls = starttls_protocol(match)
+        result = run_testssl(self.target, number, starttls=starttls)
+        self.scan.setdefault("tls", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "testssl.sh was not run. Do not retry.".format(t=self.target))
+        if status == "testssl-not-found":
+            return self._err("testssl.sh is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status == "not-tls":
+            observation = {"port": number, "starttls": starttls, "status": "not-tls",
+                           "note": "testssl.sh reports this port does not speak TLS."}
+            return json.dumps(observation), False
+        if status != "ok":
+            return self._err("testssl.sh did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        findings = result.get("findings", [])
+        counts = {sev: sum(1 for f in findings if str(f.get("severity", "")).upper() == sev)
+                  for sev in SEVERITY_ORDER}
+        serious = sorted((f for f in findings
+                          if str(f.get("severity", "")).upper() in TLS_OBSERVED_SEVERITIES),
+                         key=lambda f: severity_rank(f.get("severity")))
+        items = []
+        for f in serious:
+            item = {"id": f.get("id", ""), "severity": f.get("severity", ""),
+                    "finding": f.get("finding", "")}
+            if f.get("cve"):
+                item["cve"] = f["cve"]
+            if f.get("cwe"):
+                item["cwe"] = f["cwe"]
+            items.append(item)
+        observation = {"port": number, "starttls": starttls, "severity_counts": counts,
+                       "findings": items}
         return json.dumps(observation), False
 
     # ---- lookup helpers -------------------------------------------------

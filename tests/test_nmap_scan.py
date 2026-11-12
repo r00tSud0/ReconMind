@@ -125,6 +125,63 @@ class IrcInfoTests(unittest.TestCase):
         self.assertIsNone(ports[6667]["version"])
 
 
+CPE_XML = """<?xml version="1.0"?>
+<nmaprun scanner="nmap">
+  <host>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open"/>
+        <service name="ssh" product="OpenSSH" version="4.7p1 Debian 8ubuntu1">
+          <cpe>cpe:/a:openbsd:openssh:4.7p1</cpe>
+          <cpe>cpe:/o:linux:linux_kernel</cpe>
+        </service>
+      </port>
+      <port protocol="tcp" portid="80">
+        <state state="open"/>
+        <service name="http" product="Apache httpd" version="2.2.8">
+          <cpe> cpe:/a:apache:http_server:2.2.8 </cpe>
+          <cpe></cpe>
+        </service>
+      </port>
+      <port protocol="tcp" portid="8180">
+        <state state="open"/>
+        <service name="http"/>
+      </port>
+      <port protocol="tcp" portid="9">
+        <state state="open"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>
+"""
+
+
+class CpeTests(unittest.TestCase):
+
+    def test_cpe_strings_kept_in_order(self):
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(CPE_XML)}
+        self.assertEqual(ports[22]["cpe"], ["cpe:/a:openbsd:openssh:4.7p1",
+                                            "cpe:/o:linux:linux_kernel"])
+
+    def test_cpe_whitespace_trimmed_and_empty_dropped(self):
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(CPE_XML)}
+        self.assertEqual(ports[80]["cpe"], ["cpe:/a:apache:http_server:2.2.8"])
+
+    def test_no_cpe_gives_empty_list(self):
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(CPE_XML)}
+        self.assertEqual(ports[8180]["cpe"], [])
+        self.assertEqual(ports[9]["cpe"], [])
+
+    def test_samba_override_keeps_nmap_cpe(self):
+        xml = SAMPLE_XML.replace(
+            '<service name="netbios-ssn" product="Samba smbd" version="3.X - 4.X"/>',
+            '<service name="netbios-ssn" product="Samba smbd" version="3.X - 4.X">'
+            '<cpe>cpe:/a:samba:samba</cpe></service>')
+        ports = {p["port"]: p for p in nmap_scan._parse_nmap_xml(xml)}
+        self.assertEqual(ports[445]["version"], "3.0.20-Debian")
+        self.assertEqual(ports[445]["cpe"], ["cpe:/a:samba:samba"])
+
+
 TARGET = "10.10.1.100"
 START = 1762250000
 

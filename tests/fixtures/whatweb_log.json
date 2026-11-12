@@ -1,0 +1,4 @@
+[
+{"target":"http://10.10.1.100:80","http_status":200,"request_config":{"headers":{"User-Agent":"WhatWeb/0.5.5"}},"plugins":{"Apache":{"version":["2.2.8"]},"Country":{"string":["RESERVED"],"module":["ZZ"]},"HTML5":{},"HTTPServer":{"os":["Ubuntu Linux"],"string":["Apache/2.2.8 (Ubuntu) DAV/2"]},"IP":{"string":["10.10.1.100"]},"PHP":{"version":["5.2.4-2ubuntu5.10"]},"Script":{},"Title":{"string":["Metasploitable2 - Linux"]},"WebDAV":{"version":["2"]},"X-Powered-By":{"string":["PHP/5.2.4-2ubuntu5.10"]}}},
+{}
+]

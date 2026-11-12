@@ -14,8 +14,9 @@ before it reaches a report:
       that was cut off is caught; the marker is removed from the published text
     - it is valid only if its headings are exactly the four required ones,
       in order, and each section has some text under it
-    - any EDB-ID that is not in the scan results, and any CVE ID (no tool
-      provides CVEs yet), is listed as an unverified reference
+    - any EDB-ID that is not in the scan results, and any CVE ID that no tool
+      reported (NVD results, nuclei findings or testssl.sh findings, compared
+      case insensitively), is listed as an unverified reference
 
 No AI and no I/O here, so every rule can be tested on its own.
 """
@@ -77,17 +78,48 @@ def known_edb_ids(scan):
     return ids
 
 
+def _cve_ids_in(value):
+    """CVE IDs inside one tool value: a string (testssl.sh writes several
+    separated by spaces) or a list of strings (nuclei). Upper case."""
+    values = value if isinstance(value, (list, tuple)) else [value]
+    found = set()
+    for v in values:
+        found.update(m.group(0).upper() for m in _CVE.finditer(normalize_dashes(str(v or ""))))
+    return found
+
+
+def known_cve_ids(scan):
+    """Every CVE ID a tool reported for this scan (NVD, nuclei, testssl.sh), upper case."""
+    scan = scan or {}
+    ids = set()
+    nvd = scan.get("nvd") if isinstance(scan.get("nvd"), dict) else {}
+    for product in nvd.get("products") or []:
+        for cve in product.get("cves") or []:
+            ids.update(_cve_ids_in(cve.get("id")))
+    for tool in ("nuclei", "tls"):
+        results = scan.get(tool) if isinstance(scan.get(tool), dict) else {}
+        for result in results.values():
+            if not isinstance(result, dict):
+                continue
+            for finding in result.get("findings") or []:
+                ids.update(_cve_ids_in(finding.get("cve")))
+    return ids
+
+
 def find_unverified_refs(text, scan):
-    """EDB-IDs not in the scan results and every CVE ID, in order, no repeats."""
+    """EDB-IDs and CVE IDs not in the scan results, in order, no repeats."""
     text = normalize_dashes(text)
     known = known_edb_ids(scan)
+    known_cves = known_cve_ids(scan)
     found = []
     for match in _EDB.finditer(text):
         edb = match.group(1) or match.group(2)
         if edb not in known:
             found.append((match.start(), "EDB-" + edb))
     for match in _CVE.finditer(text):
-        found.append((match.start(), match.group(0).upper()))
+        cve = match.group(0).upper()
+        if cve not in known_cves:
+            found.append((match.start(), cve))
     refs = []
     for _, ref in sorted(found):
         if ref not in refs:

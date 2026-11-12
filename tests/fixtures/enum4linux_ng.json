@@ -1,0 +1,135 @@
+{
+  "target": {
+    "host": "10.10.1.100",
+    "workgroup": ""
+  },
+  "credentials": {
+    "auth_method": "user",
+    "user": "",
+    "password": "",
+    "random_user": "kxwyrzfh"
+  },
+  "services": {
+    "LDAP": {"port": 389, "accessible": false},
+    "LDAPS": {"port": 636, "accessible": false},
+    "SMB": {"port": 445, "accessible": true},
+    "SMB over NetBIOS": {"port": 139, "accessible": true}
+  },
+  "nmblookup": {
+    "METASPLOITABLE": "<00> - H <ACTIVE>",
+    "WORKGROUP": "<00> - <GROUP> H <ACTIVE>"
+  },
+  "workgroup": "WORKGROUP",
+  "smb_dialects": {
+    "Supported dialects": {
+      "SMB 1.0": true,
+      "SMB 2.02": false,
+      "SMB 2.1": false,
+      "SMB 3.0": false,
+      "SMB 3.1.1": false
+    },
+    "Preferred dialect": "SMB 1.0",
+    "SMB1 only": true,
+    "SMB signing required": false
+  },
+  "smb_domain_info": {
+    "NetBIOS computer name": "METASPLOITABLE",
+    "NetBIOS domain name": "WORKGROUP",
+    "DNS domain": "localdomain",
+    "FQDN": "metasploitable.localdomain",
+    "Derived membership": "workgroup member",
+    "Derived domain": "unknown"
+  },
+  "sessions": {
+    "sessions_possible": true,
+    "null": true,
+    "password": false,
+    "kerberos": false,
+    "nthash": false,
+    "random_user": true
+  },
+  "rpc_domain_info": {
+    "Domain": "WORKGROUP",
+    "Domain SID": "NULL SID",
+    "Membership": "workgroup member"
+  },
+  "os_info": {
+    "OS": "Linux/Unix (Samba 3.0.20-Debian)",
+    "OS version": "4.9",
+    "OS release": "",
+    "OS build": "",
+    "Native OS": "Unix",
+    "Native LAN manager": "Samba 3.0.20-Debian",
+    "Platform id": "500",
+    "Server type": "0x9a03",
+    "Server type string": "Wk Sv PrQ Unx NT SNT metasploitable server (Samba 3.0.20-Debian)"
+  },
+  "users": {
+    "1000": {"username": "msfadmin", "name": "msfadmin,,,", "acb": "0x00000010", "description": "msfadmin,,,"},
+    "1001": {"username": "games", "name": "games", "acb": "0x00000011", "description": ""},
+    "1002": {"username": "nobody", "name": "nobody", "acb": "0x00000011"},
+    "1003": {"username": "bind", "name": "(null)", "acb": "0x00000011"},
+    "1004": {"username": "proxy", "name": "proxy", "acb": "0x00000011"},
+    "1005": {"username": "syslog", "name": "(null)", "acb": "0x00000011"},
+    "1006": {"username": "user", "name": "just a user,111,,", "acb": "0x00000010", "description": "just a user,111,,"},
+    "1007": {"username": "www-data", "name": "www-data", "acb": "0x00000011"},
+    "1008": {"username": "root", "name": "root", "acb": "0x00000010", "description": "root"},
+    "1009": {"username": "news", "name": "news", "acb": "0x00000011"},
+    "1010": {"username": "postgres", "name": "PostgreSQL administrator,,,", "acb": "0x00000011", "description": "PostgreSQL administrator,,,"},
+    "1011": {"username": "bin", "name": "bin", "acb": "0x00000011"},
+    "1012": {"username": "mail", "name": "mail", "acb": "0x00000011"},
+    "1013": {"username": "distccd", "name": "(null)", "acb": "0x00000011"},
+    "1014": {"username": "proftpd", "name": "(null)", "acb": "0x00000011"},
+    "1015": {"username": "dhcp", "name": "(null)", "acb": "0x00000011"},
+    "1016": {"username": "daemon", "name": "daemon", "acb": "0x00000011"},
+    "1017": {"username": "sshd", "name": "(null)", "acb": "0x00000011"},
+    "1018": {"username": "man", "name": "man", "acb": "0x00000011"},
+    "1019": {"username": "lp", "name": "lp", "acb": "0x00000011"},
+    "1020": {"username": "mysql", "name": "MySQL Server,,,", "acb": "0x00000011", "description": "MySQL Server,,,"},
+    "1021": {"username": "gnats", "name": "Gnats Bug-Reporting System (admin)", "acb": "0x00000011"},
+    "1022": {"username": "backup", "name": "backup", "acb": "0x00000011"},
+    "1023": {"username": "telnetd", "name": "(null)", "acb": "0x00000011"},
+    "1024": {"username": "tomcat55", "name": "(null)", "acb": "0x00000011"}
+  },
+  "groups": {
+    "544": {"groupname": "Administrators", "type": "builtin"},
+    "545": {"groupname": "Users", "type": "builtin"},
+    "3000": {"groupname": "sambashare", "type": "local"}
+  },
+  "shares": {
+    "print$": {"type": "Disk", "comment": "Printer Drivers", "access": {"mapping": "denied", "listing": "n/a"}},
+    "tmp": {"type": "Disk", "comment": "oh noes!", "access": {"mapping": "ok", "listing": "ok"}},
+    "opt": {"type": "Disk", "comment": "", "access": {"mapping": "denied", "listing": "n/a"}},
+    "IPC$": {"type": "IPC", "comment": "IPC Service (metasploitable server (Samba 3.0.20-Debian))", "access": {"mapping": "ok", "listing": "not supported"}},
+    "ADMIN$": {"type": "IPC", "comment": "IPC Service (metasploitable server (Samba 3.0.20-Debian))", "access": {"mapping": "ok", "listing": "not supported"}}
+  },
+  "policy": {
+    "Domain password information": {
+      "Password history length": null,
+      "Minimum password length": 5,
+      "Maximum password age": "not set",
+      "Password properties": [
+        {"DOMAIN_PASSWORD_COMPLEX": false},
+        {"DOMAIN_PASSWORD_NO_ANON_CHANGE": false},
+        {"DOMAIN_PASSWORD_NO_CLEAR_CHANGE": false},
+        {"DOMAIN_PASSWORD_LOCKOUT_ADMINS": false},
+        {"DOMAIN_PASSWORD_PASSWORD_STORE_CLEARTEXT": false},
+        {"DOMAIN_PASSWORD_REFUSE_PASSWORD_CHANGE": false}
+      ]
+    },
+    "Domain lockout information": {
+      "Lockout observation window": "30 minutes",
+      "Lockout duration": "30 minutes",
+      "Lockout threshold": null
+    },
+    "Domain logoff information": {
+      "Force logoff time": "not set"
+    }
+  },
+  "printers": {},
+  "errors": {
+    "printers": {
+      "enum_printers": ["No printers returned (this is not an error)"]
+    }
+  }
+}

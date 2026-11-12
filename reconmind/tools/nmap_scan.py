@@ -97,7 +97,14 @@ def _parse_nmap_xml(xml_text):
                 "service": (svc.get("name") if svc is not None else "unknown"),
                 "product": (svc.get("product") if svc is not None else ""),
                 "version": (svc.get("version") if svc is not None else ""),
+                # "ssl" when nmap saw the service inside TLS (HTTPS shows as
+                # name="http" tunnel="ssl"). Empty otherwise.
+                "tunnel": (svc.get("tunnel", "") if svc is not None else ""),
                 "reason": state.get("reason", ""),
+                # CPE strings exactly as nmap wrote them (CPE 2.2, e.g.
+                # cpe:/a:apache:http_server:2.2.8). Empty list if none.
+                "cpe": ([c.text.strip() for c in svc.findall("cpe")
+                         if c.text and c.text.strip()] if svc is not None else []),
             }
             # Fill the real UnrealIRCd version in when irc-info found one.
             unreal = _unreal_version(port)

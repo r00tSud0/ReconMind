@@ -18,12 +18,41 @@ does not change.
 """
 
 import json
+import os
 
 from reconmind.tools.nmap_scan import run_nmap
 from reconmind.tools.exploit_lookup import (
     STATUS_FAILED, STATUS_NO_PRODUCT, lookup_port, primary_label, search_exploits)
 from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
+from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
+from reconmind.tools.ffuf_scan import run_ffuf
+from reconmind.tools.nuclei_scan import run_nuclei
+from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
+from reconmind.tools.testssl_scan import (
+    SEVERITY_ORDER, is_tls_capable, run_testssl, severity_rank, starttls_protocol)
+from reconmind.tools.smb_enum import SMB_PORTS, policy_fields, run_enum4linux, smb_ports
+from reconmind.tools import nvd_lookup
+
+# Severities shown in full in the tls_check observation.
+TLS_OBSERVED_SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM")
+
+# How many usernames the smb_enum observation lists. The full list is always
+# stored for the report.
+SMB_USERS_IN_OBSERVATION = 20
+
+# How many paths the web_discover observation lists, sorted by path. The full
+# list is always stored for the report.
+DISCOVERY_RESULTS_IN_OBSERVATION = 40
+
+# Severities counted in the vuln_templates observation, the same ones nuclei
+# is asked to run. Every finding is listed in full.
+NUCLEI_OBSERVED_SEVERITIES = ("critical", "high", "medium", "low")
+
+# How many of the highest CVSS CVEs the cve_lookup observation lists per
+# product. Every CISA KEV CVE is always listed, and the full list is always
+# stored for the report.
+TOP_CVES_IN_OBSERVATION = 5
 
 # How many titles each port shows in the compact nmap_scan summary. The full
 # list comes from exploit_lookup and is always stored for the report.
@@ -97,6 +126,140 @@ TOOL_SPECS = [
             "required": ["port"],
         },
     },
+    {
+        "name": "web_fingerprint",
+        "description": (
+            "Identify the web server technology on one open HTTP or HTTPS port "
+            "found by nmap_scan, using whatweb with one normal request, plus "
+            "any redirects the server sends. Returns "
+            "the URL, the HTTP status and each component whatweb recognized "
+            "(server, language, framework and so on) with the versions and "
+            "strings exactly as whatweb reported them. HTTPS is used "
+            "automatically when nmap saw SSL on the port. Run nmap_scan first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open HTTP or HTTPS port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
+    {
+        "name": "web_discover",
+        "description": (
+            "Discover content on one open HTTP or HTTPS port found by "
+            "nmap_scan, using ffuf with a common paths wordlist. Sends one GET "
+            "request per word at no more than 50 requests per second. No "
+            "parameters, no POST bodies, no credentials and no recursion. "
+            "Returns the URL, the wordlist name and size, the result count and "
+            "the first 40 results sorted by path, each with its HTTP status, "
+            "size and redirect target exactly as ffuf reported them. HTTPS is "
+            "used automatically when nmap saw SSL on the port. Run nmap_scan "
+            "first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open HTTP or HTTPS port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
+    {
+        "name": "vuln_templates",
+        "description": (
+            "Run safe nuclei templates against one open HTTP or HTTPS port "
+            "found by nmap_scan. Only HTTP templates rated low, medium, high "
+            "or critical are used. Denial of service, fuzzing, intrusive, "
+            "default login and brute force templates are excluded, outside "
+            "callbacks (interactsh) are off and templates are never updated "
+            "during the scan. At most 50 requests per second. Returns the URL, "
+            "the templates version, counts by severity and every finding, most "
+            "severe first, with its template id, name, severity, where it "
+            "matched and any CVE IDs, exactly as nuclei reported them. HTTPS is "
+            "used automatically when nmap saw SSL on the port. Run nmap_scan "
+            "first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open HTTP or HTTPS port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
+    {
+        "name": "tls_check",
+        "description": (
+            "Check the TLS setup of one open port found by nmap_scan, using "
+            "testssl.sh with its default checks. Allowed ports: ports where "
+            "nmap saw an SSL tunnel or a service named https or ssl/something, "
+            "and smtp, ftp, imap, pop3 or postgresql ports, which are checked "
+            "through STARTTLS. Returns counts of LOW, MEDIUM, HIGH and "
+            "CRITICAL findings plus every finding rated MEDIUM or higher, with "
+            "the text, CVE and CWE exactly as testssl.sh reported them. Run "
+            "nmap_scan first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open TLS or STARTTLS capable port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
+    {
+        "name": "smb_enum",
+        "description": (
+            "Enumerate SMB on the authorized target with enum4linux-ng, using "
+            "anonymous (null session) checks only. No credentials are used and "
+            "no passwords are guessed. Allowed only after nmap_scan, and only "
+            "when port 139 or 445 is open. Returns whether a null session was "
+            "allowed, the domain or workgroup, OS details, the user count with "
+            "the first 20 usernames, the group count, every share with its "
+            "mapping and listing results, and the password policy, all as "
+            "enum4linux-ng reported them. Takes no inputs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "cve_lookup",
+        "description": (
+            "Look up known CVEs in the NVD database for every product nmap_scan "
+            "found with a versioned CPE (or a versionless CPE plus a port "
+            "version), plus PHP when web_fingerprint reported a PHP version. "
+            "Each CPE is first matched to NVD's official CPE dictionary name. "
+            "Only the CPE strings are sent to NVD, never the "
+            "target or any other scan detail. Returns, per product, the CPE, "
+            "the CVE count by severity, every CVE in the CISA KEV catalog and "
+            "the 5 highest CVSS CVEs with id, score and severity, plus the "
+            "CPEs skipped for having no version. NVD matches the upstream "
+            "version only, so a distribution may already have patched some of "
+            "these. Run nmap_scan first. Takes no inputs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
 ]
 
 
@@ -125,6 +288,12 @@ class ToolBox:
         handler = {
             "nmap_scan": self._nmap_scan,
             "exploit_lookup": self._exploit_lookup,
+            "web_fingerprint": self._web_fingerprint,
+            "web_discover": self._web_discover,
+            "vuln_templates": self._vuln_templates,
+            "tls_check": self._tls_check,
+            "smb_enum": self._smb_enum,
+            "cve_lookup": self._cve_lookup,
         }.get(name)
 
         if handler is None:
@@ -224,6 +393,329 @@ class ToolBox:
             observation["queries_tried"] = self._queries_tried(match)
         observation["total_matches"] = len(exploits)
         observation["exploits"] = exploits
+        return json.dumps(observation), False
+
+    def _web_port(self, port, action):
+        """
+        Shared port rules for the web tools. Return (number, port dict, None)
+        for an open HTTP or HTTPS port from nmap_scan, or (None, None, error)
+        where error is the (observation, is_error) pair to return. action
+        finishes the sentence "Web ports you can ...".
+        """
+        if self.scan.get("status") != "ok":
+            return None, None, self._err("Run nmap_scan first; there are no scan results yet.")
+
+        web_ports = [p for p in self.scan.get("ports", []) if is_web_service(p)]
+        allowed = ", ".join(str(p.get("port")) for p in web_ports) or "none"
+        try:
+            number = int(port)
+        except (TypeError, ValueError):
+            return None, None, self._err("Port must be a number. Web ports you can {v}: "
+                                         "{a}.".format(v=action, a=allowed))
+
+        match = next((p for p in self.scan.get("ports", []) if p.get("port") == number), None)
+        if match is None:
+            return None, None, self._err(
+                "Port {p} was not found open in the scan. Web ports you can "
+                "{v}: {a}.".format(p=number, v=action, a=allowed))
+        if not is_web_service(match):
+            return None, None, self._err(
+                "Port {p} ({s}) is not an HTTP or HTTPS service. Web ports "
+                "you can {v}: {a}.".format(
+                    p=number, s=match.get("service") or "unknown", v=action, a=allowed))
+        return number, match, None
+
+    def _web_fingerprint(self, port):
+        number, match, error = self._web_port(port, "fingerprint")
+        if error:
+            return error
+
+        # Scope lock: whatweb only ever runs against this run's target, and
+        # run_whatweb asks the authorization gate again before it starts.
+        result = run_whatweb(self.target, number, use_https=wants_https(match))
+        self.scan.setdefault("web", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "whatweb was not run. Do not retry.".format(t=self.target))
+        if status == "whatweb-not-found":
+            return self._err("whatweb is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status != "ok":
+            return self._err("whatweb did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        components = []
+        for c in result.get("components", []):
+            item = {"name": c.get("name", "")}
+            if c.get("versions"):
+                item["versions"] = c["versions"]
+            if c.get("strings"):
+                item["strings"] = c["strings"]
+            components.append(item)
+        observation = {"port": number, "url": result.get("url", ""),
+                       "http_status": result.get("http_status"), "components": components}
+        return json.dumps(observation), False
+
+    def _web_discover(self, port):
+        number, match, error = self._web_port(port, "discover content on")
+        if error:
+            return error
+
+        # Scope lock: ffuf only ever runs against this run's target, and
+        # run_ffuf asks the authorization gate again before it starts.
+        result = run_ffuf(self.target, number, use_https=wants_https(match))
+        self.scan.setdefault("discovery", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "ffuf was not run. Do not retry.".format(t=self.target))
+        if status == "ffuf-not-found":
+            return self._err("ffuf is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status == "wordlist-not-found":
+            return self._err("No wordlist was found, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status != "ok":
+            return self._err("ffuf did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        # Compact view only. raw_json, the command and the wordlist hash stay
+        # in self.scan as evidence and are never sent.
+        results = sorted(result.get("results") or [], key=lambda r: str(r.get("path", "")))
+        items = []
+        for r in results[:DISCOVERY_RESULTS_IN_OBSERVATION]:
+            item = {"path": r.get("path", ""), "status": r.get("status"),
+                    "length": r.get("length")}
+            if r.get("redirect"):
+                item["redirect"] = r["redirect"]
+            items.append(item)
+        observation = {"port": number, "url": result.get("url", ""),
+                       "wordlist": os.path.basename(result.get("wordlist") or ""),
+                       "wordlist_lines": result.get("wordlist_lines"),
+                       "result_count": len(results), "results": items}
+        return json.dumps(observation), False
+
+    def _vuln_templates(self, port):
+        number, match, error = self._web_port(port, "run templates against")
+        if error:
+            return error
+
+        # Scope lock: nuclei only ever runs against this run's target, and
+        # run_nuclei asks the authorization gate again before it starts.
+        result = run_nuclei(self.target, number, use_https=wants_https(match))
+        self.scan.setdefault("nuclei", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "nuclei was not run. Do not retry.".format(t=self.target))
+        if status == "nuclei-not-found":
+            return self._err("nuclei is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status == "templates-not-found":
+            return self._err("No nuclei templates are installed, so port {p} was not "
+                             "checked. The operator must run nuclei -update-templates "
+                             "once. Do not retry.".format(p=number))
+        if status != "ok":
+            return self._err("nuclei did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        # Compact view only. raw_jsonl, the command, extracted values, CWE
+        # IDs and tags stay in self.scan as evidence and are never sent.
+        findings = sorted(result.get("findings") or [],
+                          key=lambda f: nuclei_severity_rank(f.get("severity")))
+        counts = {sev: sum(1 for f in findings if str(f.get("severity", "")).lower() == sev)
+                  for sev in NUCLEI_OBSERVED_SEVERITIES}
+        items = [{"template_id": f.get("template_id", ""), "name": f.get("name", ""),
+                  "severity": f.get("severity", ""), "matched_at": f.get("matched_at", ""),
+                  "cve": f.get("cve") or []}
+                 for f in findings]
+        observation = {"port": number, "url": result.get("url", ""),
+                       "templates_version": result.get("templates_version", ""),
+                       "severity_counts": counts, "finding_count": len(findings),
+                       "findings": items}
+        return json.dumps(observation), False
+
+    @staticmethod
+    def _tls_port_label(port):
+        proto = starttls_protocol(port)
+        label = str(port.get("port"))
+        return label + (" (STARTTLS {s})".format(s=proto) if proto else "")
+
+    def _tls_check(self, port):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        tls_ports = [p for p in self.scan.get("ports", []) if is_tls_capable(p)]
+        allowed = ", ".join(self._tls_port_label(p) for p in tls_ports) or "none"
+        try:
+            number = int(port)
+        except (TypeError, ValueError):
+            return self._err("Port must be a number. TLS ports you can check: "
+                             "{a}.".format(a=allowed))
+
+        match = next((p for p in self.scan.get("ports", []) if p.get("port") == number), None)
+        if match is None:
+            return self._err("Port {p} was not found open in the scan. TLS ports you can "
+                             "check: {a}.".format(p=number, a=allowed))
+        if not is_tls_capable(match):
+            return self._err("Port {p} ({s}) is not a TLS or STARTTLS capable service. TLS "
+                             "ports you can check: {a}.".format(
+                                 p=number, s=match.get("service") or "unknown", a=allowed))
+
+        # Scope lock: testssl.sh only ever runs against this run's target, and
+        # run_testssl asks the authorization gate again before it starts.
+        starttls = starttls_protocol(match)
+        result = run_testssl(self.target, number, starttls=starttls)
+        self.scan.setdefault("tls", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "testssl.sh was not run. Do not retry.".format(t=self.target))
+        if status == "testssl-not-found":
+            return self._err("testssl.sh is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status == "not-tls":
+            observation = {"port": number, "starttls": starttls, "status": "not-tls",
+                           "note": "testssl.sh reports this port does not speak TLS."}
+            return json.dumps(observation), False
+        if status != "ok":
+            return self._err("testssl.sh did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        # Findings only. The per cipher rows ("ciphers") and the full JSON
+        # ("raw_json") stay in self.scan as evidence and are never sent.
+        findings = result.get("findings", [])
+        counts = {sev: sum(1 for f in findings if str(f.get("severity", "")).upper() == sev)
+                  for sev in SEVERITY_ORDER}
+        serious = sorted((f for f in findings
+                          if str(f.get("severity", "")).upper() in TLS_OBSERVED_SEVERITIES),
+                         key=lambda f: severity_rank(f.get("severity")))
+        items = []
+        for f in serious:
+            item = {"id": f.get("id", ""), "severity": f.get("severity", ""),
+                    "finding": f.get("finding", "")}
+            if f.get("cve"):
+                item["cve"] = f["cve"]
+            if f.get("cwe"):
+                item["cwe"] = f["cwe"]
+            items.append(item)
+        observation = {"port": number, "starttls": starttls, "severity_counts": counts,
+                       "findings": items}
+        return json.dumps(observation), False
+
+    def _smb_enum(self):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        open_smb = smb_ports(self.scan.get("ports", []))
+        if not open_smb:
+            return self._err(
+                "smb_enum is only allowed when port {a} is open, and nmap_scan "
+                "found neither open. SMB was not enumerated.".format(
+                    a=" or ".join(str(p) for p in SMB_PORTS)))
+
+        # Scope lock: enum4linux-ng only ever runs against this run's target,
+        # and run_enum4linux asks the authorization gate again before it starts.
+        result = run_enum4linux(self.target)
+        self.scan["smb"] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "enum4linux-ng was not run. Do not retry.".format(t=self.target))
+        if status == "enum4linux-ng-not-found":
+            return self._err("enum4linux-ng is not installed, so SMB was not checked. "
+                             "Do not retry.")
+        if status != "ok":
+            return self._err("enum4linux-ng did not complete: status={s}. {e} "
+                             "SMB was not checked.".format(
+                                 s=status, e=result.get("error", "")).replace("  ", " "))
+
+        # Compact view only. raw_json and the command stay in self.scan as
+        # evidence and are never sent.
+        users = result.get("users") or []
+        observation = {
+            "smb_ports": [p.get("port") for p in open_smb],
+            "null_session": result.get("null_session"),
+            "domain": result.get("domain", ""),
+            "os": result.get("os") or {},
+            "user_count": len(users),
+            "usernames": [u.get("username", "") for u in users[:SMB_USERS_IN_OBSERVATION]],
+            "group_count": len(result.get("groups") or []),
+            "shares": [{k: s.get(k, "") for k in ("name", "type", "comment", "mapping",
+                                                  "listing")}
+                       for s in result.get("shares") or []],
+            "password_policy": dict(policy_fields(result.get("policy"))),
+        }
+        return json.dumps(observation), False
+
+    def _cve_lookup(self):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        # Privacy: lookup_targets reads only CPE strings and whatweb's PHP
+        # versions, and only the CPE strings are sent to NVD. self.target is
+        # never passed in.
+        products, skipped = nvd_lookup.lookup_targets(self.scan.get("ports", []),
+                                                      self.scan.get("web"))
+        result = nvd_lookup.run_cve_lookup(products, skipped)
+        self.scan["nvd"] = result
+
+        observation = {"status": result.get("status"),
+                       "skipped": [{"cpe": s.get("cpe", ""), "ports": s.get("ports", []),
+                                    "reason": s.get("reason", "")}
+                                   for s in result.get("skipped", [])]}
+        if result.get("status") == nvd_lookup.STATUS_NO_CPE:
+            observation["note"] = result.get("error", "")
+            return json.dumps(observation), False
+
+        # Compact view only. Descriptions, vectors, CWE IDs and the full CVE
+        # list stay in self.scan for the report.
+        items = []
+        for p in result.get("products", []):
+            item = {"product": p.get("product", ""), "ports": p.get("ports", []),
+                    "cpe": p.get("cpe", ""), "status": p.get("status", "")}
+            if p.get("resolved_from") and p.get("resolved_from") != p.get("cpe"):
+                item["resolved_from"] = p["resolved_from"]
+            if p.get("version_from"):
+                item["version_from"] = p["version_from"]
+            if p.get("status") != nvd_lookup.STATUS_OK:
+                item["error"] = p.get("error", "")
+                item["note"] = "This product was not checked. This does not mean it has no CVEs."
+                items.append(item)
+                continue
+            cves = p.get("cves") or []
+            if not cves:
+                # Never a bare 0: an empty answer is about this exact CPE only.
+                item["note"] = nvd_lookup.NO_RESULTS_NOTE
+                items.append(item)
+                continue
+            item["cve_count"] = len(cves)
+            item["severity_counts"] = nvd_lookup.severity_counts(cves)
+            item["cisa_kev"] = [{"id": c.get("id", ""), "score": c.get("cvss_score"),
+                                 "severity": c.get("cvss_severity", ""),
+                                 "kev_added": c.get("kev_added", "")}
+                                for c in nvd_lookup.by_score(cves) if c.get("kev")]
+            item["top_cvss"] = [{"id": c.get("id", ""), "score": c.get("cvss_score"),
+                                 "severity": c.get("cvss_severity", "")}
+                                for c in nvd_lookup.top_cves(cves, TOP_CVES_IN_OBSERVATION)]
+            items.append(item)
+        observation["products"] = items
+        observation["note"] = nvd_lookup.PATCH_NOTE
         return json.dumps(observation), False
 
     # ---- lookup helpers -------------------------------------------------

@@ -26,6 +26,8 @@ Do not retry or look for a way around it.
 product and returns a compact summary per port (exploit_label, match_count, top 3 \
 titles with EDB-IDs) plus risk flags for services that are dangerous just by being \
 exposed. Call exploit_lookup only when you need the full list for one port.
+- After nmap_scan, call web_fingerprint once for every open HTTP or HTTPS port \
+(any service name containing http, such as http, https, ssl/http or http-proxy).
 - You are doing reconnaissance and analysis only. Do not write exploit code or \
 step by step exploitation commands.
 - Use only facts, exploit titles and EDB-IDs that appear in tool observations. \

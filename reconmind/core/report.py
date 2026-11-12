@@ -12,6 +12,7 @@ from datetime import datetime
 
 from reconmind.tools.exploit_lookup import exploit_url, primary_label
 from reconmind.tools.risky_services import flag_ports
+from reconmind.tools.whatweb_scan import is_web_service
 
 REPORT_DIR = "reports"
 
@@ -208,6 +209,57 @@ def _exploits_section(lines, ports):
         lines.append("")
 
 
+WEB_NOT_CHECKED = ("**Not checked:** these open web ports were not fingerprinted "
+                   "with whatweb: {ports}.")
+WEB_FAILED = "_whatweb did not complete (status {s}), so this port was not checked._"
+WEB_NO_COMPONENTS = "_whatweb recognized no components._"
+
+
+def _web_component_line(component):
+    """One component: its versions first, then its strings, as whatweb gave them."""
+    parts = ["version {v}".format(v=v) for v in component.get("versions") or []]
+    parts += [str(s) for s in component.get("strings") or []]
+    name = component.get("name", "")
+    return "- {n}: {p}".format(n=name, p="; ".join(parts)) if parts else "- {n}".format(n=name)
+
+
+def _web_section(lines, ports, web):
+    """Only runs if at least one open port is an HTTP or HTTPS service."""
+    web_ports = [p for p in ports if is_web_service(p)]
+    if not web_ports:
+        return
+    web = web or {}
+    lines.append("## Web technology (whatweb)")
+    lines.append("")
+    not_checked = []
+    for p in web_ports:
+        label = "{port}/{protocol}".format(port=p.get("port", ""),
+                                           protocol=p.get("protocol") or "tcp")
+        # int keys from the agent; str keys if the scan was reloaded from JSON
+        result = web.get(p.get("port")) or web.get(str(p.get("port")))
+        if not result:
+            not_checked.append("{l} ({s})".format(l=label, s=p.get("service") or "unknown"))
+            continue
+        if result.get("status") != "ok":
+            lines.append("**{l}** {u}".format(l=label, u=result.get("url") or "").strip())
+            lines.append(WEB_FAILED.format(s=result.get("status") or "unknown"))
+            lines.append("")
+            continue
+        http_status = result.get("http_status")
+        lines.append("**{l}** {u} (HTTP status {h})".format(
+            l=label, u=result.get("url", ""),
+            h=http_status if http_status is not None else "unknown"))
+        components = result.get("components") or []
+        if not components:
+            lines.append(WEB_NO_COMPONENTS)
+        for c in components:
+            lines.append(_web_component_line(c))
+        lines.append("")
+    if not_checked:
+        lines.append(WEB_NOT_CHECKED.format(ports=", ".join(not_checked)))
+        lines.append("")
+
+
 SUMMARY_LABEL = "_AI interpretation. The tables below are the verified tool results._"
 SUMMARY_UNAVAILABLE = "Analyst summary unavailable: the model output failed validation."
 SUMMARY_RATE_LIMITED = "Analyst summary unavailable: the model was busy (rate limited)."
@@ -327,6 +379,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         _port_states_section(lines, scan.get("port_states"), unconfirmed)
         _risky_section(lines, ports)
         _exploits_section(lines, ports)
+        _web_section(lines, ports, scan.get("web"))
         all_exploits = [e for p in ports for e in p.get("exploits", [])]
         counts = {k: sum(1 for e in all_exploits if e.get("match") == k)
                   for k in MATCH_WORDING}

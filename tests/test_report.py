@@ -441,5 +441,108 @@ class SummarySectionTests(unittest.TestCase):
         self.assertNotIn(" - ", report)
 
 
+WEB_SCAN = {
+    "target": "10.10.1.100", "status": "ok",
+    "ports": [
+        {"port": 22, "protocol": "tcp", "service": "ssh", "product": "OpenSSH",
+         "version": "4.7p1", "exploits": []},
+        {"port": 80, "protocol": "tcp", "service": "http", "product": "Apache httpd",
+         "version": "2.2.8", "exploits": [
+             exploit("Apache 2.2.8 - Something", "300", "exact_version", "Apache 2.2.8")]},
+        {"port": 443, "protocol": "tcp", "service": "http", "tunnel": "ssl",
+         "product": "Apache httpd", "version": "2.2.8", "exploits": []},
+        {"port": 8180, "protocol": "tcp", "service": "http", "product": "Apache Tomcat",
+         "version": "5.5", "exploits": []},
+    ],
+    "web": {
+        80: {"status": "ok", "url": "http://10.10.1.100:80", "http_status": 200,
+             "command": "whatweb ...",
+             "components": [
+                 {"name": "Apache", "versions": ["2.2.8"], "strings": []},
+                 {"name": "HTTPServer", "versions": [],
+                  "strings": ["Apache/2.2.8 (Ubuntu) DAV/2"]},
+                 {"name": "PHP", "versions": ["5.2.4-2ubuntu5.10"], "strings": []},
+                 {"name": "Title", "versions": [], "strings": ["Metasploitable2 - Linux"]},
+                 {"name": "nginx", "versions": [], "strings": []},
+             ]},
+        443: {"status": "timeout", "url": "https://10.10.1.100:443", "http_status": None,
+              "components": [], "command": "whatweb ...",
+              "error": "whatweb did not finish within 120 seconds."},
+    },
+}
+WEB_HEAD = "## Web technology (whatweb)"
+
+
+class WebReportTests(unittest.TestCase):
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    def test_web_section_lists_components(self):
+        report = read_report(WEB_SCAN)
+        self.assertIn(WEB_HEAD, report)
+        self.assertIn("**80/tcp** http://10.10.1.100:80 (HTTP status 200)", report)
+        self.assertIn("- Apache: version 2.2.8", report)
+        self.assertIn("- HTTPServer: Apache/2.2.8 (Ubuntu) DAV/2", report)
+        self.assertIn("- PHP: version 5.2.4-2ubuntu5.10", report)
+        self.assertIn("- nginx\n", report)
+
+    def test_web_section_after_exploits_before_notes(self):
+        report = read_report(WEB_SCAN)
+        self.assertLess(report.index("## Known exploits"), report.index(WEB_HEAD))
+        self.assertLess(report.index(WEB_HEAD), report.index("## Notes"))
+
+    def test_not_checked_line(self):
+        report = read_report(WEB_SCAN)
+        self.assertIn("**Not checked:** these open web ports were not fingerprinted with "
+                      "whatweb: 8180/tcp (http).", report)
+        section = report.split(WEB_HEAD)[1].split("## Notes")[0]
+        self.assertNotIn("22/tcp", section)  # ssh is not a web port
+
+    def test_failed_run_says_not_checked(self):
+        report = read_report(WEB_SCAN)
+        self.assertIn("**443/tcp** https://10.10.1.100:443", report)
+        self.assertIn("_whatweb did not complete (status timeout), so this port was not "
+                      "checked._", report)
+
+    def test_all_web_ports_not_checked_without_web_results(self):
+        scan = {k: v for k, v in WEB_SCAN.items() if k != "web"}
+        report = read_report(scan)
+        self.assertIn(WEB_HEAD, report)
+        self.assertIn("whatweb: 80/tcp (http), 443/tcp (http), 8180/tcp (http).", report)
+
+    def test_string_port_keys_from_json(self):
+        scan = dict(WEB_SCAN, web={str(k): v for k, v in WEB_SCAN["web"].items()})
+        report = read_report(scan)
+        self.assertIn("**80/tcp** http://10.10.1.100:80 (HTTP status 200)", report)
+        self.assertIn("whatweb: 8180/tcp (http).", report)
+
+    def test_no_section_without_web_ports(self):
+        self.assertNotIn(WEB_HEAD, read_report(SCAN))
+        self.assertNotIn(WEB_HEAD, read_report({"target": "10.10.1.100", "status": "ok",
+                                                "ports": []}))
+
+    def test_web_text_has_no_em_dashes_or_dash_separators(self):
+        report = read_report(WEB_SCAN)
+        report += read_report({k: v for k, v in WEB_SCAN.items() if k != "web"})
+        for p in WEB_SCAN["ports"]:
+            for e in p["exploits"]:
+                report = report.replace(e["title"], "")
+            report = report.replace(p["version"], "")  # nmap data, not our text
+        for result in WEB_SCAN["web"].values():
+            for c in result["components"]:  # whatweb data, not our text
+                for s in c["versions"] + c["strings"]:
+                    report = report.replace(s, "")
+        self.assertIn(WEB_HEAD, report)
+        self.assertNotIn("\u2014", report)
+        self.assertNotIn(" - ", report)
+
+
 if __name__ == "__main__":
     unittest.main()

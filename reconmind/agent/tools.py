@@ -24,6 +24,7 @@ from reconmind.tools.exploit_lookup import (
     STATUS_FAILED, STATUS_NO_PRODUCT, lookup_port, primary_label, search_exploits)
 from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
+from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
 
 # How many titles each port shows in the compact nmap_scan summary. The full
 # list comes from exploit_lookup and is always stored for the report.
@@ -97,6 +98,28 @@ TOOL_SPECS = [
             "required": ["port"],
         },
     },
+    {
+        "name": "web_fingerprint",
+        "description": (
+            "Identify the web server technology on one open HTTP or HTTPS port "
+            "found by nmap_scan, using whatweb with one normal request, plus "
+            "any redirects the server sends. Returns "
+            "the URL, the HTTP status and each component whatweb recognized "
+            "(server, language, framework and so on) with the versions and "
+            "strings exactly as whatweb reported them. HTTPS is used "
+            "automatically when nmap saw SSL on the port. Run nmap_scan first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open HTTP or HTTPS port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
 ]
 
 
@@ -125,6 +148,7 @@ class ToolBox:
         handler = {
             "nmap_scan": self._nmap_scan,
             "exploit_lookup": self._exploit_lookup,
+            "web_fingerprint": self._web_fingerprint,
         }.get(name)
 
         if handler is None:
@@ -224,6 +248,57 @@ class ToolBox:
             observation["queries_tried"] = self._queries_tried(match)
         observation["total_matches"] = len(exploits)
         observation["exploits"] = exploits
+        return json.dumps(observation), False
+
+    def _web_fingerprint(self, port):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        web_ports = [p for p in self.scan.get("ports", []) if is_web_service(p)]
+        allowed = ", ".join(str(p.get("port")) for p in web_ports) or "none"
+        try:
+            number = int(port)
+        except (TypeError, ValueError):
+            return self._err("Port must be a number. Web ports you can fingerprint: "
+                             "{a}.".format(a=allowed))
+
+        match = next((p for p in self.scan.get("ports", []) if p.get("port") == number), None)
+        if match is None:
+            return self._err("Port {p} was not found open in the scan. Web ports you can "
+                             "fingerprint: {a}.".format(p=number, a=allowed))
+        if not is_web_service(match):
+            return self._err("Port {p} ({s}) is not an HTTP or HTTPS service. Web ports "
+                             "you can fingerprint: {a}.".format(
+                                 p=number, s=match.get("service") or "unknown", a=allowed))
+
+        # Scope lock: whatweb only ever runs against this run's target, and
+        # run_whatweb asks the authorization gate again before it starts.
+        result = run_whatweb(self.target, number, use_https=wants_https(match))
+        self.scan.setdefault("web", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "whatweb was not run. Do not retry.".format(t=self.target))
+        if status == "whatweb-not-found":
+            return self._err("whatweb is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status != "ok":
+            return self._err("whatweb did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        components = []
+        for c in result.get("components", []):
+            item = {"name": c.get("name", "")}
+            if c.get("versions"):
+                item["versions"] = c["versions"]
+            if c.get("strings"):
+                item["strings"] = c["strings"]
+            components.append(item)
+        observation = {"port": number, "url": result.get("url", ""),
+                       "http_status": result.get("http_status"), "components": components}
         return json.dumps(observation), False
 
     # ---- lookup helpers -------------------------------------------------

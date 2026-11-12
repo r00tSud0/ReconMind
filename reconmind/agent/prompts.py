@@ -31,6 +31,7 @@ exposed. Call exploit_lookup only when you need the full list for one port.
 - After nmap_scan, call tls_check once for every TLS or STARTTLS capable port it \
 allows: ports where nmap saw an SSL tunnel or a service named https or ssl/something, \
 and smtp, ftp, imap, pop3 or postgresql ports.
+- After nmap_scan, if port 139 or 445 is open, call smb_enum once.
 - You are doing reconnaissance and analysis only. Do not write exploit code or \
 step by step exploitation commands.
 - Use only facts, exploit titles and EDB-IDs that appear in tool observations. \

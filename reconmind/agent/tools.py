@@ -27,9 +27,14 @@ from reconmind.tools.version_normalizer import planned_queries
 from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
 from reconmind.tools.testssl_scan import (
     SEVERITY_ORDER, is_tls_capable, run_testssl, severity_rank, starttls_protocol)
+from reconmind.tools.smb_enum import SMB_PORTS, policy_fields, run_enum4linux, smb_ports
 
 # Severities shown in full in the tls_check observation.
 TLS_OBSERVED_SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM")
+
+# How many usernames the smb_enum observation lists. The full list is always
+# stored for the report.
+SMB_USERS_IN_OBSERVATION = 20
 
 # How many titles each port shows in the compact nmap_scan summary. The full
 # list comes from exploit_lookup and is always stored for the report.
@@ -148,6 +153,24 @@ TOOL_SPECS = [
             "required": ["port"],
         },
     },
+    {
+        "name": "smb_enum",
+        "description": (
+            "Enumerate SMB on the authorized target with enum4linux-ng, using "
+            "anonymous (null session) checks only. No credentials are used and "
+            "no passwords are guessed. Allowed only after nmap_scan, and only "
+            "when port 139 or 445 is open. Returns whether a null session was "
+            "allowed, the domain or workgroup, OS details, the user count with "
+            "the first 20 usernames, the group count, every share with its "
+            "mapping and listing results, and the password policy, all as "
+            "enum4linux-ng reported them. Takes no inputs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
 ]
 
 
@@ -178,6 +201,7 @@ class ToolBox:
             "exploit_lookup": self._exploit_lookup,
             "web_fingerprint": self._web_fingerprint,
             "tls_check": self._tls_check,
+            "smb_enum": self._smb_enum,
         }.get(name)
 
         if handler is None:
@@ -399,6 +423,53 @@ class ToolBox:
             items.append(item)
         observation = {"port": number, "starttls": starttls, "severity_counts": counts,
                        "findings": items}
+        return json.dumps(observation), False
+
+    def _smb_enum(self):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        open_smb = smb_ports(self.scan.get("ports", []))
+        if not open_smb:
+            return self._err(
+                "smb_enum is only allowed when port {a} is open, and nmap_scan "
+                "found neither open. SMB was not enumerated.".format(
+                    a=" or ".join(str(p) for p in SMB_PORTS)))
+
+        # Scope lock: enum4linux-ng only ever runs against this run's target,
+        # and run_enum4linux asks the authorization gate again before it starts.
+        result = run_enum4linux(self.target)
+        self.scan["smb"] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "enum4linux-ng was not run. Do not retry.".format(t=self.target))
+        if status == "enum4linux-ng-not-found":
+            return self._err("enum4linux-ng is not installed, so SMB was not checked. "
+                             "Do not retry.")
+        if status != "ok":
+            return self._err("enum4linux-ng did not complete: status={s}. {e} "
+                             "SMB was not checked.".format(
+                                 s=status, e=result.get("error", "")).replace("  ", " "))
+
+        # Compact view only. raw_json and the command stay in self.scan as
+        # evidence and are never sent.
+        users = result.get("users") or []
+        observation = {
+            "smb_ports": [p.get("port") for p in open_smb],
+            "null_session": result.get("null_session"),
+            "domain": result.get("domain", ""),
+            "os": result.get("os") or {},
+            "user_count": len(users),
+            "usernames": [u.get("username", "") for u in users[:SMB_USERS_IN_OBSERVATION]],
+            "group_count": len(result.get("groups") or []),
+            "shares": [{k: s.get(k, "") for k in ("name", "type", "comment", "mapping",
+                                                  "listing")}
+                       for s in result.get("shares") or []],
+            "password_policy": dict(policy_fields(result.get("policy"))),
+        }
         return json.dumps(observation), False
 
     # ---- lookup helpers -------------------------------------------------

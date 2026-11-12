@@ -12,6 +12,7 @@ from datetime import datetime
 
 from reconmind.tools.exploit_lookup import exploit_url, primary_label
 from reconmind.tools.risky_services import flag_ports
+from reconmind.tools.smb_enum import format_value, os_summary, policy_fields, smb_ports
 from reconmind.tools.testssl_scan import (
     CERT_PREFIX, PROTOCOL_IDS, SEVERITY_ORDER, is_tls_capable, severity_rank,
     starttls_protocol)
@@ -348,6 +349,82 @@ def _tls_section(lines, ports, tls):
         lines.append("")
 
 
+SMB_HEAD = "## SMB enumeration (enum4linux-ng)"
+SMB_NOT_CHECKED = ("**Not checked:** SMB port(s) {ports} are open but SMB was not "
+                   "enumerated with enum4linux-ng.")
+SMB_FAILED = "_enum4linux-ng did not complete (status {s}), so SMB was not checked._"
+SMB_NULL_SESSION = "**Null session allowed:** {v}"
+SMB_DOMAIN = "**Domain or workgroup:** {v}"
+SMB_OS = "**OS:** {v}"
+SMB_USERS = "**Users ({n}):** {v}"
+SMB_NO_SHARES = "_No shares reported._"
+SMB_NO_POLICY = "_No password policy reported._"
+SMB_UNKNOWN = "not reported"
+SMB_ANONYMOUS_NOTE = "_Anonymous (null session) checks only. No credentials were used._"
+
+
+def _null_session_text(value):
+    if value is True:
+        return "yes"
+    if value is False:
+        return "no"
+    return SMB_UNKNOWN
+
+
+def _smb_result(lines, result):
+    users = result.get("users") or []
+    lines.append(SMB_NULL_SESSION.format(v=_null_session_text(result.get("null_session"))))
+    lines.append("")
+    lines.append(SMB_DOMAIN.format(v=result.get("domain") or SMB_UNKNOWN))
+    lines.append("")
+    lines.append(SMB_OS.format(v=os_summary(result.get("os")) or SMB_UNKNOWN))
+    lines.append("")
+    lines.append(SMB_USERS.format(
+        n=len(users), v=", ".join(u.get("username", "") for u in users) or "none"))
+    lines.append("")
+    lines.append("Shares:")
+    lines.append("")
+    shares = result.get("shares") or []
+    if not shares:
+        lines.append(SMB_NO_SHARES)
+    else:
+        lines.append("| Name | Type | Comment | Mapping | Listing |")
+        lines.append("|------|------|---------|---------|---------|")
+        for s in shares:
+            lines.append("| {n} | {t} | {c} | {m} | {l} |".format(
+                n=_cell(s.get("name")), t=_cell(s.get("type")), c=_cell(s.get("comment")),
+                m=_cell(s.get("mapping")), l=_cell(s.get("listing"))))
+    lines.append("")
+    lines.append("Password policy:")
+    fields = policy_fields(result.get("policy"))
+    if not fields:
+        lines.append(SMB_NO_POLICY)
+    for field, value in fields:
+        lines.append("- {f}: {v}".format(f=field, v=format_value(value)))
+    lines.append("")
+    # raw_json is evidence only and is never printed.
+    lines.append(SMB_ANONYMOUS_NOTE)
+
+
+def _smb_section(lines, ports, smb):
+    """Only runs if port 139 or 445 is open."""
+    open_smb = smb_ports(ports)
+    if not open_smb:
+        return
+    lines.append(SMB_HEAD)
+    lines.append("")
+    labels = ", ".join("{port}/{protocol}".format(port=p.get("port", ""),
+                                                 protocol=p.get("protocol") or "tcp")
+                       for p in open_smb)
+    if not smb:
+        lines.append(SMB_NOT_CHECKED.format(ports=labels))
+    elif smb.get("status") != "ok":
+        lines.append(SMB_FAILED.format(s=smb.get("status") or "unknown"))
+    else:
+        _smb_result(lines, smb)
+    lines.append("")
+
+
 SUMMARY_LABEL = "_AI interpretation. The tables below are the verified tool results._"
 SUMMARY_UNAVAILABLE = "Analyst summary unavailable: the model output failed validation."
 SUMMARY_RATE_LIMITED = "Analyst summary unavailable: the model was busy (rate limited)."
@@ -469,6 +546,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         _exploits_section(lines, ports)
         _web_section(lines, ports, scan.get("web"))
         _tls_section(lines, ports, scan.get("tls"))
+        _smb_section(lines, ports, scan.get("smb"))
         all_exploits = [e for p in ports for e in p.get("exploits", [])]
         counts = {k: sum(1 for e in all_exploits if e.get("match") == k)
                   for k in MATCH_WORDING}

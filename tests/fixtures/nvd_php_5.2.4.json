@@ -1,0 +1,170 @@
+{
+  "resultsPerPage": 3,
+  "startIndex": 0,
+  "totalResults": 3,
+  "format": "NVD_CVE",
+  "version": "2.0",
+  "timestamp": "2026-11-12T15:04:11.873",
+  "vulnerabilities": [
+    {
+      "cve": {
+        "id": "CVE-2012-1823",
+        "sourceIdentifier": "secalert@redhat.com",
+        "published": "2012-05-11T10:15:05.110",
+        "lastModified": "2025-04-11T00:51:21.963",
+        "vulnStatus": "Analyzed",
+        "cisaExploitAdd": "2022-03-25",
+        "cisaActionDue": "2022-04-15",
+        "cisaRequiredAction": "Apply updates per vendor instructions.",
+        "cisaVulnerabilityName": "PHP-CGI Query String Parameter Vulnerability",
+        "descriptions": [
+          {"lang": "es", "value": "sapi/cgi/cgi_main.c en PHP anterior a v5.3.12 y v5.4.x anterior a v5.4.2, cuando se configura como script CGI, no maneja correctamente las cadenas de consulta."},
+          {"lang": "en", "value": "sapi/cgi/cgi_main.c in PHP before 5.3.12 and 5.4.x before 5.4.2, when configured as a CGI script (aka php-cgi), does not properly handle query strings that lack an = (equals sign) character, which allows remote attackers to execute arbitrary code by placing command-line options in the query string, related to lack of skipping a certain php_getopt for the 'd' case."}
+        ],
+        "metrics": {
+          "cvssMetricV31": [
+            {
+              "source": "nvd@nist.gov",
+              "type": "Primary",
+              "cvssData": {
+                "version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "baseScore": 9.8,
+                "baseSeverity": "CRITICAL",
+                "attackVector": "NETWORK",
+                "attackComplexity": "LOW",
+                "privilegesRequired": "NONE",
+                "userInteraction": "NONE",
+                "scope": "UNCHANGED",
+                "confidentialityImpact": "HIGH",
+                "integrityImpact": "HIGH",
+                "availabilityImpact": "HIGH"
+              },
+              "exploitabilityScore": 3.9,
+              "impactScore": 5.9
+            }
+          ],
+          "cvssMetricV2": [
+            {
+              "source": "nvd@nist.gov",
+              "type": "Primary",
+              "cvssData": {
+                "version": "2.0",
+                "vectorString": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+                "baseScore": 7.5,
+                "accessVector": "NETWORK",
+                "accessComplexity": "LOW",
+                "authentication": "NONE",
+                "confidentialityImpact": "PARTIAL",
+                "integrityImpact": "PARTIAL",
+                "availabilityImpact": "PARTIAL"
+              },
+              "baseSeverity": "HIGH",
+              "exploitabilityScore": 10.0,
+              "impactScore": 6.4,
+              "acInsufInfo": false,
+              "obtainAllPrivilege": false,
+              "obtainUserPrivilege": false,
+              "obtainOtherPrivilege": false,
+              "userInteractionRequired": false
+            }
+          ]
+        },
+        "weaknesses": [
+          {"source": "nvd@nist.gov", "type": "Primary",
+           "description": [{"lang": "en", "value": "CWE-20"}]}
+        ],
+        "configurations": [
+          {"nodes": [{"operator": "OR", "negate": false, "cpeMatch": [
+            {"vulnerable": true, "criteria": "cpe:2.3:a:php:php:*:*:*:*:*:*:*:*",
+             "versionEndExcluding": "5.3.12", "matchCriteriaId": "6D1A9D5B-4AE5-4A1A-A0C3-1F1E1C3E7E01"}
+          ]}]}
+        ],
+        "references": [
+          {"url": "http://www.php.net/ChangeLog-5.php#5.4.2", "source": "secalert@redhat.com",
+           "tags": ["Release Notes"]}
+        ]
+      }
+    },
+    {
+      "cve": {
+        "id": "CVE-2016-7478",
+        "sourceIdentifier": "cve@mitre.org",
+        "published": "2017-01-11T06:59:00.170",
+        "lastModified": "2024-11-21T02:58:03.170",
+        "vulnStatus": "Modified",
+        "descriptions": [
+          {"lang": "en", "value": "Zend/zend_exceptions.c in PHP, possibly 5.x before 5.6.28 and 7.x before 7.0.13, allows remote attackers to cause a denial of service (infinite loop) via a crafted Exception object in serialized data, a related issue to CVE-2015-8876."}
+        ],
+        "metrics": {
+          "cvssMetricV30": [
+            {
+              "source": "cve@mitre.org",
+              "type": "Secondary",
+              "cvssData": {
+                "version": "3.0",
+                "vectorString": "CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "baseScore": 5.9,
+                "baseSeverity": "MEDIUM"
+              },
+              "exploitabilityScore": 2.2,
+              "impactScore": 3.6
+            },
+            {
+              "source": "nvd@nist.gov",
+              "type": "Primary",
+              "cvssData": {
+                "version": "3.0",
+                "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "baseScore": 7.5,
+                "baseSeverity": "HIGH"
+              },
+              "exploitabilityScore": 3.9,
+              "impactScore": 3.6
+            }
+          ]
+        },
+        "weaknesses": [
+          {"source": "nvd@nist.gov", "type": "Primary",
+           "description": [{"lang": "en", "value": "CWE-502"}, {"lang": "en", "value": "CWE-835"}]},
+          {"source": "cve@mitre.org", "type": "Secondary",
+           "description": [{"lang": "en", "value": "CWE-835"}]}
+        ],
+        "references": []
+      }
+    },
+    {
+      "cve": {
+        "id": "CVE-2008-2050",
+        "sourceIdentifier": "cve@mitre.org",
+        "published": "2008-05-05T17:20:00.000",
+        "lastModified": "2025-04-09T00:30:58.490",
+        "vulnStatus": "Deferred",
+        "descriptions": [
+          {"lang": "en", "value": "Stack-based buffer overflow in the FastCGI SAPI (fastcgi.c) in PHP before 5.2.6 has unknown impact and attack vectors."}
+        ],
+        "metrics": {
+          "cvssMetricV2": [
+            {
+              "source": "nvd@nist.gov",
+              "type": "Primary",
+              "cvssData": {
+                "version": "2.0",
+                "vectorString": "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+                "baseScore": 10.0
+              },
+              "baseSeverity": "HIGH",
+              "exploitabilityScore": 10.0,
+              "impactScore": 10.0
+            }
+          ]
+        },
+        "weaknesses": [
+          {"source": "nvd@nist.gov", "type": "Primary",
+           "description": [{"lang": "en", "value": "NVD-CWE-Other"}]}
+        ],
+        "references": []
+      }
+    }
+  ]
+}

@@ -32,6 +32,7 @@ from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
 from reconmind.tools.testssl_scan import (
     SEVERITY_ORDER, is_tls_capable, run_testssl, severity_rank, starttls_protocol)
 from reconmind.tools.smb_enum import SMB_PORTS, policy_fields, run_enum4linux, smb_ports
+from reconmind.tools import nvd_lookup
 
 # Severities shown in full in the tls_check observation.
 TLS_OBSERVED_SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM")
@@ -47,6 +48,11 @@ DISCOVERY_RESULTS_IN_OBSERVATION = 40
 # Severities counted in the vuln_templates observation, the same ones nuclei
 # is asked to run. Every finding is listed in full.
 NUCLEI_OBSERVED_SEVERITIES = ("critical", "high", "medium", "low")
+
+# How many of the highest CVSS CVEs the cve_lookup observation lists per
+# product. Every CISA KEV CVE is always listed, and the full list is always
+# stored for the report.
+TOP_CVES_IN_OBSERVATION = 5
 
 # How many titles each port shows in the compact nmap_scan summary. The full
 # list comes from exploit_lookup and is always stored for the report.
@@ -233,6 +239,25 @@ TOOL_SPECS = [
             "required": [],
         },
     },
+    {
+        "name": "cve_lookup",
+        "description": (
+            "Look up known CVEs in the NVD database for every product nmap_scan "
+            "found with a versioned CPE, plus PHP when web_fingerprint reported "
+            "a PHP version. Only the CPE strings are sent to NVD, never the "
+            "target or any other scan detail. Returns, per product, the CPE, "
+            "the CVE count by severity, every CVE in the CISA KEV catalog and "
+            "the 5 highest CVSS CVEs with id, score and severity, plus the "
+            "CPEs skipped for having no version. NVD matches the upstream "
+            "version only, so a distribution may already have patched some of "
+            "these. Run nmap_scan first. Takes no inputs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
 ]
 
 
@@ -266,6 +291,7 @@ class ToolBox:
             "vuln_templates": self._vuln_templates,
             "tls_check": self._tls_check,
             "smb_enum": self._smb_enum,
+            "cve_lookup": self._cve_lookup,
         }.get(name)
 
         if handler is None:
@@ -633,6 +659,57 @@ class ToolBox:
                        for s in result.get("shares") or []],
             "password_policy": dict(policy_fields(result.get("policy"))),
         }
+        return json.dumps(observation), False
+
+    def _cve_lookup(self):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        # Privacy: lookup_targets reads only CPE strings and whatweb's PHP
+        # versions, and only the CPE strings are sent to NVD. self.target is
+        # never passed in.
+        products, skipped = nvd_lookup.lookup_targets(self.scan.get("ports", []),
+                                                      self.scan.get("web"))
+        result = nvd_lookup.run_cve_lookup(products, skipped)
+        self.scan["nvd"] = result
+
+        observation = {"status": result.get("status"),
+                       "skipped": [{"cpe": s.get("cpe", ""), "ports": s.get("ports", []),
+                                    "reason": s.get("reason", "")}
+                                   for s in result.get("skipped", [])]}
+        if result.get("status") == nvd_lookup.STATUS_NO_CPE:
+            observation["note"] = result.get("error", "")
+            return json.dumps(observation), False
+
+        # Compact view only. Descriptions, vectors, CWE IDs and the full CVE
+        # list stay in self.scan for the report.
+        items = []
+        for p in result.get("products", []):
+            item = {"product": p.get("product", ""), "ports": p.get("ports", []),
+                    "cpe": p.get("cpe", ""), "status": p.get("status", "")}
+            if p.get("status") != nvd_lookup.STATUS_OK:
+                item["error"] = p.get("error", "")
+                item["note"] = "This product was not checked. This does not mean it has no CVEs."
+                items.append(item)
+                continue
+            cves = p.get("cves") or []
+            if not cves:
+                # Never a bare 0: an empty answer is about this exact CPE only.
+                item["note"] = nvd_lookup.NO_RESULTS_NOTE
+                items.append(item)
+                continue
+            item["cve_count"] = len(cves)
+            item["severity_counts"] = nvd_lookup.severity_counts(cves)
+            item["cisa_kev"] = [{"id": c.get("id", ""), "score": c.get("cvss_score"),
+                                 "severity": c.get("cvss_severity", ""),
+                                 "kev_added": c.get("kev_added", "")}
+                                for c in nvd_lookup.by_score(cves) if c.get("kev")]
+            item["top_cvss"] = [{"id": c.get("id", ""), "score": c.get("cvss_score"),
+                                 "severity": c.get("cvss_severity", "")}
+                                for c in nvd_lookup.top_cves(cves, TOP_CVES_IN_OBSERVATION)]
+            items.append(item)
+        observation["products"] = items
+        observation["note"] = nvd_lookup.PATCH_NOTE
         return json.dumps(observation), False
 
     # ---- lookup helpers -------------------------------------------------

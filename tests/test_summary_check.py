@@ -8,7 +8,7 @@ import unittest
 
 from reconmind.core.summary_check import (
     END_MARKER, REQUIRED_HEADINGS, check_summary, clean_published, find_unverified_refs,
-    normalize_dashes, strip_preamble)
+    known_cve_ids, normalize_dashes, strip_preamble)
 
 SCAN = {
     "target": "10.10.1.100", "status": "ok",
@@ -109,9 +109,37 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(find_unverified_refs(text, SCAN),
                          ["EDB-99999", "EDB-11111", "EDB-22222", "EDB-33333"])
 
-    def test_every_cve_is_flagged(self):
+    def test_cve_no_tool_reported_is_flagged(self):
         self.assertEqual(find_unverified_refs("cve-2011-2523 and CVE-2007-2447", SCAN),
                          ["CVE-2011-2523", "CVE-2007-2447"])
+
+    def test_tool_reported_cves_are_verified(self):
+        scan = dict(SCAN)
+        scan["nvd"] = {"status": "ok", "products": [
+            {"cpe": "cpe:2.3:a:php:php:5.2.4:*:*:*:*:*:*:*", "status": "ok",
+             "cves": [{"id": "CVE-2012-1823"}, {"id": "CVE-2008-2050"}]}]}
+        scan["nuclei"] = {80: {"status": "ok", "findings": [{"cve": ["cve-2009-1151"]}]}}
+        scan["tls"] = {"443": {"status": "ok", "findings": [
+            {"id": "SWEET32", "cve": "CVE-2016-2183 CVE-2016-6329"}, {"id": "x", "cve": ""}]}}
+        text = ("CVE-2012-1823, cve-2008-2050, CVE-2009-1151, CVE-2016-6329, "
+                "CVE-2016-2183 and CVE-2099-0001")
+        self.assertEqual(find_unverified_refs(text, scan), ["CVE-2099-0001"])
+
+    def test_known_cve_ids_collects_all_tools_upper_case(self):
+        scan = {"nvd": {"products": [{"cves": [{"id": "CVE-2012-1823"}]}]},
+                "nuclei": {"80": {"findings": [{"cve": ["cve-2009-1151"]}, {"cve": None}]}},
+                "tls": {443: {"findings": [{"cve": "CVE-2014-3566"}]}}}
+        self.assertEqual(known_cve_ids(scan),
+                         {"CVE-2012-1823", "CVE-2009-1151", "CVE-2014-3566"})
+
+    def test_known_cve_ids_without_tool_results(self):
+        self.assertEqual(known_cve_ids(SCAN), set())
+        self.assertEqual(known_cve_ids(None), set())
+
+    def test_failed_nvd_product_adds_nothing(self):
+        scan = dict(SCAN, nvd={"status": "ok", "products": [
+            {"status": "rate-limited", "cves": []}]})
+        self.assertEqual(find_unverified_refs("CVE-2012-1823", scan), ["CVE-2012-1823"])
 
     def test_refs_do_not_make_a_summary_invalid(self):
         result = check_summary(VALID.replace("EDB-49757", "EDB-1 CVE-2011-2523"), SCAN)

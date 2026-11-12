@@ -12,6 +12,7 @@ from datetime import datetime
 
 from reconmind.tools.exploit_lookup import exploit_url, primary_label
 from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
+from reconmind.tools.nvd_lookup import NO_RESULTS_NOTE, PATCH_NOTE, by_score, severity_counts
 from reconmind.tools.risky_services import flag_ports
 from reconmind.tools.smb_enum import format_value, os_summary, policy_fields, smb_ports
 from reconmind.tools.testssl_scan import (
@@ -211,6 +212,146 @@ def _exploits_section(lines, ports):
             lines.append(line)
         if len(exploits) > 5:
             lines.append("- ...and {n} more".format(n=len(exploits) - 5))
+        lines.append("")
+
+
+CVE_HEAD = "## Known CVEs (NVD)"
+CVE_NOT_CHECKED = ("**Not checked:** open ports carry CPEs, but cve_lookup did not run, "
+                   "so no CVEs were looked up.")
+CVE_NO_CPE = "_No open port has a CPE with a version, so nothing was looked up._"
+CVE_FAILED = ("_NVD lookup failed (status {s}), so this product was not checked. This "
+              "does not mean it has no CVEs._")
+CVE_NONE = "_{n}_".format(n=NO_RESULTS_NOTE)
+CVE_SKIPPED = "**Skipped, no version:** {items}."
+CVE_MORE = "...and {n} more stored in the scan data."
+CVE_CONFIRMED = "confirmed live by nuclei"
+CVE_SHOWN = 10
+CVE_DESCRIPTION_CHARS = 160
+
+
+def _nuclei_cve_ids(nuclei):
+    """Every CVE ID nuclei reported for this target, upper case."""
+    found = set()
+    for result in (nuclei or {}).values():
+        if not isinstance(result, dict) or result.get("status") != "ok":
+            continue
+        for f in result.get("findings") or []:
+            for cve in f.get("cve") or []:
+                if cve:
+                    found.add(str(cve).strip().upper())
+    return found
+
+
+def _ordered_cves(cves, confirmed):
+    """Confirmed by nuclei first, then CISA KEV, then the rest; each by CVSS score."""
+    ranked = by_score(cves)
+    first = [c for c in ranked if str(c.get("id", "")).upper() in confirmed]
+    taken = {id(c) for c in first}
+    kev = [c for c in ranked if id(c) not in taken and c.get("kev")]
+    taken.update(id(c) for c in kev)
+    return first + kev + [c for c in ranked if id(c) not in taken]
+
+
+def _short(text):
+    text = " ".join(str(text or "").split())
+    if len(text) <= CVE_DESCRIPTION_CHARS:
+        return text
+    cut = text[:CVE_DESCRIPTION_CHARS]
+    if " " in cut:
+        cut = cut[:cut.rindex(" ")]
+    return cut + "..."
+
+
+def _cve_line(cve, confirmed):
+    cve_id = cve.get("id", "")
+    line = "- {i}".format(i=cve_id)
+    if str(cve_id).upper() in confirmed:
+        line += " ({c})".format(c=CVE_CONFIRMED)
+    score = cve.get("cvss_score")
+    if score is None:
+        line += ": no CVSS score"
+    else:
+        line += ": CVSS {s} {v} ({k})".format(s=score, v=cve.get("cvss_severity", ""),
+                                             k=cve.get("cvss_version", ""))
+    if cve.get("kev"):
+        line += ", CISA KEV yes (added {d})".format(d=cve.get("kev_added", ""))
+    else:
+        line += ", CISA KEV no"
+    description = _short(cve.get("description"))
+    if description:
+        line += ". " + description
+    return line
+
+
+def _cve_counts_line(cves):
+    counts = severity_counts(cves)
+    parts = ["{s} {n}".format(s=s, n=counts[s]) for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")]
+    if counts["NONE"]:
+        parts.append("NONE {n}".format(n=counts["NONE"]))
+    if counts["UNSCORED"]:
+        parts.append("no score {n}".format(n=counts["UNSCORED"]))
+    return "By severity: {p} ({t} total)".format(p=", ".join(parts), t=len(cves))
+
+
+def _cve_product(lines, product, confirmed):
+    ports = ", ".join(product.get("ports") or [])
+    lines.append("**{p}**{o}".format(p=product.get("product") or product.get("cpe", ""),
+                                      o=" ({x})".format(x=ports) if ports else ""))
+    lines.append("")
+    lines.append("CPE: `{c}`".format(c=product.get("cpe", "")))
+    lines.append("")
+    if product.get("status") != "ok":
+        lines.append(CVE_FAILED.format(s=product.get("status") or "unknown"))
+        lines.append("")
+        return
+    lines.append("NVD data fetched: {f}{c}".format(
+        f=product.get("fetched_at") or "unknown",
+        c=" (from cache)" if product.get("from_cache") else ""))
+    lines.append("")
+    cves = product.get("cves") or []
+    if not cves:
+        lines.append(CVE_NONE)
+        lines.append("")
+        return
+    lines.append(_cve_counts_line(cves))
+    lines.append("")
+    ordered = _ordered_cves(cves, confirmed)
+    for cve in ordered[:CVE_SHOWN]:
+        lines.append(_cve_line(cve, confirmed))
+    if len(ordered) > CVE_SHOWN:
+        lines.append(CVE_MORE.format(n=len(ordered) - CVE_SHOWN))
+    lines.append("")
+
+
+def _cve_section(lines, ports, nvd, nuclei):
+    """Runs when cve_lookup ran, or when open ports carry CPEs it never looked up."""
+    if not nvd:
+        if any(p.get("cpe") for p in ports):
+            lines.append(CVE_HEAD)
+            lines.append("")
+            lines.append(CVE_NOT_CHECKED)
+            lines.append("")
+        return
+    lines.append(CVE_HEAD)
+    lines.append("")
+    lines.append(PATCH_NOTE)
+    lines.append("")
+    if nvd.get("status") != "ok":
+        lines.append(CVE_NO_CPE if nvd.get("status") == "no-cpe"
+                     else CVE_FAILED.format(s=nvd.get("status") or "unknown"))
+        lines.append("")
+    confirmed = _nuclei_cve_ids(nuclei)
+    for product in nvd.get("products") or []:
+        _cve_product(lines, product, confirmed)
+    skipped = nvd.get("skipped") or []
+    if skipped:
+        items = []
+        for s in skipped:
+            where = ", ".join(s.get("ports") or [])
+            items.append("{c}{w} ({r})".format(c=s.get("cpe", ""),
+                                                w=" on " + where if where else "",
+                                                r=s.get("reason", "")))
+        lines.append(CVE_SKIPPED.format(items="; ".join(items)))
         lines.append("")
 
 
@@ -663,6 +804,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         _port_states_section(lines, scan.get("port_states"), unconfirmed)
         _risky_section(lines, ports)
         _exploits_section(lines, ports)
+        _cve_section(lines, ports, scan.get("nvd"), scan.get("nuclei"))
         _web_section(lines, ports, scan.get("web"))
         _discovery_section(lines, ports, scan.get("discovery"))
         _nuclei_section(lines, ports, scan.get("nuclei"))

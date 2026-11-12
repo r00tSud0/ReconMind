@@ -18,6 +18,7 @@ does not change.
 """
 
 import json
+import os
 
 from reconmind.tools.nmap_scan import run_nmap
 from reconmind.tools.exploit_lookup import (
@@ -25,6 +26,7 @@ from reconmind.tools.exploit_lookup import (
 from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
 from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
+from reconmind.tools.ffuf_scan import run_ffuf
 from reconmind.tools.testssl_scan import (
     SEVERITY_ORDER, is_tls_capable, run_testssl, severity_rank, starttls_protocol)
 from reconmind.tools.smb_enum import SMB_PORTS, policy_fields, run_enum4linux, smb_ports
@@ -35,6 +37,10 @@ TLS_OBSERVED_SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM")
 # How many usernames the smb_enum observation lists. The full list is always
 # stored for the report.
 SMB_USERS_IN_OBSERVATION = 20
+
+# How many paths the web_discover observation lists, sorted by path. The full
+# list is always stored for the report.
+DISCOVERY_RESULTS_IN_OBSERVATION = 40
 
 # How many titles each port shows in the compact nmap_scan summary. The full
 # list comes from exploit_lookup and is always stored for the report.
@@ -131,6 +137,30 @@ TOOL_SPECS = [
         },
     },
     {
+        "name": "web_discover",
+        "description": (
+            "Discover content on one open HTTP or HTTPS port found by "
+            "nmap_scan, using ffuf with a common paths wordlist. Sends one GET "
+            "request per word at no more than 50 requests per second. No "
+            "parameters, no POST bodies, no credentials and no recursion. "
+            "Returns the URL, the wordlist name and size, the result count and "
+            "the first 40 results sorted by path, each with its HTTP status, "
+            "size and redirect target exactly as ffuf reported them. HTTPS is "
+            "used automatically when nmap saw SSL on the port. Run nmap_scan "
+            "first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open HTTP or HTTPS port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
+    {
         "name": "tls_check",
         "description": (
             "Check the TLS setup of one open port found by nmap_scan, using "
@@ -200,6 +230,7 @@ class ToolBox:
             "nmap_scan": self._nmap_scan,
             "exploit_lookup": self._exploit_lookup,
             "web_fingerprint": self._web_fingerprint,
+            "web_discover": self._web_discover,
             "tls_check": self._tls_check,
             "smb_enum": self._smb_enum,
         }.get(name)
@@ -303,26 +334,40 @@ class ToolBox:
         observation["exploits"] = exploits
         return json.dumps(observation), False
 
-    def _web_fingerprint(self, port):
+    def _web_port(self, port, action):
+        """
+        Shared port rules for the web tools. Return (number, port dict, None)
+        for an open HTTP or HTTPS port from nmap_scan, or (None, None, error)
+        where error is the (observation, is_error) pair to return. action
+        finishes the sentence "Web ports you can ...".
+        """
         if self.scan.get("status") != "ok":
-            return self._err("Run nmap_scan first; there are no scan results yet.")
+            return None, None, self._err("Run nmap_scan first; there are no scan results yet.")
 
         web_ports = [p for p in self.scan.get("ports", []) if is_web_service(p)]
         allowed = ", ".join(str(p.get("port")) for p in web_ports) or "none"
         try:
             number = int(port)
         except (TypeError, ValueError):
-            return self._err("Port must be a number. Web ports you can fingerprint: "
-                             "{a}.".format(a=allowed))
+            return None, None, self._err("Port must be a number. Web ports you can {v}: "
+                                         "{a}.".format(v=action, a=allowed))
 
         match = next((p for p in self.scan.get("ports", []) if p.get("port") == number), None)
         if match is None:
-            return self._err("Port {p} was not found open in the scan. Web ports you can "
-                             "fingerprint: {a}.".format(p=number, a=allowed))
+            return None, None, self._err(
+                "Port {p} was not found open in the scan. Web ports you can "
+                "{v}: {a}.".format(p=number, v=action, a=allowed))
         if not is_web_service(match):
-            return self._err("Port {p} ({s}) is not an HTTP or HTTPS service. Web ports "
-                             "you can fingerprint: {a}.".format(
-                                 p=number, s=match.get("service") or "unknown", a=allowed))
+            return None, None, self._err(
+                "Port {p} ({s}) is not an HTTP or HTTPS service. Web ports "
+                "you can {v}: {a}.".format(
+                    p=number, s=match.get("service") or "unknown", v=action, a=allowed))
+        return number, match, None
+
+    def _web_fingerprint(self, port):
+        number, match, error = self._web_port(port, "fingerprint")
+        if error:
+            return error
 
         # Scope lock: whatweb only ever runs against this run's target, and
         # run_whatweb asks the authorization gate again before it starts.
@@ -352,6 +397,48 @@ class ToolBox:
             components.append(item)
         observation = {"port": number, "url": result.get("url", ""),
                        "http_status": result.get("http_status"), "components": components}
+        return json.dumps(observation), False
+
+    def _web_discover(self, port):
+        number, match, error = self._web_port(port, "discover content on")
+        if error:
+            return error
+
+        # Scope lock: ffuf only ever runs against this run's target, and
+        # run_ffuf asks the authorization gate again before it starts.
+        result = run_ffuf(self.target, number, use_https=wants_https(match))
+        self.scan.setdefault("discovery", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "ffuf was not run. Do not retry.".format(t=self.target))
+        if status == "ffuf-not-found":
+            return self._err("ffuf is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status == "wordlist-not-found":
+            return self._err("No wordlist was found, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status != "ok":
+            return self._err("ffuf did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        # Compact view only. raw_json, the command and the wordlist hash stay
+        # in self.scan as evidence and are never sent.
+        results = sorted(result.get("results") or [], key=lambda r: str(r.get("path", "")))
+        items = []
+        for r in results[:DISCOVERY_RESULTS_IN_OBSERVATION]:
+            item = {"path": r.get("path", ""), "status": r.get("status"),
+                    "length": r.get("length")}
+            if r.get("redirect"):
+                item["redirect"] = r["redirect"]
+            items.append(item)
+        observation = {"port": number, "url": result.get("url", ""),
+                       "wordlist": os.path.basename(result.get("wordlist") or ""),
+                       "wordlist_lines": result.get("wordlist_lines"),
+                       "result_count": len(results), "results": items}
         return json.dumps(observation), False
 
     @staticmethod

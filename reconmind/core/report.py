@@ -264,6 +264,64 @@ def _web_section(lines, ports, web):
         lines.append("")
 
 
+DISCOVERY_HEAD = "## Web content discovery (ffuf)"
+DISCOVERY_NOT_CHECKED = ("**Not checked:** these open web ports were not scanned for "
+                         "content with ffuf: {ports}.")
+DISCOVERY_FAILED = "_ffuf did not complete (status {s}), so this port was not checked._"
+DISCOVERY_NO_RESULTS = "_ffuf found no matching paths._"
+DISCOVERY_WORDLIST = "Wordlist: {n} ({c} lines)"
+
+
+def _discovery_table(lines, results):
+    """Every ffuf result, sorted by path, values as ffuf gave them."""
+    lines.append("| Path | Status | Size | Redirect |")
+    lines.append("|------|--------|------|----------|")
+    for r in sorted(results, key=lambda r: str(r.get("path", ""))):
+        size = r.get("length")
+        lines.append("| {p} | {s} | {z} | {r} |".format(
+            p=_cell(r.get("path")), s=_cell(r.get("status")),
+            z=_cell(size if size is not None else ""), r=_cell(r.get("redirect"))))
+
+
+def _discovery_section(lines, ports, discovery):
+    """Only runs if at least one open port is an HTTP or HTTPS service."""
+    web_ports = [p for p in ports if is_web_service(p)]
+    if not web_ports:
+        return
+    discovery = discovery or {}
+    lines.append(DISCOVERY_HEAD)
+    lines.append("")
+    not_checked = []
+    for p in web_ports:
+        label = "{port}/{protocol}".format(port=p.get("port", ""),
+                                           protocol=p.get("protocol") or "tcp")
+        # int keys from the agent; str keys if the scan was reloaded from JSON
+        result = discovery.get(p.get("port")) or discovery.get(str(p.get("port")))
+        if not result:
+            not_checked.append("{l} ({s})".format(l=label, s=p.get("service") or "unknown"))
+            continue
+        lines.append("**{l}** {u}".format(l=label, u=result.get("url") or "").strip())
+        if result.get("status") != "ok":
+            lines.append(DISCOVERY_FAILED.format(s=result.get("status") or "unknown"))
+            lines.append("")
+            continue
+        count = result.get("wordlist_lines")
+        lines.append(DISCOVERY_WORDLIST.format(
+            n=os.path.basename(result.get("wordlist") or "") or "unknown",
+            c=count if count is not None else "unknown"))
+        lines.append("")
+        # raw_json is evidence only and is never printed.
+        results = result.get("results") or []
+        if results:
+            _discovery_table(lines, results)
+        else:
+            lines.append(DISCOVERY_NO_RESULTS)
+        lines.append("")
+    if not_checked:
+        lines.append(DISCOVERY_NOT_CHECKED.format(ports=", ".join(not_checked)))
+        lines.append("")
+
+
 TLS_HEAD = "## TLS checks (testssl.sh)"
 TLS_NOT_CHECKED = ("**Not checked:** these TLS or STARTTLS capable ports were not "
                    "checked with testssl.sh: {ports}.")
@@ -545,6 +603,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         _risky_section(lines, ports)
         _exploits_section(lines, ports)
         _web_section(lines, ports, scan.get("web"))
+        _discovery_section(lines, ports, scan.get("discovery"))
         _tls_section(lines, ports, scan.get("tls"))
         _smb_section(lines, ports, scan.get("smb"))
         all_exploits = [e for p in ports for e in p.get("exploits", [])]

@@ -39,7 +39,7 @@ SCAN = {
 
 def ok_result():
     """What run_ffuf returns for the fixture, built by the real parser."""
-    _, results, _ = ffuf_scan._parse_json(RAW_JSON)
+    _, results, _, _ = ffuf_scan._parse_json(RAW_JSON)
     return {"status": "ok", "url": "http://10.10.1.100:80",
             "wordlist": "/usr/share/wordlists/dirb/common.txt", "wordlist_lines": 4614,
             "wordlist_sha256": "a" * 64,

@@ -56,10 +56,11 @@ STATUS_BAD_JSON = "bad-json"
 
 
 def _result(status, url="", wordlist="", wordlist_lines=None, wordlist_sha256="",
-            command="", results=None, raw_json="", error=""):
+            command="", results=None, dropped_empty=0, raw_json="", error=""):
     result = {"status": status, "url": url, "wordlist": wordlist,
               "wordlist_lines": wordlist_lines, "wordlist_sha256": wordlist_sha256,
-              "command": command, "results": results or [], "raw_json": raw_json or ""}
+              "command": command, "results": results or [],
+              "dropped_empty": dropped_empty, "raw_json": raw_json or ""}
     if error:
         result["error"] = error
     return result
@@ -90,30 +91,40 @@ def wordlist_facts(path):
 
 
 def _results(data):
-    """ffuf's results list as [{"path", "status", "length", "words", "lines",
-    "redirect"}], in ffuf's order, values exactly as ffuf gave them."""
+    """ffuf's results list as ([{"path", "status", "length", "words", "lines",
+    "redirect"}], dropped_empty), in ffuf's order, values exactly as ffuf gave
+    them. A result with an empty or whitespace-only path is dropped and
+    counted: it comes from a blank wordlist line (or a lone "\\r" in a CRLF
+    wordlist), so ffuf requested the base URL itself, which is not a
+    discovery."""
     items = []
+    dropped_empty = 0
     for r in data.get("results") or []:
         if not isinstance(r, dict):
             continue
         given = r.get("input") if isinstance(r.get("input"), dict) else {}
-        items.append({"path": given.get("FUZZ", ""), "status": r.get("status"),
+        path = given.get("FUZZ", "")
+        if isinstance(path, str) and not path.strip():
+            dropped_empty += 1
+            continue
+        items.append({"path": path, "status": r.get("status"),
                       "length": r.get("length"), "words": r.get("words"),
                       "lines": r.get("lines"), "redirect": r.get("redirectlocation", "")})
-    return items
+    return items, dropped_empty
 
 
 def _parse_json(text):
-    """Return (status, results, error) for ffuf's JSON output."""
+    """Return (status, results, dropped_empty, error) for ffuf's JSON output."""
     if not text.strip():
-        return STATUS_EMPTY_OUTPUT, [], "ffuf wrote no JSON output."
+        return STATUS_EMPTY_OUTPUT, [], 0, "ffuf wrote no JSON output."
     try:
         data = json.loads(text)
     except ValueError as exc:
-        return STATUS_BAD_JSON, [], "ffuf JSON is not valid: {e}".format(e=exc)
+        return STATUS_BAD_JSON, [], 0, "ffuf JSON is not valid: {e}".format(e=exc)
     if not isinstance(data, dict) or not isinstance(data.get("results", []), list):
-        return STATUS_BAD_JSON, [], "ffuf JSON does not have a results list."
-    return STATUS_OK, _results(data), ""
+        return STATUS_BAD_JSON, [], 0, "ffuf JSON does not have a results list."
+    results, dropped_empty = _results(data)
+    return STATUS_OK, results, dropped_empty, ""
 
 
 def run_ffuf(target_ip, port, use_https=False, wordlist=None):
@@ -121,8 +132,9 @@ def run_ffuf(target_ip, port, use_https=False, wordlist=None):
     Discover content on one web port of one authorized target and return:
         {"status", "url", "wordlist", "wordlist_lines", "wordlist_sha256",
          "command", "results": [{"path", "status", "length", "words",
-         "lines", "redirect"}], "raw_json"}
-    plus "error" when status is not "ok". raw_json is ffuf's whole JSON file,
+         "lines", "redirect"}], "dropped_empty", "raw_json"}
+    plus "error" when status is not "ok". dropped_empty counts results
+    dropped for an empty path (a blank wordlist line hits the base URL). raw_json is ffuf's whole JSON file,
     kept as evidence; it is never sent to the model or printed in the report.
     If the gate refuses the target, status is "refused" and ffuf never runs.
     If ffuf is not installed, status is "ffuf-not-found". If no wordlist is
@@ -186,13 +198,13 @@ def run_ffuf(target_ip, port, use_https=False, wordlist=None):
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    status, results, error = _parse_json(text)
+    status, results, dropped_empty, error = _parse_json(text)
     if status != STATUS_OK and getattr(proc, "returncode", 0):
         stderr = (getattr(proc, "stderr", "") or "").strip().splitlines()
         error += " ffuf exited with code {c}".format(c=proc.returncode)
         error += (": {s}".format(s=stderr[0]) if stderr else ".")
-    return _result(status, command=command, results=results, raw_json=text,
-                   error=error, **facts)
+    return _result(status, command=command, results=results,
+                   dropped_empty=dropped_empty, raw_json=text, error=error, **facts)
 
 
 if __name__ == "__main__":

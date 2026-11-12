@@ -234,7 +234,25 @@ class ParseTests(Base):
     def test_result_keys(self):
         result = self._run(fake_ffuf(JSON_TEXT))
         self.assertEqual(set(result), {"status", "url", "wordlist", "wordlist_lines",
-                                       "wordlist_sha256", "command", "results", "raw_json"})
+                                       "wordlist_sha256", "command", "results",
+                                       "dropped_empty", "raw_json"})
+        self.assertEqual(result["dropped_empty"], 0)
+
+    def test_empty_path_is_dropped_and_counted(self):
+        data = json.loads(JSON_TEXT)
+        blank = dict(data["results"][0], input={"FFUFHASH": "7c2a0", "FUZZ": ""},
+                     status=200, redirectlocation="")
+        data["results"].insert(0, blank)
+        data["results"].append(dict(blank))
+        data["results"].append(dict(blank, input={"FFUFHASH": "7c2a0", "FUZZ": "\r"}))
+        text = json.dumps(data)
+        result = self._run(fake_ffuf(text))
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["dropped_empty"], 3)
+        self.assertEqual(len(result["results"]), 12)
+        self.assertNotIn("", [r["path"] for r in result["results"]])
+        self.assertEqual(result["results"][0]["path"], "twiki")  # order kept
+        self.assertEqual(result["raw_json"], text)  # evidence still has them
 
     def test_raw_json_is_kept_as_evidence(self):
         result = self._run(fake_ffuf(JSON_TEXT))

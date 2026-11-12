@@ -29,6 +29,7 @@ exposed. Call exploit_lookup only when you need the full list for one port.
 - After nmap_scan, call web_fingerprint once for every open HTTP or HTTPS port \
 (any service name containing http, such as http, https, ssl/http or http-proxy).
 - After web_fingerprint, call web_discover once for each open HTTP or HTTPS port.
+- After web_discover, call vuln_templates once for each open HTTP or HTTPS port.
 - After nmap_scan, call tls_check once for every TLS or STARTTLS capable port it \
 allows: ports where nmap saw an SSL tunnel or a service named https or ssl/something, \
 and smtp, ftp, imap, pop3 or postgresql ports.

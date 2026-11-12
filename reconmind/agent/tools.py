@@ -27,6 +27,8 @@ from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
 from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
 from reconmind.tools.ffuf_scan import run_ffuf
+from reconmind.tools.nuclei_scan import run_nuclei
+from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
 from reconmind.tools.testssl_scan import (
     SEVERITY_ORDER, is_tls_capable, run_testssl, severity_rank, starttls_protocol)
 from reconmind.tools.smb_enum import SMB_PORTS, policy_fields, run_enum4linux, smb_ports
@@ -41,6 +43,10 @@ SMB_USERS_IN_OBSERVATION = 20
 # How many paths the web_discover observation lists, sorted by path. The full
 # list is always stored for the report.
 DISCOVERY_RESULTS_IN_OBSERVATION = 40
+
+# Severities counted in the vuln_templates observation, the same ones nuclei
+# is asked to run. Every finding is listed in full.
+NUCLEI_OBSERVED_SEVERITIES = ("critical", "high", "medium", "low")
 
 # How many titles each port shows in the compact nmap_scan summary. The full
 # list comes from exploit_lookup and is always stored for the report.
@@ -161,6 +167,32 @@ TOOL_SPECS = [
         },
     },
     {
+        "name": "vuln_templates",
+        "description": (
+            "Run safe nuclei templates against one open HTTP or HTTPS port "
+            "found by nmap_scan. Only HTTP templates rated low, medium, high "
+            "or critical are used. Denial of service, fuzzing, intrusive, "
+            "default login and brute force templates are excluded, outside "
+            "callbacks (interactsh) are off and templates are never updated "
+            "during the scan. At most 50 requests per second. Returns the URL, "
+            "the templates version, counts by severity and every finding, most "
+            "severe first, with its template id, name, severity, where it "
+            "matched and any CVE IDs, exactly as nuclei reported them. HTTPS is "
+            "used automatically when nmap saw SSL on the port. Run nmap_scan "
+            "first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "description": "An open HTTP or HTTPS port from nmap_scan.",
+                },
+            },
+            "required": ["port"],
+        },
+    },
+    {
         "name": "tls_check",
         "description": (
             "Check the TLS setup of one open port found by nmap_scan, using "
@@ -231,6 +263,7 @@ class ToolBox:
             "exploit_lookup": self._exploit_lookup,
             "web_fingerprint": self._web_fingerprint,
             "web_discover": self._web_discover,
+            "vuln_templates": self._vuln_templates,
             "tls_check": self._tls_check,
             "smb_enum": self._smb_enum,
         }.get(name)
@@ -439,6 +472,49 @@ class ToolBox:
                        "wordlist": os.path.basename(result.get("wordlist") or ""),
                        "wordlist_lines": result.get("wordlist_lines"),
                        "result_count": len(results), "results": items}
+        return json.dumps(observation), False
+
+    def _vuln_templates(self, port):
+        number, match, error = self._web_port(port, "run templates against")
+        if error:
+            return error
+
+        # Scope lock: nuclei only ever runs against this run's target, and
+        # run_nuclei asks the authorization gate again before it starts.
+        result = run_nuclei(self.target, number, use_https=wants_https(match))
+        self.scan.setdefault("nuclei", {})[number] = result
+
+        status = result.get("status")
+        if status == "refused":
+            return self._err(
+                "Refused by the authorization gate: {t} is not on the allowlist. "
+                "nuclei was not run. Do not retry.".format(t=self.target))
+        if status == "nuclei-not-found":
+            return self._err("nuclei is not installed, so port {p} was not checked. "
+                             "Do not retry.".format(p=number))
+        if status == "templates-not-found":
+            return self._err("No nuclei templates are installed, so port {p} was not "
+                             "checked. The operator must run nuclei -update-templates "
+                             "once. Do not retry.".format(p=number))
+        if status != "ok":
+            return self._err("nuclei did not complete for port {p}: status={s}. {e} "
+                             "This port was not checked.".format(
+                                 p=number, s=status, e=result.get("error", "")).replace("  ", " "))
+
+        # Compact view only. raw_jsonl, the command, extracted values, CWE
+        # IDs and tags stay in self.scan as evidence and are never sent.
+        findings = sorted(result.get("findings") or [],
+                          key=lambda f: nuclei_severity_rank(f.get("severity")))
+        counts = {sev: sum(1 for f in findings if str(f.get("severity", "")).lower() == sev)
+                  for sev in NUCLEI_OBSERVED_SEVERITIES}
+        items = [{"template_id": f.get("template_id", ""), "name": f.get("name", ""),
+                  "severity": f.get("severity", ""), "matched_at": f.get("matched_at", ""),
+                  "cve": f.get("cve") or []}
+                 for f in findings]
+        observation = {"port": number, "url": result.get("url", ""),
+                       "templates_version": result.get("templates_version", ""),
+                       "severity_counts": counts, "finding_count": len(findings),
+                       "findings": items}
         return json.dumps(observation), False
 
     @staticmethod

@@ -11,6 +11,7 @@ import os
 from datetime import datetime
 
 from reconmind.tools.exploit_lookup import exploit_url, primary_label
+from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
 from reconmind.tools.risky_services import flag_ports
 from reconmind.tools.smb_enum import format_value, os_summary, policy_fields, smb_ports
 from reconmind.tools.testssl_scan import (
@@ -322,6 +323,66 @@ def _discovery_section(lines, ports, discovery):
         lines.append("")
 
 
+NUCLEI_HEAD = "## Template checks (nuclei)"
+NUCLEI_NOT_CHECKED = ("**Not checked:** these open web ports were not checked with "
+                      "nuclei templates: {ports}.")
+NUCLEI_FAILED = "_nuclei did not complete (status {s}), so this port was not checked._"
+NUCLEI_NO_FINDINGS = "_nuclei found nothing at low severity or above._"
+NUCLEI_TEMPLATES = "Templates version: {v}"
+NUCLEI_EXCLUDED = ("Excluded: denial of service, fuzzing, intrusive, default login and "
+                   "brute force templates. No outside callbacks (interactsh off).")
+
+
+def _nuclei_finding_line(f):
+    """One finding: severity, name, template id, where it matched, any CVE."""
+    line = "- [{s}] {n}, template {t}, matched at {m}".format(
+        s=f.get("severity", ""), n=f.get("name", ""), t=f.get("template_id", ""),
+        m=f.get("matched_at", ""))
+    cves = [str(c) for c in f.get("cve") or [] if c]
+    if cves:
+        line += ", {c}".format(c=", ".join(cves))
+    return line
+
+
+def _nuclei_section(lines, ports, nuclei):
+    """Only runs if at least one open port is an HTTP or HTTPS service."""
+    web_ports = [p for p in ports if is_web_service(p)]
+    if not web_ports:
+        return
+    nuclei = nuclei or {}
+    lines.append(NUCLEI_HEAD)
+    lines.append("")
+    not_checked = []
+    for p in web_ports:
+        label = "{port}/{protocol}".format(port=p.get("port", ""),
+                                           protocol=p.get("protocol") or "tcp")
+        # int keys from the agent; str keys if the scan was reloaded from JSON
+        result = nuclei.get(p.get("port")) or nuclei.get(str(p.get("port")))
+        if not result:
+            not_checked.append("{l} ({s})".format(l=label, s=p.get("service") or "unknown"))
+            continue
+        lines.append("**{l}** {u}".format(l=label, u=result.get("url") or "").strip())
+        if result.get("status") != "ok":
+            lines.append(NUCLEI_FAILED.format(s=result.get("status") or "unknown"))
+            lines.append("")
+            continue
+        lines.append(NUCLEI_TEMPLATES.format(v=result.get("templates_version") or "unknown"))
+        lines.append("")
+        lines.append(NUCLEI_EXCLUDED)
+        lines.append("")
+        # raw_jsonl is evidence only and is never printed.
+        findings = sorted(result.get("findings") or [],
+                          key=lambda f: nuclei_severity_rank(f.get("severity")))
+        if not findings:
+            lines.append(NUCLEI_NO_FINDINGS)
+        for f in findings:
+            lines.append(_nuclei_finding_line(f))
+        lines.append("")
+    if not_checked:
+        lines.append(NUCLEI_NOT_CHECKED.format(ports=", ".join(not_checked)))
+        lines.append("")
+
+
 TLS_HEAD = "## TLS checks (testssl.sh)"
 TLS_NOT_CHECKED = ("**Not checked:** these TLS or STARTTLS capable ports were not "
                    "checked with testssl.sh: {ports}.")
@@ -604,6 +665,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         _exploits_section(lines, ports)
         _web_section(lines, ports, scan.get("web"))
         _discovery_section(lines, ports, scan.get("discovery"))
+        _nuclei_section(lines, ports, scan.get("nuclei"))
         _tls_section(lines, ports, scan.get("tls"))
         _smb_section(lines, ports, scan.get("smb"))
         all_exploits = [e for p in ports for e in p.get("exploits", [])]

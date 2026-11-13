@@ -1,0 +1,155 @@
+{
+  "version": "1.95.0",
+  "results": [
+    {
+      "check_id": "python.lang.best-practice.sqlite-connect-without-context.sqlite-connect-without-context",
+      "path": "__ROOT__/app.py",
+      "start": {"line": 15, "col": 12, "offset": 330},
+      "end": {"line": 15, "col": 39, "offset": 357},
+      "extra": {
+        "message": "Use sqlite3.connect as a context manager so the connection is closed.",
+        "metadata": {"category": "best-practice", "technology": ["python"]},
+        "severity": "INFO",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "is_ignored": false,
+        "engine_kind": "OSS",
+        "validation_state": "NO_VALIDATOR"
+      }
+    },
+    {
+      "check_id": "python.lang.security.audit.formatted-sql-query.formatted-sql-query",
+      "path": "__ROOT__/app.py",
+      "start": {"line": 17, "col": 12, "offset": 428},
+      "end": {"line": 17, "col": 31, "offset": 447},
+      "extra": {
+        "message": "Detected possible formatted SQL query. Use parameterized queries instead.",
+        "metadata": {
+          "owasp": ["A01:2017 - Injection", "A03:2021 - Injection"],
+          "cwe": ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"],
+          "references": ["https://stackoverflow.com/questions/775296/mysql-parameterized-queries"],
+          "category": "security",
+          "technology": ["python"],
+          "confidence": "LOW",
+          "likelihood": "LOW",
+          "impact": "HIGH",
+          "subcategory": ["audit"]
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "is_ignored": false,
+        "engine_kind": "OSS",
+        "validation_state": "NO_VALIDATOR"
+      }
+    },
+    {
+      "check_id": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+      "path": "__ROOT__/app.py",
+      "start": {"line": 21, "col": 66, "offset": 535},
+      "end": {"line": 21, "col": 70, "offset": 539},
+      "extra": {
+        "message": "Found 'subprocess' function 'check_output' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+        "metadata": {
+          "owasp": ["A01:2017 - Injection", "A03:2021 - Injection"],
+          "cwe": ["CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"],
+          "references": ["https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess", "https://docs.python.org/3/library/subprocess.html"],
+          "category": "security",
+          "technology": ["python"],
+          "confidence": "MEDIUM",
+          "likelihood": "HIGH",
+          "impact": "LOW",
+          "subcategory": ["secure default"]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "is_ignored": false,
+        "engine_kind": "OSS",
+        "validation_state": "NO_VALIDATOR"
+      }
+    },
+    {
+      "check_id": "python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5",
+      "path": "__ROOT__/app.py",
+      "start": {"line": 25, "col": 12, "offset": 609},
+      "end": {"line": 25, "col": 43, "offset": 640},
+      "extra": {
+        "message": "Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is therefore not suitable as a cryptographic signature. Use SHA256 or SHA3 instead.",
+        "metadata": {
+          "owasp": ["A03:2017 - Sensitive Data Exposure", "A02:2021 - Cryptographic Failures"],
+          "cwe": ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"],
+          "references": ["https://tools.ietf.org/html/rfc6151", "https://crypto.stackexchange.com/questions/44151/how-does-the-flame-malware-take-advantage-of-md5-collision"],
+          "category": "security",
+          "technology": ["python"],
+          "confidence": "HIGH",
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "subcategory": ["vuln"]
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "is_ignored": false,
+        "engine_kind": "OSS",
+        "validation_state": "NO_VALIDATOR"
+      }
+    },
+    {
+      "check_id": "python.lang.security.deserialization.avoid-pyyaml-load.avoid-pyyaml-load",
+      "path": "__ROOT__/app.py",
+      "start": {"line": 29, "col": 12, "offset": 704},
+      "end": {"line": 29, "col": 27, "offset": 719},
+      "extra": {
+        "message": "Detected a possible YAML deserialization vulnerability. `yaml.unsafe_load`, `yaml.Loader`, `yaml.CLoader`, and `yaml.UnsafeLoader` are all known to be unsafe methods of deserializing YAML. An attacker with control over the YAML input could create special YAML input that allows the attacker to run arbitrary Python code. Use `yaml.safe_load` or `yaml.SafeLoader` instead.",
+        "metadata": {
+          "owasp": ["A08:2017 - Insecure Deserialization", "A08:2021 - Software and Data Integrity Failures"],
+          "cwe": ["CWE-502: Deserialization of Untrusted Data"],
+          "references": ["https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation"],
+          "category": "security",
+          "technology": ["pyyaml"],
+          "confidence": "MEDIUM",
+          "likelihood": "LOW",
+          "impact": "HIGH",
+          "subcategory": ["vuln"]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "is_ignored": false,
+        "engine_kind": "OSS",
+        "validation_state": "NO_VALIDATOR"
+      }
+    },
+    {
+      "check_id": "python.lang.security.deserialization.pickle.avoid-pickle",
+      "path": "__ROOT__/app.py",
+      "start": {"line": 33, "col": 12, "offset": 768},
+      "end": {"line": 33, "col": 30, "offset": 786},
+      "extra": {
+        "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+        "metadata": {
+          "owasp": ["A08:2017 - Insecure Deserialization", "A08:2021 - Software and Data Integrity Failures"],
+          "cwe": ["CWE-502: Deserialization of Untrusted Data"],
+          "references": ["https://docs.python.org/3/library/pickle.html"],
+          "category": "security",
+          "technology": ["python"],
+          "confidence": "LOW",
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "subcategory": ["audit"]
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "is_ignored": false,
+        "engine_kind": "OSS",
+        "validation_state": "NO_VALIDATOR"
+      }
+    }
+  ],
+  "errors": [],
+  "paths": {"scanned": ["__ROOT__/app.py"]},
+  "interfile_languages_used": [],
+  "skipped_rules": []
+}

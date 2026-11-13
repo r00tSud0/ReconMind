@@ -902,7 +902,8 @@ class HistoryTests(InTempDir):
         self.save()
         entries = history.read_index()
         self.assertEqual(entries, [{
-            "run_id": "20261112_100000_10.10.1.100", "target": TARGET, "preset": "standard",
+            "run_id": "20261112_100000_10.10.1.100", "kind": "recon", "target": TARGET,
+            "preset": "standard",
             "actions": list(ACTION_IDS), "ports_spec": "top",
             "started": "2026-11-12T10:00:00", "finished": "2026-11-12T10:05:30",
             "status": "ok", "open_ports": 3,

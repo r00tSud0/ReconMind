@@ -17,6 +17,13 @@ unverified. The explanation never changes the findings. With no provider
 configured, a missing client package, a failed call or an empty answer the
 explanation is skipped and the reason is kept for the report.
 
+Reasoning models spend completion tokens thinking before they answer, so the
+budget is MAX_TOKENS (the same as the prompted ATT&CK mapper). When the
+answer comes back empty because that budget ran out, llm.py retries once with
+double the budget (capped at llm.LENGTH_RETRY_CAP). An answer that is still
+empty is skipped with the finish reason and the token usage the provider
+reported, so a budget problem can be told apart from an empty reply.
+
 This is the only part of the code scan that uses the network.
 """
 
@@ -26,7 +33,7 @@ import re
 from reconmind.agent import llm
 from reconmind.core.summary_check import clean_published
 
-MAX_TOKENS = 4000
+MAX_TOKENS = 16000  # reasoning models spend much of this before the answer
 
 STATUS_OK = "ok"
 STATUS_SKIPPED = "skipped"
@@ -48,7 +55,8 @@ NO_FINDINGS = "the tools reported no findings, so there was nothing to explain"
 NO_PROVIDER = "no LLM provider is configured ({e})"
 NO_PACKAGE = "the LLM client package is not installed (pip install -r requirements.txt)"
 CALL_FAILED = "the LLM call failed ({e})"
-EMPTY_ANSWER = "the model returned no text"
+EMPTY_ANSWER = "the model returned no text (finish reason: {finish}, token usage: {usage})"
+NOT_REPORTED = "not reported"
 
 _EXTENSIONS = r"(?:py|jsx|js|mjs|tsx|ts|php|java|go|rb|c|h)"
 _FILE_LINE = re.compile(r"([\w./-]+\." + _EXTENSIONS + r"):(\d+)", re.I)
@@ -121,6 +129,18 @@ def _response_text(response):
                      if getattr(b, "type", "") == "text")
 
 
+def empty_reason(response):
+    """EMPTY_ANSWER filled in with the finish reason and token usage the provider reported."""
+    info = llm.response_info(response)
+    usage = []
+    if "completion_tokens" in info:
+        usage.append("{n} completion".format(n=info["completion_tokens"]))
+    if "reasoning_tokens" in info:
+        usage.append("{n} reasoning".format(n=info["reasoning_tokens"]))
+    return EMPTY_ANSWER.format(finish=info.get("finish_reason") or NOT_REPORTED,
+                               usage=", ".join(usage) or NOT_REPORTED)
+
+
 def explain_findings(findings, provider=None, model=None, client=None):
     """
     Ask the configured model to explain the findings. Returns:
@@ -157,5 +177,5 @@ def explain_findings(findings, provider=None, model=None, client=None):
 
     text = clean_published(_response_text(response)).strip()
     if not text:
-        return _result(STATUS_SKIPPED, EMPTY_ANSWER, **facts)
+        return _result(STATUS_SKIPPED, empty_reason(response), **facts)
     return _result(STATUS_OK, text=text, unverified=verify_explanation(text, findings), **facts)

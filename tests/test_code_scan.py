@@ -114,11 +114,12 @@ class FakeTools:
 
 
 class FakeLLM:
-    """A provider client that returns fixed text, or raises, and records requests."""
+    """A provider client that returns fixed text (or a whole response), or raises, and records requests."""
 
-    def __init__(self, text="", error=None):
+    def __init__(self, text="", error=None, response=None):
         self.text = text
         self.error = error
+        self.response = response
         self.requests = []
         self.messages = NS(create=self._create)
 
@@ -126,7 +127,32 @@ class FakeLLM:
         self.requests.append(kwargs)
         if self.error is not None:
             raise self.error
+        if self.response is not None:
+            return self.response
         return NS(content=[NS(type="text", text=self.text)], stop_reason="end_turn")
+
+
+class FakeOpenAI:
+    """An openai.OpenAI stand in: plays back Chat Completions responses and records requests."""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.requests = []
+        self.chat = NS(completions=NS(create=self._create))
+
+    def _create(self, **request):
+        self.requests.append(request)
+        return self.responses.pop(0)
+
+
+def openai_response(text, finish, completion=None, reasoning=None):
+    usage = {}
+    if completion is not None:
+        usage["completion_tokens"] = completion
+    if reasoning is not None:
+        usage["completion_tokens_details"] = {"reasoning_tokens": reasoning}
+    return {"choices": [{"message": {"content": text}, "finish_reason": finish}],
+            "usage": usage}
 
 
 class CodeTestCase(unittest.TestCase):
@@ -931,6 +957,61 @@ class ExplainTests(CodeTestCase):
             self.assertEqual(result["status"], "skipped")
             self.assertTrue(result["reason"].startswith("the LLM call failed"))
             self.assertTrue(result["sent"])
+
+    def test_budget_is_16000_like_the_prompted_mapper(self):
+        findings = self.scan()[0]["findings"]
+        client = FakeLLM(GOOD_TEXT)
+        explain.explain_findings(findings, model="m", client=client)
+        self.assertEqual(explain.MAX_TOKENS, 16000)
+        self.assertEqual(client.requests[0]["max_tokens"], 16000)
+
+    def test_empty_answer_is_retried_with_double_the_budget(self):
+        findings = self.scan()[0]["findings"]
+        native = FakeOpenAI([openai_response("", "length", 16000, 16000),
+                             openai_response(GOOD_TEXT, "stop", 20000, 18000)])
+        result = explain.explain_findings(findings, model="m",
+                                          client=llm.OpenAICompatClient(native))
+        self.assertEqual([r["max_tokens"] for r in native.requests], [16000, 32000])
+        self.assertEqual(result["status"], "ok")
+        self.assertIn("### app.py:21", result["text"])
+
+    def test_still_empty_names_finish_reason_and_token_usage(self):
+        findings = self.scan()[0]["findings"]
+        native = FakeOpenAI([openai_response("", "length", 16000, 16000),
+                             openai_response("", "length", 32000, 31950)])
+        result = explain.explain_findings(findings, model="m",
+                                          client=llm.OpenAICompatClient(native))
+        self.assertEqual([r["max_tokens"] for r in native.requests], [16000, 32000])
+        self.assertEqual(result["status"], "skipped")
+        self.assertEqual(result["reason"], "the model returned no text (finish reason: length, "
+                                           "token usage: 32000 completion, 31950 reasoning)")
+        self.assertTrue(result["sent"])
+
+    def test_empty_reply_that_did_not_run_out_is_not_retried(self):
+        findings = self.scan()[0]["findings"]
+        native = FakeOpenAI([openai_response("", "stop", 3)])
+        result = explain.explain_findings(findings, model="m",
+                                          client=llm.OpenAICompatClient(native))
+        self.assertEqual(len(native.requests), 1)
+        self.assertEqual(result["reason"], "the model returned no text (finish reason: stop, "
+                                           "token usage: 3 completion)")
+
+    def test_empty_answer_without_reported_usage(self):
+        findings = self.scan()[0]["findings"]
+        for response, finish in ((NS(content=[], stop_reason="end_turn"), "end_turn"),
+                                 (NS(content=[]), "not reported")):
+            result = explain.explain_findings(findings, model="m",
+                                              client=FakeLLM(response=response))
+            self.assertEqual(result["status"], "skipped")
+            self.assertEqual(result["reason"], "the model returned no text (finish reason: "
+                                               "{f}, token usage: not reported)".format(f=finish))
+
+    def test_report_shows_why_an_empty_answer_was_skipped(self):
+        response = NS(content=[], stop_reason="max_tokens", finish_reason="length",
+                      token_usage={"completion_tokens": 32000, "reasoning_tokens": 32000})
+        scan, _ = self.scan(explain=True, client=FakeLLM(response=response), model="m")
+        self.assertIn("finish reason: length, token usage: 32000 completion, 32000 reasoning",
+                      self.report(scan))
 
     def test_no_findings_means_no_call(self):
         client = FakeLLM(GOOD_TEXT)

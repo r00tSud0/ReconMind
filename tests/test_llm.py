@@ -19,6 +19,7 @@ from unittest import mock
 
 from reconmind.agent import brain, llm, tools as toolmod
 from reconmind.agent.__main__ import main
+from reconmind.ai import attack_mapper
 
 TARGET = "10.10.1.100"
 
@@ -60,16 +61,25 @@ def fake_scan():
 
 
 class TmpDirTest(unittest.TestCase):
-    """Runs each test in an empty directory with an empty environment."""
+    """
+    Runs each test in an empty directory with an empty environment. The only
+    variable set is RECONMIND_MAPPER_DIR, pointing at an empty folder, so a
+    runner that calls attack_map never loads the real model, even where torch
+    and the model are installed.
+    """
 
     def setUp(self):
         self._cwd = os.getcwd()
         self._tmp = tempfile.TemporaryDirectory()
         os.chdir(self._tmp.name)  # logs/, reports/ land here, and no .env is read
-        self._env = mock.patch.dict(os.environ, {}, clear=True)
+        no_model = os.path.join(self._tmp.name, "no_model")
+        os.makedirs(no_model)
+        self._env = mock.patch.dict(os.environ, {attack_mapper.DIR_ENV: no_model}, clear=True)
         self._env.start()
+        attack_mapper.clear_cache()
 
     def tearDown(self):
+        attack_mapper.clear_cache()
         self._env.stop()
         os.chdir(self._cwd)
         self._tmp.cleanup()

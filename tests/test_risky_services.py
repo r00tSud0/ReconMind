@@ -5,7 +5,7 @@ nmap service and product names.
 
 import unittest
 
-from reconmind.tools.risky_services import flag_port, flag_ports
+from reconmind.tools.risky_services import RULES, attack_techniques, flag_port, flag_ports
 
 
 def port(num, service, product="", version=""):
@@ -65,6 +65,35 @@ class RiskyServiceTests(unittest.TestCase):
             reason = flag_port(p)["reason"]
             self.assertNotIn(" - ", reason)
             self.assertNotIn("—", reason)
+
+    def test_attack_lists_follow_labeling_version_2(self):
+        expected = (
+            (port(1524, "bindshell", "Metasploitable root shell"), ["T1059.004"]),
+            (port(3632, "distccd", "distccd", "v1"), ["T1190", "T1059"]),
+            (port(8787, "drb", "Ruby DRb RMI"), ["T1190", "T1059"]),
+            (port(23, "telnet", "Linux telnetd"), ["T1021", "T1040"]),
+            (port(512, "exec", "netkit-rsh rexecd"), ["T1021", "T1040"]),
+            (port(513, "login", "OpenBSD or Solaris rlogind"), ["T1021", "T1040"]),
+            (port(514, "shell", "Netkit rshd"), ["T1021", "T1040"]),
+            (port(5900, "vnc", "VNC"), ["T1021.005"]),
+            (port(6000, "X11", ""), ["T1113", "T1056.001"]),
+            (port(2049, "nfs", ""), ["T1135", "T1039"]),
+            (port(1099, "java-rmi", "GNU Classpath grmiregistry"), ["T1190"]),
+        )
+        for p, ids in expected:
+            with self.subTest(service=p["service"]):
+                self.assertEqual(attack_techniques(p), ids)
+
+    def test_every_rule_has_an_attack_list(self):
+        for rule in RULES:
+            self.assertIn("attack", rule)
+
+    def test_unflagged_port_has_no_techniques(self):
+        self.assertEqual(attack_techniques(port(22, "ssh", "OpenSSH")), [])
+
+    def test_flag_shape_is_unchanged(self):
+        # The nmap_scan observation shows the flag, so it carries no technique IDs.
+        self.assertEqual(set(flag_port(port(23, "telnet"))), {"severity", "reason"})
 
 
 if __name__ == "__main__":

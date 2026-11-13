@@ -616,5 +616,118 @@ class WebReportTests(unittest.TestCase):
         self.assertNotIn(" - ", report)
 
 
+ATTACK_MAP = {
+    "status": "ok", "error": "", "run_name": "run3", "threshold": 0.85,
+    "model_sha256": "0123456789abcdef" * 4, "mitre_check": None,
+    "ports": [
+        {"port": 21, "protocol": "tcp", "service": "ftp", "text": "Port 21/tcp is open.",
+         "techniques": [{"id": "T1190", "name": "Exploit Public-Facing Application",
+                         "sources": ["model"], "confidence": 0.91}],
+         "lower_confidence": [{"id": "T1005", "name": "Data from Local System",
+                               "source": "model, lower confidence", "confidence": 0.62}],
+         "dropped": [{"id": "T9999", "source": "model", "reason": "unknown_id"}]},
+        {"port": 23, "protocol": "tcp", "service": "telnet", "text": "Port 23/tcp is open.",
+         "techniques": [{"id": "T1021", "name": "Remote Services", "sources": ["rule", "model"],
+                         "confidence": 1.0, "model_probability": 0.95},
+                        {"id": "T1040", "name": "Network Sniffing", "sources": ["rule"],
+                         "confidence": 1.0}],
+         "lower_confidence": [], "dropped": []},
+    ],
+}
+MAP_SCAN = {"target": "10.10.1.100", "status": "ok", "ports": [
+    {"port": 21, "protocol": "tcp", "service": "ftp", "product": "vsftpd", "version": "2.3.4"},
+    {"port": 23, "protocol": "tcp", "service": "telnet", "product": "Linux telnetd",
+     "version": ""},
+]}
+MAPPING_HEAD = "## MITRE ATT&CK mapping"
+UNAVAILABLE_LINE = ("Mapper: status not-installed. The model is unavailable, so only rule "
+                    "mappings are shown.")
+
+
+def unavailable_map():
+    rules_only = dict(ATTACK_MAP, status="not-installed", run_name="", threshold=None,
+                      model_sha256="")
+    rules_only["ports"] = [dict(p, lower_confidence=[], dropped=[],
+                                techniques=[t for t in p["techniques"]
+                                            if "rule" in t["sources"]])
+                           for p in ATTACK_MAP["ports"]]
+    for p in rules_only["ports"]:
+        p["techniques"] = [dict(t, sources=["rule"]) for t in p["techniques"]]
+        for t in p["techniques"]:
+            t.pop("model_probability", None)
+    return rules_only
+
+
+class AttackMapReportTests(unittest.TestCase):
+
+    def setUp(self):
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    def test_confirmed_table_one_row_per_technique(self):
+        report = read_report(dict(MAP_SCAN, attack_map=ATTACK_MAP))
+        self.assertIn(MAPPING_HEAD, report)
+        self.assertIn("| Port | ID | Name | Source | Confidence | MITRE check |", report)
+        self.assertIn("| 21/tcp | T1190 | Exploit Public-Facing Application | model | 0.91 "
+                      "| active |", report)
+        self.assertIn("| 23/tcp | T1021 | Remote Services | rule and model | 1.00 (model 0.95) "
+                      "| active |", report)
+        self.assertIn("| 23/tcp | T1040 | Network Sniffing | rule | 1.00 | active |", report)
+
+    def test_lower_confidence_suggestions_have_their_own_table(self):
+        report = read_report(dict(MAP_SCAN, attack_map=ATTACK_MAP))
+        section = report.split(MAPPING_HEAD, 1)[1]
+        lower = section.index("**Lower confidence suggestions**")
+        row = ("| 21/tcp | T1005 | Data from Local System | model, lower confidence | 0.62 "
+               "| active |")
+        self.assertLess(section.index("| 23/tcp | T1040 |"), lower)
+        self.assertLess(lower, section.index(row))
+        self.assertIn("These are not mappings and are not counted.", section)
+
+    def test_dropped_ids_and_mapper_line(self):
+        report = read_report(dict(MAP_SCAN, attack_map=ATTACK_MAP))
+        section = report.split(MAPPING_HEAD, 1)[1]
+        self.assertIn("- 21/tcp T9999 (model): unknown_id", section)
+        mapper = "Mapper: status ok, run run3, threshold 0.85, model SHA-256 0123456789ab\n"
+        self.assertIn(mapper, section)
+        self.assertNotIn("0123456789abc\n", section)  # only the first 12 characters
+        self.assertLess(section.index("**Lower confidence suggestions**"),
+                        section.index("Mapper:"))
+
+    def test_unavailable_model_shows_status_and_rules_only(self):
+        report = read_report(dict(MAP_SCAN, attack_map=unavailable_map()))
+        self.assertIn(UNAVAILABLE_LINE, report)
+        self.assertNotIn("model SHA-256", report)
+        self.assertIn("| 23/tcp | T1021 | Remote Services | rule | 1.00 | active |", report)
+        self.assertNotIn("**Lower confidence suggestions**", report)
+
+    def test_section_sits_before_notes(self):
+        report = read_report(dict(MAP_SCAN, attack_map=ATTACK_MAP))
+        self.assertLess(report.index("## Open ports"), report.index(MAPPING_HEAD))
+        self.assertLess(report.index(MAPPING_HEAD), report.index("## Notes"))
+        self.assertNotIn("Next stage", report)
+
+    def test_no_section_without_a_mapping(self):
+        self.assertNotIn(MAPPING_HEAD, read_report(MAP_SCAN))
+
+    def test_no_confirmed_technique(self):
+        empty = dict(ATTACK_MAP, ports=[dict(p, techniques=[]) for p in ATTACK_MAP["ports"]])
+        report = read_report(dict(MAP_SCAN, attack_map=empty))
+        self.assertIn("_No technique was confirmed for any open port._", report)
+
+    def test_mapping_text_has_no_em_dashes_or_dash_separators(self):
+        report = read_report(dict(MAP_SCAN, attack_map=ATTACK_MAP))
+        report += read_report(dict(MAP_SCAN, attack_map=unavailable_map()))
+        self.assertIn(MAPPING_HEAD, report)
+        self.assertNotIn("\u2014", report)
+        self.assertNotIn("\u2013", report)
+        self.assertNotIn(" - ", report)
+
+
 if __name__ == "__main__":
     unittest.main()

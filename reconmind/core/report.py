@@ -815,6 +815,93 @@ def _smb_section(lines, ports, smb):
     lines.append("")
 
 
+MAPPING_HEAD = "## MITRE ATT&CK mapping"
+MAPPING_INTRO = ("Rules map each risk flag and the fine tuned model maps each finding's "
+                 "text. Every technique ID was checked against MITRE's ATT&CK data.")
+MAPPING_NONE = "_No technique was confirmed for any open port._"
+MAPPING_LOWER_HEAD = "**Lower confidence suggestions**"
+MAPPING_LOWER_NOTE = ("_Model probability from 0.50 up to the threshold. These are not "
+                      "mappings and are not counted._")
+MAPPING_DROPPED_HEAD = "**Dropped technique IDs**"
+MAPPING_DROPPED_NOTE = "_Not used, with the reason:_"
+MAPPING_MAPPER = "Mapper: status {s}, run {r}, threshold {t}, model SHA-256 {h}"
+MAPPING_UNAVAILABLE = ("Mapper: status {s}. The model is unavailable, so only rule mappings "
+                       "are shown.")
+MAPPING_MITRE_ACTIVE = "active"
+MAPPING_TABLE_HEAD = ("| Port | ID | Name | Source | Confidence | MITRE check |",
+                      "|------|----|------|--------|------------|-------------|")
+SHA_SHOWN = 12
+
+
+def _mapping_port(p):
+    return "{port}/{protocol}".format(port=p.get("port", ""), protocol=p.get("protocol") or "tcp")
+
+
+def _mapping_confidence(t):
+    text = "{c:.2f}".format(c=float(t.get("confidence") or 0))
+    if t.get("model_probability") is not None:
+        text += " (model {m:.2f})".format(m=float(t["model_probability"]))
+    return text
+
+
+def _mapping_row(p, t, source):
+    return "| {p} | {i} | {n} | {s} | {c} | {m} |".format(
+        p=_mapping_port(p), i=_cell(t.get("id")), n=_cell(t.get("name")), s=_cell(source),
+        c=_mapping_confidence(t), m=MAPPING_MITRE_ACTIVE)
+
+
+def _attack_map_section(lines, mapping):
+    """The hybrid ATT&CK mapping from attack_map. Only when it ran."""
+    if not mapping:
+        return
+    ports = mapping.get("ports") or []
+    lines.append(MAPPING_HEAD)
+    lines.append("")
+    lines.append(MAPPING_INTRO)
+    lines.append("")
+    if mapping.get("mitre_check"):
+        lines.append(mapping["mitre_check"])
+        lines.append("")
+    confirmed = [(p, t) for p in ports for t in p.get("techniques") or []]
+    if confirmed:
+        lines.extend(MAPPING_TABLE_HEAD)
+        for p, t in confirmed:
+            lines.append(_mapping_row(p, t, " and ".join(t.get("sources") or [])))
+    else:
+        lines.append(MAPPING_NONE)
+    lines.append("")
+    lower = [(p, t) for p in ports for t in p.get("lower_confidence") or []]
+    if lower:
+        lines.append(MAPPING_LOWER_HEAD)
+        lines.append("")
+        lines.append(MAPPING_LOWER_NOTE)
+        lines.append("")
+        lines.extend(MAPPING_TABLE_HEAD)
+        for p, t in lower:
+            lines.append(_mapping_row(p, t, t.get("source", "")))
+        lines.append("")
+    dropped = [(p, d) for p in ports for d in p.get("dropped") or []]
+    if dropped:
+        lines.append(MAPPING_DROPPED_HEAD)
+        lines.append("")
+        lines.append(MAPPING_DROPPED_NOTE)
+        for p, d in dropped:
+            lines.append("- {p} {i} ({s}): {r}".format(
+                p=_mapping_port(p), i=d.get("id", ""), s=d.get("source", ""),
+                r=d.get("reason", "")))
+        lines.append("")
+    status = mapping.get("status") or "unknown"
+    if status == "ok":
+        threshold = mapping.get("threshold")
+        lines.append(MAPPING_MAPPER.format(
+            s=status, r=mapping.get("run_name") or "unknown",
+            t="{v:.2f}".format(v=float(threshold)) if threshold is not None else "unknown",
+            h=(mapping.get("model_sha256") or "unknown")[:SHA_SHOWN]))
+    else:
+        lines.append(MAPPING_UNAVAILABLE.format(s=status))
+    lines.append("")
+
+
 SUMMARY_LABEL = "_AI interpretation. The tables below are the verified tool results._"
 SUMMARY_UNAVAILABLE = "Analyst summary unavailable: the model output failed validation."
 SUMMARY_RATE_LIMITED = "Analyst summary unavailable: the model was busy (rate limited)."
@@ -884,7 +971,8 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     sections render the same either way. rate_limited means the repair call
     hit a provider rate limit: same as summary_failed, with its own notice.
     attack_check is an attack_check.AttackCheck, shown as a table under the
-    summary.
+    summary. scan["attack_map"], when attack_map ran, becomes the "MITRE
+    ATT&CK mapping" section after the tool sections.
 
     plan is an optional ScanPlan. With one, a "Scan plan" section goes near
     the top and each tool section appears only if its action was selected.
@@ -958,6 +1046,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
             _tls_section(lines, ports, scan.get("tls"))
         if _selected(plan, "smb"):
             _smb_section(lines, ports, scan.get("smb"))
+        _attack_map_section(lines, scan.get("attack_map"))
         lines.append("## Notes")
         lines.append("")
         if exploits:
@@ -983,7 +1072,6 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
             note += (" {k} more port(s) answered as open in discovery only and "
                      "were not confirmed, so they are not counted here.".format(
                          k=len(unconfirmed)))
-        note += " Next stage: map each finding to its MITRE ATT&CK technique."
         lines.append(note)
 
     text = "\n".join(lines) + "\n"

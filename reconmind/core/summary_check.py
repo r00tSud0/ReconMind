@@ -17,12 +17,18 @@ before it reaches a report:
     - any EDB-ID that is not in the scan results, and any CVE ID that no tool
       reported (NVD results, nuclei findings or testssl.sh findings, compared
       case insensitively), is listed as an unverified reference
+    - mark_not_mapped turns an ATT&CK check row that would be verified into
+      not_mapped when attack_map did not confirm that technique for any
+      port; unknown, revoked, deprecated and name_mismatch rows keep their
+      own result
 
 No AI and no I/O here, so every rule can be tested on its own.
 """
 
 import re
 from collections import namedtuple
+
+from reconmind.core.attack_check import AttackCheck
 
 REQUIRED_HEADINGS = (
     "### Key findings",
@@ -31,6 +37,7 @@ REQUIRED_HEADINGS = (
     "### Recommended fixes",
 )
 END_MARKER = "END OF SUMMARY"
+NOT_MAPPED = "not_mapped"
 
 SummaryCheck = namedtuple("SummaryCheck", "valid text problems unverified_refs")
 
@@ -125,6 +132,31 @@ def find_unverified_refs(text, scan):
         if ref not in refs:
             refs.append(ref)
     return refs
+
+
+def confirmed_technique_ids(mapping):
+    """Every technique ID attack_map confirmed, on any port. Suggestions are not included."""
+    ids = set()
+    for port in (mapping or {}).get("ports") or []:
+        for technique in port.get("techniques") or []:
+            if technique.get("id"):
+                ids.add(technique["id"])
+    return ids
+
+
+def mark_not_mapped(attack_check, mapping):
+    """
+    The AttackCheck with every verified row whose ID attack_map did not
+    confirm changed to not_mapped. Every other result is kept. Without a
+    check, a skipped check or a mapping, attack_check is returned as it is.
+    """
+    if attack_check is None or attack_check.skipped or not mapping:
+        return attack_check
+    confirmed = confirmed_technique_ids(mapping)
+    rows = [row._replace(result=NOT_MAPPED)
+            if row.result == "verified" and row.id not in confirmed else row
+            for row in attack_check.rows]
+    return AttackCheck(attack_check.skipped, rows)
 
 
 def _sections(text):

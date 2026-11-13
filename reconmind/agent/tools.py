@@ -18,7 +18,9 @@ A ToolBox can carry a ScanPlan. Then only the tools of the plan's actions run
 scan), nmap scans the plan's ports, nuclei uses the plan's vuln probe mode,
 and the Exploit-DB lookup and risk flags run only when Exploit Hunt is
 selected. plan_tool_specs gives the matching tool specs for the model.
-Without a plan every tool runs exactly as before.
+Without a plan every tool runs exactly as before. attack_map is the one
+exception: it only reads results already gathered, so it runs under every
+plan.
 
 Adding a tool later means adding one spec and one handler here, and listing it
 under an action in reconmind/core/scan_plan.py. The agent loop does not change.
@@ -28,6 +30,8 @@ import copy
 import json
 import os
 
+from reconmind.ai import attack_mapper
+from reconmind.ai.mapping import build_mapping
 from reconmind.core.scan_plan import ACTIONS_BY_ID, TOOL_ACTIONS
 from reconmind.tools.nmap_scan import run_nmap
 from reconmind.tools.exploit_lookup import (
@@ -99,6 +103,15 @@ NMAP_DESCRIPTION_NO_EXPLOITS = (
     "its service, product and version. Run this first. Only the target given "
     "by the operator is allowed."
 )
+
+# Tools that run under every scan plan. They only read results already
+# gathered, so no action has to enable them.
+ALWAYS_ON_TOOLS = ("attack_map",)
+
+ATTACK_MAP_NOTE = ("Use only the confirmed technique IDs in the MITRE ATT&CK section. "
+                   "Lower confidence suggestions are not mappings.")
+MAPPER_UNAVAILABLE_NOTE = ("The mapper model is unavailable (status {s}), so only rule "
+                           "mappings are shown.")
 
 
 # Tool descriptions in the JSON schema format the LLM API expects.
@@ -287,6 +300,25 @@ TOOL_SPECS = [
             "required": [],
         },
     },
+    {
+        "name": "attack_map",
+        "description": (
+            "Map every open port found by nmap_scan to MITRE ATT&CK techniques. "
+            "Rules map each risk flag, and a fine tuned SciBERT model maps each "
+            "port's finding text. Every technique ID is checked against MITRE's "
+            "ATT&CK data, and unknown, revoked or deprecated IDs are dropped. "
+            "Returns, per port, the confirmed techniques with ID, name, source "
+            "(rule, model or both) and confidence, then any lower confidence "
+            "model suggestions, which are not mappings. If the model is "
+            "unavailable only rule mappings are made. Run nmap_scan first. "
+            "Takes no inputs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
 ]
 
 
@@ -299,7 +331,7 @@ def plan_tool_specs(plan):
         return TOOL_SPECS
     specs = []
     for spec in TOOL_SPECS:
-        if not plan.allows_tool(spec["name"]):
+        if spec["name"] not in ALWAYS_ON_TOOLS and not plan.allows_tool(spec["name"]):
             continue
         spec = copy.deepcopy(spec)
         if spec["name"] == "nmap_scan" and not plan.has("exploits"):
@@ -348,12 +380,13 @@ class ToolBox:
             "tls_check": self._tls_check,
             "smb_enum": self._smb_enum,
             "cve_lookup": self._cve_lookup,
+            "attack_map": self._attack_map,
         }.get(name)
 
         if handler is None:
             return self._err("Unknown tool '{n}'.".format(n=name))
         action_id = TOOL_ACTIONS.get(name)
-        if not self._enabled(action_id):
+        if name not in ALWAYS_ON_TOOLS and not self._enabled(action_id):
             return self._err(NOT_IN_PLAN.format(
                 tool=name, action=ACTIONS_BY_ID[action_id].name, action_id=action_id,
                 tools=", ".join(self.plan.tools)))
@@ -813,6 +846,42 @@ class ToolBox:
             items.append(item)
         observation["products"] = items
         observation["note"] = nvd_lookup.PATCH_NOTE
+        return json.dumps(observation), False
+
+    def _attack_map(self):
+        if self.scan.get("status") != "ok":
+            return self._err("Run nmap_scan first; there are no scan results yet.")
+
+        # attack_mapper.load is looked up at call time, so tests can replace it
+        # with a fake predictor. The model is loaded once per run and cached.
+        mapping = build_mapping(self.scan, attack_mapper.load())
+        self.scan["attack_map"] = mapping
+
+        # Compact view only. The finding text and dropped IDs stay in
+        # self.scan for the report.
+        observation = {"mapper_status": mapping["status"]}
+        if mapping["status"] == attack_mapper.STATUS_OK:
+            observation["run_name"] = mapping["run_name"]
+            observation["threshold"] = mapping["threshold"]
+        else:
+            observation["mapper_note"] = MAPPER_UNAVAILABLE_NOTE.format(s=mapping["status"])
+        if mapping.get("mitre_check"):
+            observation["mitre_check"] = mapping["mitre_check"]
+        ports = []
+        for p in mapping["ports"]:
+            item = {"port": p["port"],
+                    "confirmed": [{"id": t["id"], "name": t["name"],
+                                   "source": " and ".join(t["sources"]),
+                                   "confidence": round(t["confidence"], 2)}
+                                  for t in p["techniques"]]}
+            if p["lower_confidence"]:
+                item["lower_confidence_suggestions"] = [
+                    {"id": t["id"], "name": t["name"], "source": t["source"],
+                     "confidence": round(t["confidence"], 2)}
+                    for t in p["lower_confidence"]]
+            ports.append(item)
+        observation["ports"] = ports
+        observation["note"] = ATTACK_MAP_NOTE
         return json.dumps(observation), False
 
     # ---- lookup helpers -------------------------------------------------

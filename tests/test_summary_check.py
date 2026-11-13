@@ -6,9 +6,11 @@ Offline tests for the analyst summary checker (plain code, no AI).
 
 import unittest
 
+from reconmind.core.attack_check import SKIPPED_MISSING, AttackCheck, AttackRow
 from reconmind.core.summary_check import (
-    END_MARKER, REQUIRED_HEADINGS, check_summary, clean_published, find_unverified_refs,
-    known_cve_ids, normalize_dashes, strip_preamble)
+    END_MARKER, NOT_MAPPED, REQUIRED_HEADINGS, check_summary, clean_published,
+    confirmed_technique_ids, find_unverified_refs, known_cve_ids, mark_not_mapped,
+    normalize_dashes, strip_preamble)
 
 SCAN = {
     "target": "10.10.1.100", "status": "ok",
@@ -177,6 +179,55 @@ class DashTests(unittest.TestCase):
         self.assertNotIn("\u2014", result.text)
         self.assertNotIn("\u2011", result.text)
         self.assertEqual(result.unverified_refs, ["CVE-2011-2523"])
+
+
+MAPPING = {"status": "ok", "ports": [
+    {"port": 21, "techniques": [{"id": "T1190", "sources": ["model"]}],
+     "lower_confidence": [{"id": "T1005", "source": "model, lower confidence"}]},
+    {"port": 23, "techniques": [{"id": "T1021", "sources": ["rule"]},
+                                {"id": "T1040", "sources": ["rule", "model"]}],
+     "lower_confidence": []},
+]}
+
+
+def row(technique_id, result):
+    return AttackRow(technique_id, "given", "official", result)
+
+
+class NotMappedTests(unittest.TestCase):
+
+    def test_confirmed_ids_leave_out_suggestions(self):
+        self.assertEqual(confirmed_technique_ids(MAPPING), {"T1190", "T1021", "T1040"})
+        self.assertEqual(confirmed_technique_ids(None), set())
+
+    def test_verified_id_outside_the_mapping_is_not_mapped(self):
+        check = AttackCheck(None, [row("T1190", "verified"), row("T1059", "verified"),
+                                   row("T1005", "verified")])
+        result = mark_not_mapped(check, MAPPING)
+        self.assertEqual([r.result for r in result.rows], ["verified", NOT_MAPPED, NOT_MAPPED])
+        self.assertEqual(NOT_MAPPED, "not_mapped")
+
+    def test_other_results_are_kept_apart(self):
+        check = AttackCheck(None, [row("T9999", "unknown_id"), row("T1086", "deprecated"),
+                                   row("T1173", "revoked"), row("T1021", "name_mismatch"),
+                                   row("T1059", "name_mismatch")])
+        result = mark_not_mapped(check, MAPPING)
+        self.assertEqual([r.result for r in result.rows],
+                         ["unknown_id", "deprecated", "revoked", "name_mismatch",
+                          "name_mismatch"])
+
+    def test_nothing_changes_without_a_mapping_or_a_check(self):
+        check = AttackCheck(None, [row("T1059", "verified")])
+        self.assertIs(mark_not_mapped(check, None), check)
+        self.assertIsNone(mark_not_mapped(None, MAPPING))
+        skipped = AttackCheck(SKIPPED_MISSING, [])
+        self.assertIs(mark_not_mapped(skipped, MAPPING), skipped)
+
+    def test_empty_mapping_marks_every_verified_id(self):
+        check = AttackCheck(None, [row("T1190", "verified")])
+        result = mark_not_mapped(check, {"status": "not-installed", "ports": [
+            {"port": 21, "techniques": [], "lower_confidence": []}]})
+        self.assertEqual(result.rows[0].result, NOT_MAPPED)
 
 
 if __name__ == "__main__":

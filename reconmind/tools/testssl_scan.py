@@ -3,7 +3,7 @@ ReconMind testssl.sh tool (Stage 2, TLS checks).
 
 A thin wrapper around testssl.sh. The only entry point is
 run_testssl(target_ip, port, starttls=None), and like run_nmap and
-run_whatweb its very first action is to ask the authorization gate whether the
+run_httpx its very first action is to ask the authorization gate whether the
 target is allowed. If the gate says no, testssl.sh is never launched.
 
 testssl.sh runs with its default checks only. Results are read from its flat

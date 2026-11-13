@@ -32,7 +32,7 @@ ACTIONS = (
            "Look up known CVEs for each versioned product in the NVD database.",
            ("cve_lookup",)),
     Action("web", "Web Fingerprint",
-           "Identify the technology behind each web port with whatweb.",
+           "Identify the technology behind each web port with httpx.",
            ("web_fingerprint",)),
     Action("paths", "Hidden Paths",
            "Find hidden files and folders on each web port with ffuf.",

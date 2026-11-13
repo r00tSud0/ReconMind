@@ -1,0 +1,1 @@
+{"url":"http://10.10.1.100:80","input":"http://10.10.1.100:80","port":"80","scheme":"http","title":"Metasploitable2 - Linux","webserver":"Apache/2.2.8 (Ubuntu) DAV/2","tech":["Apache HTTP Server:2.2.8","PHP:5.2.4","Ubuntu","bun","mod_dav:2"],"host":"10.10.1.100","method":"GET","status_code":200,"failed":false}

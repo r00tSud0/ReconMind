@@ -393,7 +393,7 @@ class ToolBoxPlanTests(unittest.TestCase):
     def test_tools_outside_the_plan_are_refused(self):
         tb = toolmod.ToolBox(TARGET, plan=build_plan(TARGET, "quick"))
         tb.scan = scan_with(HTTP_PORT, HTTPS_PORT, dict(FTP_PORT, port=445, service="smb"))
-        with mock.patch.object(toolmod, "run_whatweb") as whatweb, \
+        with mock.patch.object(toolmod, "run_httpx") as httpx, \
              mock.patch.object(toolmod, "run_ffuf") as ffuf, \
              mock.patch.object(toolmod, "run_nuclei") as nuclei, \
              mock.patch.object(toolmod, "run_testssl") as testssl, \
@@ -405,7 +405,7 @@ class ToolBoxPlanTests(unittest.TestCase):
                 self.assertTrue(is_error, name)
                 self.assertIn("{n} is not part of this scan".format(n=name), obs)
                 self.assertIn("nmap_scan, exploit_lookup, cve_lookup", obs)
-        for fake in (whatweb, ffuf, nuclei, testssl, enum):
+        for fake in (httpx, ffuf, nuclei, testssl, enum):
             fake.assert_not_called()
         self.assertEqual(len(tb.calls), 5)
 
@@ -793,7 +793,7 @@ class ReportPlanTests(InTempDir):
         scan = scan_with(dict(FTP_PORT, exploits=FAKE_EXPLOITS), HTTP_PORT)
         report = self.read(scan, plan=build_plan(TARGET, "quick"))
         self.assertIn("## Known exploits (Exploit-DB)", report)
-        for head in ("## Web technology (whatweb)", "## Web content discovery (ffuf)",
+        for head in ("## Web technology (httpx)", "## Web content discovery (ffuf)",
                      "## Template checks (nuclei)"):
             self.assertNotIn(head, report)
         # Selected but not run still gets its own "not checked" line.
@@ -813,7 +813,7 @@ class ReportPlanTests(InTempDir):
         scan = scan_with(dict(FTP_PORT, exploits=FAKE_EXPLOITS), HTTP_PORT)
         report = self.read(scan)
         self.assertNotIn("## Scan plan", report)
-        self.assertIn("## Web technology (whatweb)", report)
+        self.assertIn("## Web technology (httpx)", report)
         self.assertIn("**Not checked:** these open web ports were not fingerprinted", report)
         self.assertTrue(os.path.basename(build_report(scan)).startswith("recon_"))
 

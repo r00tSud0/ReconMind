@@ -21,7 +21,7 @@ from reconmind.tools.smb_enum import format_value, os_summary, policy_fields, sm
 from reconmind.tools.testssl_scan import (
     CERT_PREFIX, PROTOCOL_IDS, SEVERITY_ORDER, is_tls_capable, severity_rank,
     starttls_protocol)
-from reconmind.tools.whatweb_scan import is_web_service
+from reconmind.tools.web_common import is_web_service
 
 REPORT_DIR = "reports"
 
@@ -430,18 +430,70 @@ def _cve_section(lines, ports, nvd, nuclei):
         lines.append("")
 
 
+WEB_HEAD = "## Web technology (httpx)"
+WEB_FINGERPRINT_NOTE = ("Technologies are matched by Wappalyzer fingerprints and can include "
+                        "false matches. Only technologies with a version are used for CVE "
+                        "lookups.")
 WEB_NOT_CHECKED = ("**Not checked:** these open web ports were not fingerprinted "
-                   "with whatweb: {ports}.")
-WEB_FAILED = "_whatweb did not complete (status {s}), so this port was not checked._"
-WEB_NO_COMPONENTS = "_whatweb recognized no components._"
+                   "with httpx: {ports}.")
+WEB_FAILED = "_httpx did not complete (status {s}), so this port was not checked._"
+WEB_FALLBACK_FAILED = ("_httpx did not complete (status {r}) and the basic header check "
+                       "failed too (status {s}), so this port was not checked._")
+WEB_FALLBACK = "Basic header check (httpx {reason})"
+WEB_FALLBACK_NOTE = ("_httpx did not complete, so only the server's own headers and title "
+                     "are shown. No technology matching was done._")
+WEB_NO_TECHNOLOGIES = "_httpx matched no technologies._"
+WEB_NOT_REPORTED = "not reported"
 
 
-def _web_component_line(component):
-    """One component: its versions first, then its strings, as whatweb gave them."""
-    parts = ["version {v}".format(v=v) for v in component.get("versions") or []]
-    parts += [str(s) for s in component.get("strings") or []]
-    name = component.get("name", "")
-    return "- {n}: {p}".format(n=name, p="; ".join(parts)) if parts else "- {n}".format(n=name)
+def _web_value(value):
+    """A tool value on one report line: shown as given, line breaks become spaces."""
+    if value is None or value == "":
+        return WEB_NOT_REPORTED
+    return str(value).replace("\r", " ").replace("\n", " ")
+
+
+def _web_technology_line(tech):
+    """One httpx technology, with its version when httpx gave one."""
+    name = _web_value(tech.get("name") or tech.get("raw"))
+    if tech.get("version"):
+        return "- {n}, version {v}".format(n=name, v=_web_value(tech["version"]))
+    return "- {n}".format(n=name)
+
+
+def _web_fallback(lines, result):
+    """A basic header check result: headers and title only."""
+    lines.append(WEB_FALLBACK.format(reason=result.get("fallback_reason") or "unknown"))
+    lines.append("")
+    lines.append(WEB_FALLBACK_NOTE)
+    lines.append("")
+    lines.append("- URL: {v}".format(v=_web_value(result.get("url"))))
+    lines.append("- HTTP status: {v}".format(v=_web_value(result.get("http_status"))))
+    lines.append("- Server: {v}".format(v=_web_value(result.get("server"))))
+    lines.append("- X-Powered-By: {v}".format(v=_web_value(result.get("x_powered_by"))))
+    lines.append("- Title: {v}".format(v=_web_value(result.get("title"))))
+    if result.get("certificate_check"):
+        lines.append("")
+        lines.append(result["certificate_check"])
+
+
+def _web_httpx(lines, result):
+    """An httpx result: URL, status, server, title, location, technologies."""
+    lines.append("- URL: {v}".format(v=_web_value(result.get("url"))))
+    lines.append("- HTTP status: {v}".format(v=_web_value(result.get("http_status"))))
+    lines.append("- Server: {v}".format(v=_web_value(result.get("server"))))
+    lines.append("- Title: {v}".format(v=_web_value(result.get("title"))))
+    if result.get("location"):
+        lines.append("- Redirect location: {v}".format(v=_web_value(result["location"])))
+    lines.append("")
+    lines.append("Technologies:")
+    lines.append("")
+    # raw_json is evidence only and is never printed.
+    technologies = result.get("technologies") or []
+    if not technologies:
+        lines.append(WEB_NO_TECHNOLOGIES)
+    for tech in technologies:
+        lines.append(_web_technology_line(tech))
 
 
 def _web_section(lines, ports, web):
@@ -450,7 +502,9 @@ def _web_section(lines, ports, web):
     if not web_ports:
         return
     web = web or {}
-    lines.append("## Web technology (whatweb)")
+    lines.append(WEB_HEAD)
+    lines.append("")
+    lines.append(WEB_FINGERPRINT_NOTE)
     lines.append("")
     not_checked = []
     for p in web_ports:
@@ -461,20 +515,17 @@ def _web_section(lines, ports, web):
         if not result:
             not_checked.append("{l} ({s})".format(l=label, s=p.get("service") or "unknown"))
             continue
-        if result.get("status") != "ok":
-            lines.append("**{l}** {u}".format(l=label, u=result.get("url") or "").strip())
-            lines.append(WEB_FAILED.format(s=result.get("status") or "unknown"))
-            lines.append("")
-            continue
-        http_status = result.get("http_status")
-        lines.append("**{l}** {u} (HTTP status {h})".format(
-            l=label, u=result.get("url", ""),
-            h=http_status if http_status is not None else "unknown"))
-        components = result.get("components") or []
-        if not components:
-            lines.append(WEB_NO_COMPONENTS)
-        for c in components:
-            lines.append(_web_component_line(c))
+        lines.append("**{l}**".format(l=label))
+        lines.append("")
+        status = result.get("status") or "unknown"
+        if status != "ok" and result.get("fallback_reason"):
+            lines.append(WEB_FALLBACK_FAILED.format(r=result["fallback_reason"], s=status))
+        elif status != "ok":
+            lines.append(WEB_FAILED.format(s=status))
+        elif result.get("fallback_reason"):
+            _web_fallback(lines, result)
+        else:
+            _web_httpx(lines, result)
         lines.append("")
     if not_checked:
         lines.append(WEB_NOT_CHECKED.format(ports=", ".join(not_checked)))

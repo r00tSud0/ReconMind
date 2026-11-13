@@ -34,7 +34,9 @@ from reconmind.tools.exploit_lookup import (
     STATUS_FAILED, STATUS_NO_PRODUCT, lookup_port, primary_label, search_exploits)
 from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
-from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
+from reconmind.tools.web_common import is_web_service, wants_https
+from reconmind.tools.httpx_scan import (
+    FALLBACK_STATUSES, basic_http_fingerprint, run_httpx)
 from reconmind.tools.ffuf_scan import run_ffuf
 from reconmind.tools.nuclei_scan import run_nuclei
 from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
@@ -152,12 +154,15 @@ TOOL_SPECS = [
         "name": "web_fingerprint",
         "description": (
             "Identify the web server technology on one open HTTP or HTTPS port "
-            "found by nmap_scan, using whatweb with one normal request, plus "
-            "any redirects the server sends. Returns "
-            "the URL, the HTTP status and each component whatweb recognized "
-            "(server, language, framework and so on) with the versions and "
-            "strings exactly as whatweb reported them. HTTPS is used "
-            "automatically when nmap saw SSL on the port. Run nmap_scan first."
+            "found by nmap_scan, using httpx with one request and no redirect "
+            "following. Returns the URL, the HTTP status, the Server header, "
+            "the page title, any redirect location and each technology httpx "
+            "matched with its Wappalyzer fingerprints, with the version when "
+            "httpx gave one, all exactly as httpx reported them. Fingerprint "
+            "matches can be wrong. If httpx times out or fails, a basic header "
+            "check runs instead and returns only the Server and X-Powered-By "
+            "headers and the title. HTTPS is used automatically when nmap saw "
+            "SSL on the port. Run nmap_scan first."
         ),
         "input_schema": {
             "type": "object",
@@ -490,34 +495,60 @@ class ToolBox:
         if error:
             return error
 
-        # Scope lock: whatweb only ever runs against this run's target, and
-        # run_whatweb asks the authorization gate again before it starts.
-        result = run_whatweb(self.target, number, use_https=wants_https(match))
+        # Scope lock: httpx only ever runs against this run's target, and
+        # run_httpx asks the authorization gate again before it starts.
+        https = wants_https(match)
+        result = run_httpx(self.target, number, use_https=https)
+
+        status = result.get("status")
+        if status in FALLBACK_STATUSES:
+            # basic_http_fingerprint asks the authorization gate again too.
+            httpx_error = result.get("error", "")
+            result = basic_http_fingerprint(self.target, number, use_https=https)
+            result["fallback_reason"] = status
+            if httpx_error:
+                result["httpx_error"] = httpx_error
         self.scan.setdefault("web", {})[number] = result
 
         status = result.get("status")
         if status == "refused":
             return self._err(
                 "Refused by the authorization gate: {t} is not on the allowlist. "
-                "whatweb was not run. Do not retry.".format(t=self.target))
-        if status == "whatweb-not-found":
-            return self._err("whatweb is not installed, so port {p} was not checked. "
+                "httpx was not run. Do not retry.".format(t=self.target))
+        if status == "httpx-not-found":
+            return self._err("httpx is not installed, so port {p} was not checked. "
                              "Do not retry.".format(p=number))
+        if status != "ok" and result.get("fallback_reason"):
+            return self._err("httpx did not complete for port {p} (status {r}) and the basic "
+                             "header check failed too: status={s}. {e} This port was not "
+                             "checked.".format(p=number, r=result["fallback_reason"], s=status,
+                                               e=result.get("error", "")).replace("  ", " "))
         if status != "ok":
-            return self._err("whatweb did not complete for port {p}: status={s}. {e} "
+            return self._err("httpx did not complete for port {p}: status={s}. {e} "
                              "This port was not checked.".format(
                                  p=number, s=status, e=result.get("error", "")).replace("  ", " "))
 
-        components = []
-        for c in result.get("components", []):
-            item = {"name": c.get("name", "")}
-            if c.get("versions"):
-                item["versions"] = c["versions"]
-            if c.get("strings"):
-                item["strings"] = c["strings"]
-            components.append(item)
+        # Compact view only. raw_json and the command stay in self.scan as
+        # evidence and are never sent.
         observation = {"port": number, "url": result.get("url", ""),
-                       "http_status": result.get("http_status"), "components": components}
+                       "http_status": result.get("http_status"),
+                       "server": result.get("server", ""), "title": result.get("title", "")}
+        if result.get("fallback_reason"):
+            observation["method"] = result.get("method", "")
+            observation["fallback_reason"] = result["fallback_reason"]
+            observation["x_powered_by"] = result.get("x_powered_by", "")
+            observation["note"] = ("httpx did not complete, so only the server's own headers "
+                                   "and title were read. No technology matching was done.")
+            return json.dumps(observation), False
+        if result.get("location"):
+            observation["location"] = result["location"]
+        technologies = []
+        for t in result.get("technologies") or []:
+            item = {"name": t.get("name", "")}
+            if t.get("version"):
+                item["version"] = t["version"]
+            technologies.append(item)
+        observation["technologies"] = technologies
         return json.dumps(observation), False
 
     def _web_discover(self, port):
@@ -733,7 +764,7 @@ class ToolBox:
         if self.scan.get("status") != "ok":
             return self._err("Run nmap_scan first; there are no scan results yet.")
 
-        # Privacy: lookup_targets reads only CPE strings and whatweb's PHP
+        # Privacy: lookup_targets reads only CPE strings and httpx's PHP
         # versions, and only the CPE strings are sent to NVD. self.target is
         # never passed in.
         products, skipped = nvd_lookup.lookup_targets(self.scan.get("ports", []),

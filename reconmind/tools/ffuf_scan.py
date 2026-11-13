@@ -25,7 +25,7 @@ import subprocess
 import tempfile
 
 from reconmind.core.authorization import is_authorized
-from reconmind.tools.whatweb_scan import build_url
+from reconmind.tools.web_common import build_url
 
 BINARY_NAME = "ffuf"
 

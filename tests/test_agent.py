@@ -10,6 +10,7 @@ no network, no nmap and no searchsploit:
 import contextlib
 from functools import partial
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -180,10 +181,13 @@ class SummaryValidationRunnerTests(unittest.TestCase):
              mock.patch.object(llm.time, "sleep") as self.sleep, \
              contextlib.redirect_stdout(out):
             code = main(["reconmind.agent", target])
+        # Every agent run is saved to the history: reports/<run id>/report.md.
         report = ""
-        if os.path.isdir("reports"):
-            name = sorted(os.listdir("reports"))[-1]
-            with open(os.path.join("reports", name)) as fh:
+        index = os.path.join("reports", "index.json")
+        if os.path.exists(index):
+            with open(index) as fh:
+                run_id = json.load(fh)[-1]["run_id"]
+            with open(os.path.join("reports", run_id, "report.md")) as fh:
                 report = fh.read()
         return code, client, report, out.getvalue(), (load, make, agent)
 

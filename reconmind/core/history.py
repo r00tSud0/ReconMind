@@ -15,6 +15,12 @@ versions (reports/recon_*.md) are never touched and keep working.
 Finding counts in the index cover risk flags (only when Exploit Hunt ran),
 nuclei findings and testssl.sh findings. NVD CVE matches are not counted:
 they match the upstream version only and are not confirmed findings.
+
+Every entry has a "kind": "recon" for agent runs, "code" for code scans
+(save_code_run). Code runs get report.md and scan.json in their folder and
+an index entry with counts by severity (high, medium, low) and whether the
+AI explanation ran. Older entries have no kind; entry_kind() reads them as
+recon.
 """
 
 import json
@@ -35,6 +41,9 @@ EVIDENCE_KEYS = ("raw_xml", "raw_json", "raw_jsonl")
 SEVERITIES = ("critical", "high", "medium", "low")
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 MAX_RUN_ID_TRIES = 100
+KIND_RECON = "recon"
+KIND_CODE = "code"
+CODE_SEVERITIES = ("high", "medium", "low")
 
 RunRecord = namedtuple("RunRecord", "run_id folder report_path entry")
 
@@ -176,6 +185,7 @@ def save_run(scan, plan=None, started=None, finished=None, report_dir=None, **re
     finished = finished or datetime.now()
     entry = {
         "run_id": run_id,
+        "kind": KIND_RECON,
         "target": target,
         "preset": plan.preset if plan is not None else None,
         "actions": list(plan.actions) if plan is not None else [],
@@ -185,6 +195,65 @@ def save_run(scan, plan=None, started=None, finished=None, report_dir=None, **re
         "status": scan.get("status", "unknown"),
         "open_ports": len(scan.get("ports") or []),
         "findings": finding_counts(scan, plan),
+    }
+    index_path = os.path.join(report_dir, INDEX_NAME)
+    entries = _entries_for_append(index_path, run_id)
+    entries.append(entry)
+    _write_json(index_path, entries)
+    return RunRecord(run_id, folder, report_path, entry)
+
+
+def entry_kind(entry):
+    """"recon" or "code". An entry written before kinds existed is recon."""
+    return entry.get("kind") or KIND_RECON
+
+
+def code_finding_counts(scan):
+    """{"high", "medium", "low"} counts for one code scan, plus "unknown" only when there is one."""
+    counts = dict.fromkeys(CODE_SEVERITIES, 0)
+    unknown = 0
+    for finding in scan.get("findings") or []:
+        key = str(finding.get("severity") or "").lower()
+        if key in counts:
+            counts[key] += 1
+        else:
+            unknown += 1
+    if unknown:
+        counts["unknown"] = unknown
+    return counts
+
+
+def save_code_run(scan, started=None, finished=None, report_dir=None):
+    """
+    Save one code scan (the dict run_code_scan returns): its folder with
+    report.md and scan.json, and one new entry in index.json with
+    "kind": "code". Return a RunRecord.
+    """
+    from reconmind.code.report import build_code_report
+
+    report_dir = report_dir or report_mod.REPORT_DIR
+    started = started or datetime.now()
+    os.makedirs(report_dir, exist_ok=True)
+    source = scan.get("input") or "code"
+    name = os.path.basename(str(source).rstrip(os.sep)) or "code"
+    run_id, folder = _make_run_folder(report_dir, new_run_id(name, started))
+
+    report_path = build_code_report(scan, os.path.join(folder, REPORT_NAME))
+    _write_json(os.path.join(folder, SCAN_NAME),
+                {"run_id": run_id, "kind": KIND_CODE, "results": scan})
+
+    finished = finished or datetime.now()
+    explanation = scan.get("explanation") or {}
+    entry = {
+        "run_id": run_id,
+        "kind": KIND_CODE,
+        "input": source,
+        "started": started.strftime(TIME_FORMAT),
+        "finished": finished.strftime(TIME_FORMAT),
+        "status": scan.get("status", "unknown"),
+        "languages": dict((scan.get("files") or {}).get("languages") or {}),
+        "findings": code_finding_counts(scan),
+        "ai_explanation": explanation.get("status") == "ok",
     }
     index_path = os.path.join(report_dir, INDEX_NAME)
     entries = _entries_for_append(index_path, run_id)

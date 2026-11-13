@@ -1,0 +1,8 @@
+# Code scan tools (python3 -m reconmind <file or folder>).
+#     pip install -r requirements-code.txt
+#
+# Semgrep runs only with local rules, never the registry. Set them up once:
+#     git clone https://github.com/semgrep/semgrep-rules ~/.local/share/reconmind/semgrep-rules && git -C ~/.local/share/reconmind/semgrep-rules checkout 311ca4e9ba59d700624539bf658e3d29b134ee77
+# Another location can be set with RECONMIND_SEMGREP_RULES.
+semgrep==1.185.0
+bandit==1.9.4

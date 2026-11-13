@@ -1,0 +1,10 @@
+# Optional: the fine tuned ATT&CK mapper model (reconmind/ai/attack_mapper.py).
+# ReconMind runs without these packages; then only rule mappings are made.
+#
+# On Kali, install the CPU build of torch first, from PyTorch's own index:
+#     pip install torch --index-url https://download.pytorch.org/whl/cpu
+# then the rest:
+#     pip install -r requirements-mapper.txt
+torch
+transformers==5.22.1
+safetensors

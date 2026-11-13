@@ -26,6 +26,11 @@ Settings come from the environment or a .env file in the repo root. The
     ANTHROPIC_API_KEY    key for anthropic
     HF_TOKEN             key for huggingface (ollama needs no key)
 
+Every report carries the ATT&CK mapping: if the agent finished without
+calling attack_map, the runner calls it once, before the summary is checked.
+An ATT&CK ID in the summary that attack_map did not confirm is shown as
+not_mapped in the ATT&CK check table.
+
 If a reasoning model's final answer is empty because it used its whole length
 budget (see llm.py), the runner says so and the usual summary fallback runs.
 
@@ -46,7 +51,7 @@ from reconmind.core.attack_check import check_attack
 from reconmind.core.authorization import is_authorized
 from reconmind.core.history import save_run
 from reconmind.core.scan_plan import ACTION_IDS, PRESETS, PlanError, build_plan
-from reconmind.core.summary_check import check_summary
+from reconmind.core.summary_check import NOT_MAPPED, check_summary, mark_not_mapped
 
 MISSING_PACKAGE = ("Missing package. Activate your venv and run:\n"
                    "    pip install -r requirements.txt")
@@ -139,6 +144,25 @@ def _final_summary(client, model, target, scan, draft, plan=None):
     return None, []
 
 
+def _ensure_attack_map(tools):
+    """
+    Run attack_map once if the agent did not leave a mapping in the scan
+    (it never called the tool, or called it before nmap_scan had results).
+    """
+    if "attack_map" not in tools.scan:
+        observation, is_error = tools.call("attack_map", {})
+        if is_error:
+            print("attack map:  not built: {e}".format(
+                e=json.loads(observation).get("error", "")))
+        else:
+            print("attack map:  built after the agent finished (the agent did not call it)")
+    mapping = tools.scan.get("attack_map")
+    if mapping:
+        confirmed = sum(len(p.get("techniques") or []) for p in mapping.get("ports") or [])
+        print("attack map:  {n} technique(s) confirmed, mapper status {s}".format(
+            n=confirmed, s=mapping.get("status")))
+
+
 def main(argv):
     try:
         args = _parse_args(argv[1:])
@@ -204,6 +228,8 @@ def main(argv):
     if getattr(getattr(client, "last_response", None), "empty_reason", None):
         print("summary: model ran out of length budget while reasoning")
 
+    _ensure_attack_map(tools)
+
     try:
         summary, refs = _final_summary(client, config.model, target, tools.scan, draft, plan)
     except llm.RateLimited as exc:
@@ -217,13 +243,14 @@ def main(argv):
 
     attack = None
     if summary is not None:
-        attack = check_attack(summary)
+        attack = mark_not_mapped(check_attack(summary), tools.scan.get("attack_map"))
         if attack.skipped:
             print(attack.skipped)
         else:
             ok = sum(1 for r in attack.rows if r.result == "verified")
-            print("attack:      {v} verified, {f} flagged".format(
-                v=ok, f=len(attack.rows) - ok))
+            not_mapped = sum(1 for r in attack.rows if r.result == NOT_MAPPED)
+            print("attack:      {v} verified, {f} flagged ({n} not mapped)".format(
+                v=ok, f=len(attack.rows) - ok, n=not_mapped))
     record = save_run(tools.scan, plan=plan, started=started, finished=finished,
                       analyst_summary=summary, unverified_refs=refs,
                       summary_failed=summary is None, attack_check=attack)

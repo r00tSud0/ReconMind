@@ -11,8 +11,8 @@ after it.
 """
 
 # The system prompt is assembled from these pieces. With every action in the
-# plan (or no plan at all) the result is exactly the original prompt; the
-# tests hold it to a verbatim copy.
+# plan (or no plan at all) the result is exactly the full prompt (the original
+# plus the attack_map rule); the tests hold it to a verbatim copy.
 _INTRO = """You are ReconMind, a security analyst agent working inside an \
 isolated, authorized penetration testing lab. The operator has given you exactly \
 one target that they own and are authorized to test.
@@ -77,6 +77,12 @@ _RANK_RULE = """- Rank findings by real severity, never by the number of exploit
 remote code execution and open shells come first. Cleartext or trust based logins \
 come next. Flaws that need credentials or local access, and denial of service, \
 come lower. A confirmed match ranks above an unconfirmed one of similar impact.
+"""
+
+# Every plan: the ATT&CK section uses only what attack_map confirmed.
+_ATTACK_MAP_RULE = """- Call attack_map once, right before you write the summary. It takes no \
+inputs. In the MITRE ATT&CK section, use only the technique IDs attack_map returned as \
+confirmed. Never use its lower confidence suggestions or any other technique ID.
 """
 
 _OUTRO = """
@@ -146,6 +152,7 @@ def build_system_prompt(plan=None):
     if enabled("exploits"):
         parts.append(_EXPLOIT_RULES)
     parts.append(_RANK_RULE)
+    parts.append(_ATTACK_MAP_RULE)
     parts.append(_OUTRO)
     return "".join(parts)
 

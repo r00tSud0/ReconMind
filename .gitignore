@@ -9,3 +9,4 @@ __pycache__/
 evaluation/data/tram/
 evaluation/data/run3/
 evaluation/results/raw/
+models/

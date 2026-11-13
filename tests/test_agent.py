@@ -20,8 +20,10 @@ from unittest import mock
 from reconmind.agent import brain, llm, tools as toolmod
 from reconmind.agent import __main__ as runner
 from reconmind.agent.__main__ import main
+from reconmind.ai import attack_mapper
 from reconmind.core.attack_check import check_attack
 from reconmind.core.report import build_report
+from reconmind.core.scan_plan import PRESETS, build_plan
 
 TARGET = "10.10.1.100"
 ATTACK_FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -35,6 +37,24 @@ FAKE_SCAN = {
     ],
 }
 FAKE_EXPLOITS = [{"title": "vsftpd 2.3.4 - Backdoor Command Execution", "edb_id": "49757"}]
+
+
+class FakePredictor:
+    """Stands in for the SciBERT mapper: no torch, no model files."""
+
+    status = "ok"
+    error = ""
+    run_name = "run3"
+    threshold = 0.85
+    sha256 = "0123456789abcdef" * 4
+
+    def __init__(self, hits=None):
+        self.hits = hits if hits is not None else {"vsftpd": [("T1190", 0.95), ("T1005", 0.6)]}
+        self.texts = []
+
+    def predict(self, texts):
+        self.texts.extend(texts)
+        return [next((h for word, h in self.hits.items() if word in t), []) for t in texts]
 
 
 def tool_call(name, args, call_id):
@@ -67,8 +87,17 @@ class AgentTests(unittest.TestCase):
         self._cwd = os.getcwd()
         self._tmp = tempfile.TemporaryDirectory()
         os.chdir(self._tmp.name)  # logs/ and reports/ land here
+        # The real runner runs here: point the mapper at an empty folder so
+        # the real model is never loaded.
+        no_model = os.path.join(self._tmp.name, "no_model")
+        os.makedirs(no_model)
+        self._env = mock.patch.dict(os.environ, {attack_mapper.DIR_ENV: no_model})
+        self._env.start()
+        attack_mapper.clear_cache()
 
     def tearDown(self):
+        attack_mapper.clear_cache()
+        self._env.stop()
         os.chdir(self._cwd)
         self._tmp.cleanup()
 
@@ -165,9 +194,10 @@ class SummaryValidationRunnerTests(unittest.TestCase):
         os.chdir(self._cwd)
         self._tmp.cleanup()
 
-    def run_main(self, draft, repair_turns, target=TARGET, client=None, attack_path=None):
+    def run_main(self, draft, repair_turns, target=TARGET, client=None, attack_path=None,
+                 predictor=None, pre_mapped=False):
         client = client or FakeClient(repair_turns)
-        tb = toolmod.ToolBox(TARGET)
+        tb = self.tb = toolmod.ToolBox(TARGET)
         tb.scan = dict(FAKE_SCAN, ports=[dict(FAKE_SCAN["ports"][0], exploits=FAKE_EXPLOITS),
                                          dict(FAKE_SCAN["ports"][1], exploits=[])])
         config = llm.ProviderConfig("anthropic", "anthropic", None, "ANTHROPIC_API_KEY",
@@ -178,8 +208,12 @@ class SummaryValidationRunnerTests(unittest.TestCase):
              mock.patch.object(brain, "run_agent", return_value=(tb, draft)) as agent, \
              mock.patch.object(runner, "check_attack", partial(
                  check_attack, path=attack_path or ATTACK_FIXTURE)), \
+             mock.patch.object(attack_mapper, "load",
+                               return_value=predictor or FakePredictor()), \
              mock.patch.object(llm.time, "sleep") as self.sleep, \
              contextlib.redirect_stdout(out):
+            if pre_mapped:  # the agent already called attack_map itself
+                tb.call("attack_map", {})
             code = main(["reconmind.agent", target])
         # Every agent run is saved to the history: reports/<run id>/report.md.
         report = ""
@@ -274,6 +308,49 @@ class SummaryValidationRunnerTests(unittest.TestCase):
         self.assertIn("Model busy (rate limited). Try again in a minute or use --model "
                       "with another model.", out)
         self.assertNotIn("Traceback", out)
+        self.assertIn("## MITRE ATT&CK mapping", report)  # mapped before the repair call
+
+    def attack_map_calls(self):
+        return [name for name, _ in self.tb.calls].count("attack_map")
+
+    def test_runner_runs_attack_map_when_the_agent_did_not(self):
+        code, _, report, out, _ = self.run_main(VALID_SUMMARY, [])
+        self.assertEqual(code, 0)
+        self.assertEqual(self.attack_map_calls(), 1)
+        self.assertIn("attack map:  built after the agent finished", out)
+        self.assertIn("## MITRE ATT&CK mapping", report)
+        self.assertIn("| 21/tcp | T1190 | Exploit Public-Facing Application | model | 0.95 "
+                      "| active |", report)
+        self.assertIn("Mapper: status ok, run run3, threshold 0.85, model SHA-256 "
+                      "0123456789ab", report)
+
+    def test_runner_does_not_repeat_attack_map(self):
+        code, _, report, out, _ = self.run_main(VALID_SUMMARY, [], pre_mapped=True)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.attack_map_calls(), 1)
+        self.assertNotIn("built after the agent finished", out)
+        self.assertIn("## MITRE ATT&CK mapping", report)
+
+    def test_summary_id_outside_the_mapping_is_not_mapped(self):
+        draft = VALID_SUMMARY.replace("T1190 Exploit Public-Facing Application",
+                                      "T1190 Exploit Public-Facing Application\n"
+                                      "T1021 Remote Services")
+        code, _, report, out, _ = self.run_main(draft, [])
+        self.assertEqual(code, 0)
+        self.assertIn("| T1190 | Exploit Public-Facing Application | "
+                      "Exploit Public-Facing Application | verified |", report)
+        self.assertIn("| T1021 | Remote Services | Remote Services | not_mapped |", report)
+        self.assertIn("attack:      1 verified, 1 flagged (1 not mapped)", out)
+
+    def test_model_unavailable_report_and_not_mapped(self):
+        predictor = attack_mapper.Predictor("not-installed", "fake")
+        code, _, report, _, _ = self.run_main(VALID_SUMMARY, [], predictor=predictor)
+        self.assertEqual(code, 0)
+        self.assertIn("Mapper: status not-installed. The model is unavailable, so only rule "
+                      "mappings are shown.", report)
+        # No rule covers ftp or ssh, so the summary's T1190 is not in the mapping.
+        self.assertIn("| T1190 | Exploit Public-Facing Application | "
+                      "Exploit Public-Facing Application | not_mapped |", report)
 
     def test_gate_runs_before_config_client_or_model(self):
         code, client, report, _, (load, make, agent) = self.run_main(
@@ -283,6 +360,77 @@ class SummaryValidationRunnerTests(unittest.TestCase):
         make.assert_not_called()
         agent.assert_not_called()
         self.assertEqual(client.requests, [])
+
+
+TELNET_PORT = {"port": 23, "protocol": "tcp", "service": "telnet", "product": "Linux telnetd",
+               "version": ""}
+
+
+class AttackMapToolTests(unittest.TestCase):
+    """attack_map runs under every scan plan, after nmap_scan."""
+
+    PLANS = ([None] + [build_plan(TARGET, preset) for preset in PRESETS]
+             + [build_plan(TARGET, actions=a) for a in ("", "web", "exploits", "smb,crypto")])
+
+    def toolbox(self, plan=None, ports=None):
+        tb = toolmod.ToolBox(TARGET, plan=plan)
+        tb.scan = dict(FAKE_SCAN, ports=[dict(p) for p in (ports or FAKE_SCAN["ports"])])
+        return tb
+
+    def call(self, tb, predictor=None):
+        with mock.patch.object(attack_mapper, "load",
+                               return_value=predictor or FakePredictor()) as load:
+            observation, is_error = tb.call("attack_map", {})
+        return observation, is_error, load
+
+    def test_allowed_under_every_plan(self):
+        for plan in self.PLANS:
+            label = "no plan" if plan is None else ",".join(plan.actions)
+            with self.subTest(plan=label):
+                names = [s["name"] for s in toolmod.plan_tool_specs(plan)]
+                self.assertIn("attack_map", names)
+                tb = self.toolbox(plan)
+                observation, is_error, _ = self.call(tb)
+                self.assertFalse(is_error, observation)
+                self.assertIn("attack_map", tb.scan)
+
+    def test_needs_nmap_scan_first(self):
+        tb = toolmod.ToolBox(TARGET)
+        observation, is_error, load = self.call(tb)
+        self.assertTrue(is_error)
+        self.assertIn("nmap_scan first", observation)
+        load.assert_not_called()
+        self.assertNotIn("attack_map", tb.scan)
+
+    def test_observation_lists_confirmed_then_labeled_suggestions(self):
+        tb = self.toolbox(ports=[FAKE_SCAN["ports"][0], TELNET_PORT])
+        observation, is_error, _ = self.call(tb)
+        self.assertFalse(is_error)
+        data = json.loads(observation)
+        self.assertEqual((data["mapper_status"], data["run_name"], data["threshold"]),
+                         ("ok", "run3", 0.85))
+        self.assertEqual(data["note"], toolmod.ATTACK_MAP_NOTE)
+        ftp, telnet = data["ports"]
+        self.assertEqual(ftp["confirmed"], [{"id": "T1190",
+                                             "name": "Exploit Public-Facing Application",
+                                             "source": "model", "confidence": 0.95}])
+        self.assertEqual(ftp["lower_confidence_suggestions"],
+                         [{"id": "T1005", "name": "Data from Local System",
+                           "source": "model, lower confidence", "confidence": 0.6}])
+        self.assertEqual([(t["id"], t["source"], t["confidence"]) for t in telnet["confirmed"]],
+                         [("T1021", "rule", 1.0), ("T1040", "rule", 1.0)])
+        self.assertNotIn("lower_confidence_suggestions", telnet)
+        self.assertNotIn('"text":', observation)  # the finding text stays in the scan
+
+    def test_unavailable_model_keeps_rules(self):
+        tb = self.toolbox(ports=[TELNET_PORT])
+        observation, is_error, _ = self.call(tb, attack_mapper.Predictor("model-missing", "x"))
+        self.assertFalse(is_error)
+        data = json.loads(observation)
+        self.assertEqual(data["mapper_status"], "model-missing")
+        self.assertEqual(data["mapper_note"], toolmod.MAPPER_UNAVAILABLE_NOTE.format(
+            s="model-missing"))
+        self.assertEqual([t["id"] for t in data["ports"][0]["confirmed"]], ["T1021", "T1040"])
 
 
 if __name__ == "__main__":

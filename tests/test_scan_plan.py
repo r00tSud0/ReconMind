@@ -24,6 +24,7 @@ from unittest import mock
 from reconmind.agent import brain, llm, tools as toolmod
 from reconmind.agent import __main__ as runner
 from reconmind.agent.prompts import FORMAT_RULES, SYSTEM_PROMPT, build_system_prompt
+from reconmind.ai import attack_mapper
 from reconmind.core import history
 from reconmind.core.report import build_report
 from reconmind.core.scan_plan import (
@@ -481,13 +482,14 @@ class ToolBoxPlanTests(unittest.TestCase):
 
     def test_spec_filter(self):
         quick = toolmod.plan_tool_specs(build_plan(TARGET, "quick"))
-        self.assertEqual([s["name"] for s in quick], ["nmap_scan", "exploit_lookup", "cve_lookup"])
+        self.assertEqual([s["name"] for s in quick],
+                         ["nmap_scan", "exploit_lookup", "cve_lookup", "attack_map"])
         self.assertEqual(toolmod.plan_tool_specs(build_plan(TARGET, "full")), toolmod.TOOL_SPECS)
         self.assertIs(toolmod.plan_tool_specs(None), toolmod.TOOL_SPECS)
 
     def test_nmap_spec_without_exploit_hunt(self):
         specs = toolmod.plan_tool_specs(build_plan(TARGET, actions="web"))
-        self.assertEqual([s["name"] for s in specs], ["nmap_scan", "web_fingerprint"])
+        self.assertEqual([s["name"] for s in specs], ["nmap_scan", "web_fingerprint", "attack_map"])
         self.assertNotIn("Exploit-DB", specs[0]["description"])
         self.assertIn("Exploit-DB", toolmod.TOOL_SPECS[0]["description"])  # not changed in place
 
@@ -529,7 +531,7 @@ class BrainPlanTests(unittest.TestCase):
                                 plan=plan)
         for request in client.requests:
             self.assertEqual([s["name"] for s in request["tools"]],
-                             ["nmap_scan", "exploit_lookup", "cve_lookup"])
+                             ["nmap_scan", "exploit_lookup", "cve_lookup", "attack_map"])
             self.assertEqual(request["system"], build_system_prompt(plan))
         self.assertIs(tb.plan, plan)
         result = client.requests[1]["messages"][-1]["content"][0]
@@ -547,8 +549,8 @@ class BrainPlanTests(unittest.TestCase):
 
 # ---- system prompt -------------------------------------------------------
 
-# A verbatim copy of SYSTEM_PROMPT from before scan plans. The built prompt
-# with every action must match it exactly.
+# A verbatim copy of SYSTEM_PROMPT from before scan plans, plus the attack_map
+# rule. The built prompt with every action must match it exactly.
 ORIGINAL_SYSTEM_PROMPT = """You are ReconMind, a security analyst agent working inside an \
 isolated, authorized penetration testing lab. The operator has given you exactly \
 one target that they own and are authorized to test.
@@ -591,6 +593,9 @@ failed. Never report it as having no exploits.
 remote code execution and open shells come first. Cleartext or trust based logins \
 come next. Flaws that need credentials or local access, and denial of service, \
 come lower. A confirmed match ranks above an unconfirmed one of similar impact.
+- Call attack_map once, right before you write the summary. It takes no \
+inputs. In the MITRE ATT&CK section, use only the technique IDs attack_map returned as \
+confirmed. Never use its lower confidence suggestions or any other technique ID.
 
 When you are done, reply with no tool call and write only the analyst summary in \
 Markdown with exactly these sections. No introduction before them and no closing \
@@ -615,6 +620,7 @@ OTHER_RULES = (
     "- You are doing reconnaissance and analysis only.",
     "Never invent CVE numbers, EDB-IDs, versions or services.",
     "- Rank findings by real severity",
+    "- Call attack_map once, right before you write the summary.",
     "### Key findings", "### Recommended fixes", "\nEND OF SUMMARY\n",
 )
 
@@ -679,6 +685,8 @@ class CliTests(InTempDir):
              mock.patch.object(brain, "run_agent", side_effect=fake_agent) as agent, \
              mock.patch.object(runner, "check_attack",
                                return_value=NS(skipped="ATT&CK check skipped", rows=[])), \
+             mock.patch.object(attack_mapper, "load",
+                               return_value=attack_mapper.Predictor("model-missing", "fake")), \
              contextlib.redirect_stdout(out):
             code = runner.main(["reconmind.agent"] + argv)
         return code, captured, out.getvalue(), (load, make, agent)
@@ -698,7 +706,7 @@ class CliTests(InTempDir):
         self.assertEqual((plan.preset, plan.ports, plan.actions),
                          ("quick", "21,22", ("surface", "web")))
         self.assertEqual([s["name"] for s in captured["tool_specs"]],
-                         ["nmap_scan", "web_fingerprint"])
+                         ["nmap_scan", "web_fingerprint", "attack_map"])
         self.assertEqual(captured["system_prompt"], build_system_prompt(plan))
         self.assertIn("Scan plan: preset quick (customized), ports 21,22 (2 ports)", out)
         self.assertIn("[x] web", out)

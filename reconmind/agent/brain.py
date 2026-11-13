@@ -31,12 +31,18 @@ def _short(text, limit=300):
     return text if len(text) <= limit else text[:limit] + " ..."
 
 
-def run_agent(target, client=None, model=None, trace=True):
+def run_agent(target, client=None, model=None, trace=True, tool_specs=None,
+              system_prompt=None, plan=None):
     """
     Run one ReAct session against target.
 
     Returns (toolbox, summary_text). toolbox.scan holds the structured results
     for the report; summary_text is the model's final analyst summary.
+
+    tool_specs, system_prompt and plan are optional. tool_specs is the list
+    of specs sent to the model, system_prompt the system prompt, and plan a
+    ScanPlan handed to ToolBox. Each one left out keeps the old behavior:
+    every spec in TOOL_SPECS, SYSTEM_PROMPT, and a ToolBox with no plan.
     """
     model = model or os.environ.get("RECONMIND_MODEL")
     if not model:
@@ -45,15 +51,17 @@ def run_agent(target, client=None, model=None, trace=True):
         import anthropic  # imported here so tests don't need the package
         client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY
 
-    tools = ToolBox(target)
+    tools = ToolBox(target) if plan is None else ToolBox(target, plan=plan)
+    specs = TOOL_SPECS if tool_specs is None else tool_specs
+    system = SYSTEM_PROMPT if system_prompt is None else system_prompt
     messages = [{"role": "user", "content": first_user_message(target)}]
 
     for step in range(1, MAX_STEPS + 1):
         response = client.messages.create(
             model=model,
             max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
-            tools=TOOL_SPECS,
+            system=system,
+            tools=specs,
             messages=messages,
         )
         messages.append({"role": "assistant", "content": response.content})

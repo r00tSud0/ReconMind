@@ -28,7 +28,7 @@ import subprocess
 import tempfile
 
 from reconmind.core.authorization import is_authorized
-from reconmind.tools.whatweb_scan import build_url
+from reconmind.tools.web_common import build_url
 
 BINARY_NAME = "nuclei"
 
@@ -42,6 +42,15 @@ NUCLEI_FLAGS = ["-type", "http", "-severity", SEVERITIES, "-exclude-tags", EXCLU
                 "-no-color", "-silent", "-jsonl"]
 NUCLEI_TIMEOUT = 1800
 JSONL_BASENAME = "nuclei.jsonl"
+
+# How templates are picked. Both keep every flag in NUCLEI_FLAGS.
+# deep: exactly the command above, every safe template.
+# auto: adds -automatic-scan, so nuclei detects the web technology first and
+#       runs only the templates tagged for it.
+MODE_DEEP = "deep"
+MODE_AUTO = "auto"
+MODES = (MODE_DEEP, MODE_AUTO)
+MODE_FLAGS = {MODE_DEEP: [], MODE_AUTO: ["-automatic-scan"]}
 
 # -disable-update-check stops nuclei from installing templates on its own
 # when none are present, so this check never downloads anything.
@@ -59,6 +68,7 @@ SEVERITY_ORDER = ("critical", "high", "medium", "low", "info", "unknown")
 STATUS_OK = "ok"
 STATUS_REFUSED = "refused"
 STATUS_BAD_PORT = "bad-port"
+STATUS_BAD_MODE = "bad-mode"
 STATUS_NOT_FOUND = "nuclei-not-found"
 STATUS_NO_TEMPLATES = "templates-not-found"
 STATUS_TIMEOUT = "timeout"
@@ -67,9 +77,10 @@ STATUS_BAD_JSONL = "bad-jsonl"
 
 
 def _result(status, url="", templates_version="", command="", findings=None,
-            raw_jsonl="", error=""):
+            raw_jsonl="", error="", mode=""):
     result = {"status": status, "url": url, "templates_version": templates_version,
-              "command": command, "findings": findings or [], "raw_jsonl": raw_jsonl or ""}
+              "mode": mode, "command": command, "findings": findings or [],
+              "raw_jsonl": raw_jsonl or ""}
     if error:
         result["error"] = error
     return result
@@ -142,16 +153,19 @@ def templates_version():
     return parse_templates_version(output), ""
 
 
-def run_nuclei(target_ip, port, use_https=False):
+def run_nuclei(target_ip, port, use_https=False, mode=MODE_DEEP):
     """
     Run safe nuclei templates against one web port of one authorized target
     and return:
-        {"status", "url", "templates_version", "command", "findings":
+        {"status", "url", "templates_version", "mode", "command", "findings":
          [{"template_id", "name", "severity", "matched_at", "matcher_name",
          "extracted", "cve", "cwe", "tags"}], "raw_jsonl"}
     plus "error" when status is not "ok". No findings is status "ok" with an
     empty list. raw_jsonl is nuclei's whole JSONL file, kept as evidence; it
     is never sent to the model or printed in the report.
+    mode is "deep" (the default, every safe template) or "auto" (adds
+    -automatic-scan); anything else gives status "bad-mode" and nuclei never
+    runs. The mode used is recorded in "mode".
     If the gate refuses the target, status is "refused" and nuclei never runs.
     If nuclei is not installed, status is "nuclei-not-found". If no templates
     are installed, status is "templates-not-found".
@@ -159,6 +173,10 @@ def run_nuclei(target_ip, port, use_https=False):
     # The gate decides first. Nothing happens if it says no.
     if not is_authorized(target_ip):
         return _result(STATUS_REFUSED)
+
+    if mode not in MODES:
+        return _result(STATUS_BAD_MODE, error="Mode {m!r} is not one of: {v}.".format(
+            m=mode, v=", ".join(MODES)))
 
     try:
         port = int(port)
@@ -170,19 +188,20 @@ def run_nuclei(target_ip, port, use_https=False):
 
     # Make sure nuclei is actually present before trying to call it.
     if shutil.which(BINARY_NAME) is None:
-        return _result(STATUS_NOT_FOUND, url=url, error="nuclei is not installed on this machine.")
+        return _result(STATUS_NOT_FOUND, url=url, mode=mode,
+                       error="nuclei is not installed on this machine.")
 
     version, error = templates_version()
     if error:
-        return _result(STATUS_FAILED, url=url, error=error)
+        return _result(STATUS_FAILED, url=url, mode=mode, error=error)
     if not version:
-        return _result(STATUS_NO_TEMPLATES, url=url, error=UPDATE_HINT)
-    facts = {"url": url, "templates_version": version}
+        return _result(STATUS_NO_TEMPLATES, url=url, mode=mode, error=UPDATE_HINT)
+    facts = {"url": url, "templates_version": version, "mode": mode}
 
     # A fresh temp directory, so the output name is always new.
     temp_dir = tempfile.mkdtemp(prefix="reconmind_nuclei_")
     jsonl_path = os.path.join(temp_dir, JSONL_BASENAME)
-    cmd = [BINARY_NAME, "-u", url] + NUCLEI_FLAGS + ["-o", jsonl_path]
+    cmd = [BINARY_NAME, "-u", url] + NUCLEI_FLAGS + MODE_FLAGS[mode] + ["-o", jsonl_path]
     command = shlex.join(cmd)
     try:
         try:

@@ -37,8 +37,10 @@ SCAN = {
          "cpe": ["cpe:/a:apache:http_server:2.2.8", "cpe:/o:linux:linux_kernel"]},
     ],
     "web": {80: {"status": "ok", "url": "http://10.10.1.100:80", "http_status": 200,
-                 "components": [{"name": "PHP", "versions": ["5.2.4-2ubuntu5.10"],
-                                 "strings": []}]}},
+                 "server": "Apache/2.2.8 (Ubuntu) DAV/2", "title": "Metasploitable2 - Linux",
+                 "location": "",
+                 "technologies": [{"name": "PHP", "version": "5.2.4", "raw": "PHP:5.2.4"},
+                                  {"name": "Ubuntu", "version": "", "raw": "Ubuntu"}]}},
 }
 OPENSSH_CPE = "cpe:2.3:a:openbsd:openssh:4.7:p1:*:*:*:*:*:*"
 NO_RESULTS = ("NVD returned no CVEs for this exact product ID. This does not mean the "
@@ -201,8 +203,8 @@ class PromptTests(unittest.TestCase):
 
 def nvd_result(cves, status="ok"):
     return {"status": "ok", "api_key_used": False, "products": [
-        {"product": "PHP 5.2.4-2ubuntu5.10", "cpe": PHP_CPE, "source": ["whatweb"],
-         "from": ["PHP 5.2.4-2ubuntu5.10"], "ports": ["80/tcp"], "status": status,
+        {"product": "PHP 5.2.4", "cpe": PHP_CPE, "source": ["httpx"],
+         "from": ["PHP 5.2.4"], "ports": ["80/tcp"], "status": status,
          "fetched_at": "2026-11-12T15:04:11Z", "from_cache": True,
          "total_results": len(cves), "cves": cves}],
         "skipped": [{"cpe": "cpe:/o:linux:linux_kernel", "ports": ["22/tcp", "80/tcp"],
@@ -241,7 +243,7 @@ class CveReportTests(unittest.TestCase):
         report = self.report(nvd_result(PARSED))
         self.assertIn("## Known CVEs (NVD)", report)
         self.assertIn(PATCH_NOTE, report)
-        self.assertIn("**PHP 5.2.4-2ubuntu5.10** (80/tcp)", report)
+        self.assertIn("**PHP 5.2.4** (80/tcp)", report)
         self.assertIn("CPE: `{c}`".format(c=PHP_CPE), report)
         self.assertIn("NVD data fetched: 2026-11-12T15:04:11Z (from cache)", report)
         self.assertIn("By severity: CRITICAL 1, HIGH 2, MEDIUM 0, LOW 0 (3 total)", report)
@@ -377,7 +379,7 @@ class CveReportTests(unittest.TestCase):
         self.assertLess(report.index("## Known exploits (Exploit-DB)"),
                         report.index("## Known CVEs (NVD)"))
         self.assertLess(report.index("## Known CVEs (NVD)"),
-                        report.index("## Web technology (whatweb)"))
+                        report.index("## Web technology (httpx)"))
 
     def test_no_em_dashes_or_dash_separators_in_our_text(self):
         report = self.report(nvd_result(PARSED), {80: {"status": "ok", "findings": [

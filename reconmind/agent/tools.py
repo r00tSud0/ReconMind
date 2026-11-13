@@ -13,19 +13,30 @@ described in TOOL_SPECS, and every request comes through ToolBox.call(), which:
   4. keeps the structured results so the report is built from real tool
      output, not from whatever the model claims it saw.
 
-Adding a tool later means adding one spec and one handler here. The agent loop
-does not change.
+A ToolBox can carry a ScanPlan. Then only the tools of the plan's actions run
+(any other request gets an error observation saying it is not part of this
+scan), nmap scans the plan's ports, nuclei uses the plan's vuln probe mode,
+and the Exploit-DB lookup and risk flags run only when Exploit Hunt is
+selected. plan_tool_specs gives the matching tool specs for the model.
+Without a plan every tool runs exactly as before.
+
+Adding a tool later means adding one spec and one handler here, and listing it
+under an action in reconmind/core/scan_plan.py. The agent loop does not change.
 """
 
+import copy
 import json
 import os
 
+from reconmind.core.scan_plan import ACTIONS_BY_ID, TOOL_ACTIONS
 from reconmind.tools.nmap_scan import run_nmap
 from reconmind.tools.exploit_lookup import (
     STATUS_FAILED, STATUS_NO_PRODUCT, lookup_port, primary_label, search_exploits)
 from reconmind.tools.risky_services import flag_port
 from reconmind.tools.version_normalizer import planned_queries
-from reconmind.tools.whatweb_scan import is_web_service, run_whatweb, wants_https
+from reconmind.tools.web_common import is_web_service, wants_https
+from reconmind.tools.httpx_scan import (
+    FALLBACK_STATUSES, basic_http_fingerprint, run_httpx)
 from reconmind.tools.ffuf_scan import run_ffuf
 from reconmind.tools.nuclei_scan import run_nuclei
 from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
@@ -75,6 +86,19 @@ UNCONFIRMED_NOTE = ("These ports answered as open in the discovery pass but not 
                     "in the detail pass, usually because of packet loss on the "
                     "network path. They are not confirmed findings; the scan "
                     "should be rerun.")
+
+NOT_IN_PLAN = ("{tool} is not part of this scan. The operator's scan plan does not "
+               "include {action} ({action_id}), so it was not run. Tools in this scan: "
+               "{tools}. Do not call it again.")
+
+# nmap_scan's description when Exploit Hunt is not selected: no automatic
+# lookup and no risk flags.
+NMAP_DESCRIPTION_NO_EXPLOITS = (
+    "Run an nmap service and version scan (-sV) against the authorized "
+    "target, on the ports in this scan's plan. Returns every open port with "
+    "its service, product and version. Run this first. Only the target given "
+    "by the operator is allowed."
+)
 
 
 # Tool descriptions in the JSON schema format the LLM API expects.
@@ -130,12 +154,15 @@ TOOL_SPECS = [
         "name": "web_fingerprint",
         "description": (
             "Identify the web server technology on one open HTTP or HTTPS port "
-            "found by nmap_scan, using whatweb with one normal request, plus "
-            "any redirects the server sends. Returns "
-            "the URL, the HTTP status and each component whatweb recognized "
-            "(server, language, framework and so on) with the versions and "
-            "strings exactly as whatweb reported them. HTTPS is used "
-            "automatically when nmap saw SSL on the port. Run nmap_scan first."
+            "found by nmap_scan, using httpx with one request and no redirect "
+            "following. Returns the URL, the HTTP status, the Server header, "
+            "the page title, any redirect location and each technology httpx "
+            "matched with its Wappalyzer fingerprints, with the version when "
+            "httpx gave one, all exactly as httpx reported them. Fingerprint "
+            "matches can be wrong. If httpx times out or fails, a basic header "
+            "check runs instead and returns only the Server and X-Powered-By "
+            "headers and the title. HTTPS is used automatically when nmap saw "
+            "SSL on the port. Run nmap_scan first."
         ),
         "input_schema": {
             "type": "object",
@@ -263,18 +290,45 @@ TOOL_SPECS = [
 ]
 
 
+def plan_tool_specs(plan):
+    """
+    The tool specs the model may see for this plan, in TOOL_SPECS order.
+    None gives TOOL_SPECS itself. Specs are copied, never changed in place.
+    """
+    if plan is None:
+        return TOOL_SPECS
+    specs = []
+    for spec in TOOL_SPECS:
+        if not plan.allows_tool(spec["name"]):
+            continue
+        spec = copy.deepcopy(spec)
+        if spec["name"] == "nmap_scan" and not plan.has("exploits"):
+            spec["description"] = NMAP_DESCRIPTION_NO_EXPLOITS
+        specs.append(spec)
+    return specs
+
+
 class ToolBox:
     """Holds the scope lock and the results gathered during one agent run."""
 
-    def __init__(self, target, all_ports=False):
+    def __init__(self, target, all_ports=False, plan=None):
         self.target = str(target).strip()
         # Passed straight through to run_nmap. Default False, so the agent and
         # brain.py scan exactly as before; only callers that ask for a full
-        # sweep set it.
+        # sweep set it. A plan's ports spec takes its place.
         self.all_ports = all_ports
+        # Scope lock: a plan for any other target is refused outright.
+        if plan is not None and plan.target != self.target:
+            raise ValueError("The scan plan is for {p}, not {t}.".format(
+                p=plan.target, t=self.target))
+        self.plan = plan
         # Same shape the report builder already reads.
         self.scan = {"target": self.target, "status": "not-run", "ports": []}
         self.calls = []  # (tool name, input) history, for the trace and tests
+
+    def _enabled(self, action_id):
+        """True if the action runs in this scan. Without a plan, everything does."""
+        return self.plan is None or self.plan.has(action_id)
 
     # ---- dispatch -------------------------------------------------------
 
@@ -298,6 +352,11 @@ class ToolBox:
 
         if handler is None:
             return self._err("Unknown tool '{n}'.".format(n=name))
+        action_id = TOOL_ACTIONS.get(name)
+        if not self._enabled(action_id):
+            return self._err(NOT_IN_PLAN.format(
+                tool=name, action=ACTIONS_BY_ID[action_id].name, action_id=action_id,
+                tools=", ".join(self.plan.tools)))
         try:
             return handler(**(args or {}))
         except TypeError as exc:
@@ -314,8 +373,12 @@ class ToolBox:
                 "Refused: {t} is outside this run's scope. The only authorized "
                 "target is {s}.".format(t=target, s=self.target))
 
-        # run_nmap asks the authorization gate again before nmap starts.
-        result = run_nmap(self.target, all_ports=self.all_ports)
+        # run_nmap asks the authorization gate again before nmap starts, and
+        # checks the plan's ports spec again before it builds the command.
+        if self.plan is None:
+            result = run_nmap(self.target, all_ports=self.all_ports)
+        else:
+            result = run_nmap(self.target, ports=self.plan.ports)
         self.scan = result
 
         if result["status"] == "refused":
@@ -326,13 +389,15 @@ class ToolBox:
             return self._err("Scan did not run: status={s}".format(s=result["status"]))
 
         # Completeness: every open port is looked up, not just the ones the
-        # model would have picked.
-        for port in result["ports"]:
-            self._lookup_port(port)
+        # model would have picked. Only when Exploit Hunt is in the plan.
+        exploits = self._enabled("exploits")
+        if exploits:
+            for port in result["ports"]:
+                self._lookup_port(port)
 
         observation = {
             "target": result["target"],
-            "open_ports": [self._port_summary(p) for p in result["ports"]],
+            "open_ports": [self._port_summary(p, exploits=exploits) for p in result["ports"]],
         }
         # How every scanned port answered, so the model can tell a firewall
         # (many filtered, no-response) from a host with nothing listening.
@@ -430,34 +495,60 @@ class ToolBox:
         if error:
             return error
 
-        # Scope lock: whatweb only ever runs against this run's target, and
-        # run_whatweb asks the authorization gate again before it starts.
-        result = run_whatweb(self.target, number, use_https=wants_https(match))
+        # Scope lock: httpx only ever runs against this run's target, and
+        # run_httpx asks the authorization gate again before it starts.
+        https = wants_https(match)
+        result = run_httpx(self.target, number, use_https=https)
+
+        status = result.get("status")
+        if status in FALLBACK_STATUSES:
+            # basic_http_fingerprint asks the authorization gate again too.
+            httpx_error = result.get("error", "")
+            result = basic_http_fingerprint(self.target, number, use_https=https)
+            result["fallback_reason"] = status
+            if httpx_error:
+                result["httpx_error"] = httpx_error
         self.scan.setdefault("web", {})[number] = result
 
         status = result.get("status")
         if status == "refused":
             return self._err(
                 "Refused by the authorization gate: {t} is not on the allowlist. "
-                "whatweb was not run. Do not retry.".format(t=self.target))
-        if status == "whatweb-not-found":
-            return self._err("whatweb is not installed, so port {p} was not checked. "
+                "httpx was not run. Do not retry.".format(t=self.target))
+        if status == "httpx-not-found":
+            return self._err("httpx is not installed, so port {p} was not checked. "
                              "Do not retry.".format(p=number))
+        if status != "ok" and result.get("fallback_reason"):
+            return self._err("httpx did not complete for port {p} (status {r}) and the basic "
+                             "header check failed too: status={s}. {e} This port was not "
+                             "checked.".format(p=number, r=result["fallback_reason"], s=status,
+                                               e=result.get("error", "")).replace("  ", " "))
         if status != "ok":
-            return self._err("whatweb did not complete for port {p}: status={s}. {e} "
+            return self._err("httpx did not complete for port {p}: status={s}. {e} "
                              "This port was not checked.".format(
                                  p=number, s=status, e=result.get("error", "")).replace("  ", " "))
 
-        components = []
-        for c in result.get("components", []):
-            item = {"name": c.get("name", "")}
-            if c.get("versions"):
-                item["versions"] = c["versions"]
-            if c.get("strings"):
-                item["strings"] = c["strings"]
-            components.append(item)
+        # Compact view only. raw_json and the command stay in self.scan as
+        # evidence and are never sent.
         observation = {"port": number, "url": result.get("url", ""),
-                       "http_status": result.get("http_status"), "components": components}
+                       "http_status": result.get("http_status"),
+                       "server": result.get("server", ""), "title": result.get("title", "")}
+        if result.get("fallback_reason"):
+            observation["method"] = result.get("method", "")
+            observation["fallback_reason"] = result["fallback_reason"]
+            observation["x_powered_by"] = result.get("x_powered_by", "")
+            observation["note"] = ("httpx did not complete, so only the server's own headers "
+                                   "and title were read. No technology matching was done.")
+            return json.dumps(observation), False
+        if result.get("location"):
+            observation["location"] = result["location"]
+        technologies = []
+        for t in result.get("technologies") or []:
+            item = {"name": t.get("name", "")}
+            if t.get("version"):
+                item["version"] = t["version"]
+            technologies.append(item)
+        observation["technologies"] = technologies
         return json.dumps(observation), False
 
     def _web_discover(self, port):
@@ -509,7 +600,11 @@ class ToolBox:
 
         # Scope lock: nuclei only ever runs against this run's target, and
         # run_nuclei asks the authorization gate again before it starts.
-        result = run_nuclei(self.target, number, use_https=wants_https(match))
+        if self.plan is None:
+            result = run_nuclei(self.target, number, use_https=wants_https(match))
+        else:
+            result = run_nuclei(self.target, number, use_https=wants_https(match),
+                                mode=self.plan.vuln_mode)
         self.scan.setdefault("nuclei", {})[number] = result
 
         status = result.get("status")
@@ -543,6 +638,8 @@ class ToolBox:
                        "templates_version": result.get("templates_version", ""),
                        "severity_counts": counts, "finding_count": len(findings),
                        "findings": items}
+        if result.get("mode"):
+            observation["mode"] = result["mode"]
         return json.dumps(observation), False
 
     @staticmethod
@@ -667,7 +764,7 @@ class ToolBox:
         if self.scan.get("status") != "ok":
             return self._err("Run nmap_scan first; there are no scan results yet.")
 
-        # Privacy: lookup_targets reads only CPE strings and whatweb's PHP
+        # Privacy: lookup_targets reads only CPE strings and httpx's PHP
         # versions, and only the CPE strings are sent to NVD. self.target is
         # never passed in.
         products, skipped = nvd_lookup.lookup_targets(self.scan.get("ports", []),
@@ -732,9 +829,14 @@ class ToolBox:
             q for q, _ in planned_queries(port.get("product", ""), port.get("version", ""))]
 
     @staticmethod
-    def _port_summary(port):
-        """Compact per port line for the nmap_scan observation."""
+    def _port_summary(port, exploits=True):
+        """
+        Compact per port line for the nmap_scan observation. exploits=False
+        (Exploit Hunt not selected) leaves out the exploit fields and risk flag.
+        """
         summary = {k: port.get(k, "") for k in ("port", "protocol", "service", "product", "version")}
+        if not exploits:
+            return summary
         status = port.get("exploit_status")
         exploits = port.get("exploits", [])
         if status in (STATUS_FAILED, STATUS_NO_PRODUCT):

@@ -262,8 +262,9 @@ class ParseTests(unittest.TestCase):
 
     def test_result_keys(self):
         result = run_with(fake_nuclei(JSONL_TEXT))
-        self.assertEqual(set(result), {"status", "url", "templates_version", "command",
-                                       "findings", "raw_jsonl"})
+        self.assertEqual(set(result), {"status", "url", "templates_version", "mode",
+                                       "command", "findings", "raw_jsonl"})
+        self.assertEqual(result["mode"], "deep")
         self.assertEqual(set(result["findings"][0]), {
             "template_id", "name", "severity", "matched_at", "matcher_name", "extracted",
             "cve", "cwe", "tags"})

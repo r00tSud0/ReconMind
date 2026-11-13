@@ -132,7 +132,7 @@ class FakeNVD:
 
 
 def product(cpe, label="PHP 5.2.4", ports=("80/tcp",)):
-    return {"product": label, "cpe": cpe, "source": ["whatweb"], "from": [label],
+    return {"product": label, "cpe": cpe, "source": ["httpx"], "from": [label],
             "ports": list(ports)}
 
 
@@ -246,13 +246,22 @@ class LookupTargetsTests(unittest.TestCase):
          "cpe": ["cpe:/a:apache:http_server:2.2.8"]},
         {"port": 3306, "protocol": "tcp", "product": "MySQL", "version": "5.0.51a"},
     ]
+    # Port 80 is httpx's real tech list for Metasploitable.
     WEB = {
-        80: {"status": "ok", "url": "http://" + TARGET + ":80", "components": [
-            {"name": "Apache", "versions": ["2.2.8"], "strings": ["Ubuntu"]},
-            {"name": "PHP", "versions": ["5.2.4-2ubuntu5.10"], "strings": []}]},
-        "443": {"status": "ok", "url": "https://" + TARGET + ":443", "components": [
-            {"name": "PHP", "versions": ["5.2.4-2ubuntu5.10", "unknown"], "strings": []}]},
-        8080: {"status": "timeout", "components": [{"name": "PHP", "versions": ["7.0.1"]}]},
+        80: {"status": "ok", "url": "http://" + TARGET + ":80", "technologies": [
+            {"name": "Apache HTTP Server", "version": "2.2.8", "raw": "Apache HTTP Server:2.2.8"},
+            {"name": "PHP", "version": "5.2.4", "raw": "PHP:5.2.4"},
+            {"name": "Ubuntu", "version": "", "raw": "Ubuntu"},
+            {"name": "bun", "version": "", "raw": "bun"},
+            {"name": "mod_dav", "version": "2", "raw": "mod_dav:2"}]},
+        "443": {"status": "ok", "url": "https://" + TARGET + ":443", "technologies": [
+            {"name": "PHP", "version": "5.2.4", "raw": "PHP:5.2.4"},
+            {"name": "PHP", "version": "", "raw": "PHP"}]},
+        8080: {"status": "timeout", "technologies": [
+            {"name": "PHP", "version": "7.0.1", "raw": "PHP:7.0.1"}]},
+        # A basic header check carries no technologies, only X-Powered-By.
+        8180: {"status": "ok", "method": "basic header check", "fallback_reason": "timeout",
+               "x_powered_by": "PHP/5.3.0", "server": "Apache", "title": ""},
     }
 
     def test_versioned_cpes_become_products_merged_by_cpe(self):
@@ -271,16 +280,26 @@ class LookupTargetsTests(unittest.TestCase):
                                     "ports": ["22/tcp", "80/tcp"],
                                     "reason": nvd_lookup.REASON_NO_VERSION}])
 
-    def test_php_from_whatweb_only(self):
+    def test_php_5_2_4_from_httpx(self):
         products, skipped = nvd_lookup.lookup_targets([], self.WEB)
+        # Only PHP is mapped: Apache HTTP Server and mod_dav carry versions
+        # too, but nothing besides PHP is ever guessed from httpx.
         self.assertEqual(len(products), 1)
         php = products[0]
         self.assertEqual(php["cpe"], PHP_CPE)
-        self.assertEqual(php["product"], "PHP 5.2.4-2ubuntu5.10")
-        self.assertEqual(php["ports"], ["80/tcp", "443/tcp"])  # failed port 8080 ignored
-        self.assertEqual(php["source"], ["whatweb"])
-        self.assertEqual(skipped, [{"cpe": "PHP unknown", "ports": ["443/tcp"],
-                                    "reason": nvd_lookup.REASON_PHP_NO_VERSION}])
+        self.assertEqual(php["product"], "PHP 5.2.4")
+        self.assertEqual(php["from"], ["PHP 5.2.4"])
+        # Failed port 8080 and the basic header check on 8180 are ignored.
+        self.assertEqual(php["ports"], ["80/tcp", "443/tcp"])
+        self.assertEqual(php["source"], ["httpx"])
+        # A PHP technology without a version is simply not used.
+        self.assertEqual(skipped, [])
+
+    def test_php_needs_name_php_and_a_version(self):
+        web = {80: {"status": "ok", "technologies": [
+            {"name": "PHP", "version": "", "raw": "PHP"},
+            {"name": "phpMyAdmin", "version": "3.1.1", "raw": "phpMyAdmin:3.1.1"}]}}
+        self.assertEqual(nvd_lookup.lookup_targets([], web), ([], []))
 
     def test_no_web_results(self):
         self.assertEqual(nvd_lookup.lookup_targets([], None), ([], []))
@@ -572,8 +591,10 @@ class PrivacyTests(NVDTestCase):
              "version": "4.7p1 Debian 8ubuntu1", "cpe": ["cpe:/a:openbsd:openssh:4.7p1"]},
         ]
         web = {80: {"status": "ok", "url": "http://{t}:80/".format(t=TARGET),
-                    "components": [{"name": "PHP", "versions": ["5.2.4-2ubuntu5.10"]},
-                                   {"name": "IP", "strings": [TARGET]}]}}
+                    "server": "Apache/2.2.8 (Ubuntu) DAV/2", "title": TARGET,
+                    "raw_json": '{"host":"%s"}' % TARGET,
+                    "technologies": [{"name": "PHP", "version": "5.2.4", "raw": "PHP:5.2.4"},
+                                     {"name": "Ubuntu", "version": "", "raw": "Ubuntu"}]}}
         fake = self.fake(FIXTURE_BYTES, FIXTURE_BYTES, FIXTURE_BYTES)
         products, skipped = nvd_lookup.lookup_targets(ports, web)
         nvd_lookup.run_cve_lookup(products, skipped)
@@ -609,7 +630,8 @@ class PrivacyTests(NVDTestCase):
         for p in ports:
             p.update({"reason": "syn-ack", "host": TARGET})
         web = {80: {"status": "ok", "url": "http://{t}:80/".format(t=TARGET),
-                    "components": [{"name": "IP", "strings": [TARGET]}]}}
+                    "title": TARGET, "raw_json": '{"host":"%s"}' % TARGET,
+                    "technologies": [{"name": "Ubuntu", "version": "", "raw": "Ubuntu"}]}}
         fake = self.fake(page([], total=0), page([], total=0), page([], total=0),
                          cpes={SAMBA_MATCH: SAMBA_CPE_BYTES, VSFTPD_MATCH: VSFTPD_CPE_BYTES})
         products, skipped = nvd_lookup.lookup_targets(ports, web)

@@ -93,7 +93,7 @@ class WebDiscoverTests(unittest.TestCase):
 
     def test_web_fingerprint_messages_unchanged(self):
         tb = toolbox()
-        with mock.patch.object(toolmod, "run_whatweb") as run:
+        with mock.patch.object(toolmod, "run_httpx") as run:
             obs, _ = tb.call("web_fingerprint", {"port": 22})
         self.assertIn("Web ports you can fingerprint: 80, 443, 8443, 8080.",
                       json.loads(obs)["error"])
@@ -231,8 +231,10 @@ REPORT_SCAN = {
          "version": "5.5", "exploits": []},
     ],
     "web": {80: {"status": "ok", "url": "http://10.10.1.100:80", "http_status": 200,
-                 "command": "whatweb ...",
-                 "components": [{"name": "Apache", "versions": ["2.2.8"], "strings": []}]}},
+                 "server": "Apache/2.2.8 (Ubuntu) DAV/2", "title": "", "location": "",
+                 "command": "httpx-toolkit ...", "raw_json": "",
+                 "technologies": [{"name": "Apache HTTP Server", "version": "2.2.8",
+                                   "raw": "Apache HTTP Server:2.2.8"}]}},
     "discovery": {
         80: ok_result(),
         443: dict(ok_result(), status="timeout", url="https://10.10.1.100:443",
@@ -265,7 +267,7 @@ class DiscoveryReportTests(unittest.TestCase):
     def test_section_after_web_technology(self):
         report = self.read(REPORT_SCAN)
         self.assertIn(DISCOVERY_HEAD, report)
-        self.assertLess(report.index("## Web technology (whatweb)"),
+        self.assertLess(report.index("## Web technology (httpx)"),
                         report.index(DISCOVERY_HEAD))
         self.assertLess(report.index(DISCOVERY_HEAD), report.index("## Notes"))
 

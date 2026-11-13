@@ -301,7 +301,7 @@ class TlsReportTests(unittest.TestCase):
 
     def test_section_after_web_before_notes(self):
         report = read_report(TLS_SCAN)
-        self.assertLess(report.index("## Web technology (whatweb)"), report.index(TLS_HEAD))
+        self.assertLess(report.index("## Web technology (httpx)"), report.index(TLS_HEAD))
         self.assertLess(report.index(TLS_HEAD), report.index("## Notes"))
 
     def test_port_shows_protocols_certificate_and_findings(self):

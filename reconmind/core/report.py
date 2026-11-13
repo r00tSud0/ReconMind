@@ -10,6 +10,7 @@ carry an optional "exploits" list added by the exploit lookup tool.
 import os
 from datetime import datetime
 
+from reconmind.core.scan_plan import ACTIONS, VULN_MODE_TEXT
 from reconmind.tools.exploit_lookup import exploit_url, primary_label
 from reconmind.tools.nuclei_scan import severity_rank as nuclei_severity_rank
 from reconmind.tools.nvd_lookup import (
@@ -20,7 +21,7 @@ from reconmind.tools.smb_enum import format_value, os_summary, policy_fields, sm
 from reconmind.tools.testssl_scan import (
     CERT_PREFIX, PROTOCOL_IDS, SEVERITY_ORDER, is_tls_capable, severity_rank,
     starttls_protocol)
-from reconmind.tools.whatweb_scan import is_web_service
+from reconmind.tools.web_common import is_web_service
 
 REPORT_DIR = "reports"
 
@@ -32,6 +33,57 @@ MATCH_WORDING = {
     "unverified": "Version range could not be checked against the scanned "
                   "version (unconfirmed)",
 }
+
+
+PLAN_HEAD = "## Scan plan"
+PLAN_RAN = "Ran"
+PLAN_DID_NOT_RUN = "Selected, did not run"
+PLAN_NOT_SELECTED = "Not run (not selected)"
+NOTES_NO_EXPLOITS = ("{n} open port(s) found. Exploit lookup and risk flags: "
+                     + PLAN_NOT_SELECTED + ".")
+
+# Where each action leaves its results in the scan dict (surface and
+# exploits are checked on their own in _action_ran).
+PLAN_RESULT_KEYS = {"cves": "nvd", "web": "web", "paths": "discovery", "vulns": "nuclei",
+                    "crypto": "tls", "smb": "smb"}
+
+
+def _selected(plan, action_id):
+    """True if the action is in the plan. Without a plan, every action is."""
+    return plan is None or plan.has(action_id)
+
+
+def _action_ran(action_id, scan):
+    if action_id == "surface":
+        return scan.get("status") == "ok"
+    if action_id == "exploits":
+        return any("exploit_status" in p or "exploits" in p for p in scan.get("ports") or [])
+    return bool(scan.get(PLAN_RESULT_KEYS[action_id]))
+
+
+def _plan_section(lines, plan, scan):
+    """Preset, ports and every action with whether it ran. Only with a plan."""
+    if plan is None:
+        return
+    lines.append(PLAN_HEAD)
+    lines.append("")
+    lines.append("- Preset: {p}{c}".format(
+        p=plan.preset, c=" (customized)" if plan.customized else ""))
+    lines.append("- Ports: {p}".format(p=plan.ports_text()))
+    if plan.has("vulns"):
+        lines.append("- Vuln Probe mode: {m}".format(m=VULN_MODE_TEXT[plan.vuln_mode]))
+    lines.append("")
+    lines.append("| Action | Name | Result |")
+    lines.append("|--------|------|--------|")
+    for action in ACTIONS:
+        if not plan.has(action.id):
+            result = PLAN_NOT_SELECTED
+        elif _action_ran(action.id, scan):
+            result = PLAN_RAN
+        else:
+            result = PLAN_DID_NOT_RUN
+        lines.append("| {i} | {n} | {r} |".format(i=action.id, n=action.name, r=result))
+    lines.append("")
 
 
 def _ports_table(lines, ports):
@@ -378,18 +430,70 @@ def _cve_section(lines, ports, nvd, nuclei):
         lines.append("")
 
 
+WEB_HEAD = "## Web technology (httpx)"
+WEB_FINGERPRINT_NOTE = ("Technologies are matched by Wappalyzer fingerprints and can include "
+                        "false matches. Only technologies with a version are used for CVE "
+                        "lookups.")
 WEB_NOT_CHECKED = ("**Not checked:** these open web ports were not fingerprinted "
-                   "with whatweb: {ports}.")
-WEB_FAILED = "_whatweb did not complete (status {s}), so this port was not checked._"
-WEB_NO_COMPONENTS = "_whatweb recognized no components._"
+                   "with httpx: {ports}.")
+WEB_FAILED = "_httpx did not complete (status {s}), so this port was not checked._"
+WEB_FALLBACK_FAILED = ("_httpx did not complete (status {r}) and the basic header check "
+                       "failed too (status {s}), so this port was not checked._")
+WEB_FALLBACK = "Basic header check (httpx {reason})"
+WEB_FALLBACK_NOTE = ("_httpx did not complete, so only the server's own headers and title "
+                     "are shown. No technology matching was done._")
+WEB_NO_TECHNOLOGIES = "_httpx matched no technologies._"
+WEB_NOT_REPORTED = "not reported"
 
 
-def _web_component_line(component):
-    """One component: its versions first, then its strings, as whatweb gave them."""
-    parts = ["version {v}".format(v=v) for v in component.get("versions") or []]
-    parts += [str(s) for s in component.get("strings") or []]
-    name = component.get("name", "")
-    return "- {n}: {p}".format(n=name, p="; ".join(parts)) if parts else "- {n}".format(n=name)
+def _web_value(value):
+    """A tool value on one report line: shown as given, line breaks become spaces."""
+    if value is None or value == "":
+        return WEB_NOT_REPORTED
+    return str(value).replace("\r", " ").replace("\n", " ")
+
+
+def _web_technology_line(tech):
+    """One httpx technology, with its version when httpx gave one."""
+    name = _web_value(tech.get("name") or tech.get("raw"))
+    if tech.get("version"):
+        return "- {n}, version {v}".format(n=name, v=_web_value(tech["version"]))
+    return "- {n}".format(n=name)
+
+
+def _web_fallback(lines, result):
+    """A basic header check result: headers and title only."""
+    lines.append(WEB_FALLBACK.format(reason=result.get("fallback_reason") or "unknown"))
+    lines.append("")
+    lines.append(WEB_FALLBACK_NOTE)
+    lines.append("")
+    lines.append("- URL: {v}".format(v=_web_value(result.get("url"))))
+    lines.append("- HTTP status: {v}".format(v=_web_value(result.get("http_status"))))
+    lines.append("- Server: {v}".format(v=_web_value(result.get("server"))))
+    lines.append("- X-Powered-By: {v}".format(v=_web_value(result.get("x_powered_by"))))
+    lines.append("- Title: {v}".format(v=_web_value(result.get("title"))))
+    if result.get("certificate_check"):
+        lines.append("")
+        lines.append(result["certificate_check"])
+
+
+def _web_httpx(lines, result):
+    """An httpx result: URL, status, server, title, location, technologies."""
+    lines.append("- URL: {v}".format(v=_web_value(result.get("url"))))
+    lines.append("- HTTP status: {v}".format(v=_web_value(result.get("http_status"))))
+    lines.append("- Server: {v}".format(v=_web_value(result.get("server"))))
+    lines.append("- Title: {v}".format(v=_web_value(result.get("title"))))
+    if result.get("location"):
+        lines.append("- Redirect location: {v}".format(v=_web_value(result["location"])))
+    lines.append("")
+    lines.append("Technologies:")
+    lines.append("")
+    # raw_json is evidence only and is never printed.
+    technologies = result.get("technologies") or []
+    if not technologies:
+        lines.append(WEB_NO_TECHNOLOGIES)
+    for tech in technologies:
+        lines.append(_web_technology_line(tech))
 
 
 def _web_section(lines, ports, web):
@@ -398,7 +502,9 @@ def _web_section(lines, ports, web):
     if not web_ports:
         return
     web = web or {}
-    lines.append("## Web technology (whatweb)")
+    lines.append(WEB_HEAD)
+    lines.append("")
+    lines.append(WEB_FINGERPRINT_NOTE)
     lines.append("")
     not_checked = []
     for p in web_ports:
@@ -409,20 +515,17 @@ def _web_section(lines, ports, web):
         if not result:
             not_checked.append("{l} ({s})".format(l=label, s=p.get("service") or "unknown"))
             continue
-        if result.get("status") != "ok":
-            lines.append("**{l}** {u}".format(l=label, u=result.get("url") or "").strip())
-            lines.append(WEB_FAILED.format(s=result.get("status") or "unknown"))
-            lines.append("")
-            continue
-        http_status = result.get("http_status")
-        lines.append("**{l}** {u} (HTTP status {h})".format(
-            l=label, u=result.get("url", ""),
-            h=http_status if http_status is not None else "unknown"))
-        components = result.get("components") or []
-        if not components:
-            lines.append(WEB_NO_COMPONENTS)
-        for c in components:
-            lines.append(_web_component_line(c))
+        lines.append("**{l}**".format(l=label))
+        lines.append("")
+        status = result.get("status") or "unknown"
+        if status != "ok" and result.get("fallback_reason"):
+            lines.append(WEB_FALLBACK_FAILED.format(r=result["fallback_reason"], s=status))
+        elif status != "ok":
+            lines.append(WEB_FAILED.format(s=status))
+        elif result.get("fallback_reason"):
+            _web_fallback(lines, result)
+        else:
+            _web_httpx(lines, result)
         lines.append("")
     if not_checked:
         lines.append(WEB_NOT_CHECKED.format(ports=", ".join(not_checked)))
@@ -493,6 +596,7 @@ NUCLEI_NOT_CHECKED = ("**Not checked:** these open web ports were not checked wi
 NUCLEI_FAILED = "_nuclei did not complete (status {s}), so this port was not checked._"
 NUCLEI_NO_FINDINGS = "_nuclei found nothing at low severity or above._"
 NUCLEI_TEMPLATES = "Templates version: {v}"
+NUCLEI_MODE = "Mode: {m}"
 NUCLEI_EXCLUDED = ("Excluded: denial of service, fuzzing, intrusive, default login and "
                    "brute force templates. No outside callbacks (interactsh off).")
 
@@ -532,6 +636,9 @@ def _nuclei_section(lines, ports, nuclei):
             continue
         lines.append(NUCLEI_TEMPLATES.format(v=result.get("templates_version") or "unknown"))
         lines.append("")
+        if result.get("mode"):  # scans from before modes existed have none
+            lines.append(NUCLEI_MODE.format(m=VULN_MODE_TEXT.get(result["mode"], result["mode"])))
+            lines.append("")
         lines.append(NUCLEI_EXCLUDED)
         lines.append("")
         # raw_jsonl is evidence only and is never printed.
@@ -766,7 +873,7 @@ def _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
 
 
 def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=False,
-                 rate_limited=False, attack_check=None):
+                 rate_limited=False, attack_check=None, plan=None, path=None):
     """
     Write one Markdown report for a scan result. Return the file path.
 
@@ -778,9 +885,12 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     hit a provider rate limit: same as summary_failed, with its own notice.
     attack_check is an attack_check.AttackCheck, shown as a table under the
     summary.
-    """
-    os.makedirs(REPORT_DIR, exist_ok=True)
 
+    plan is an optional ScanPlan. With one, a "Scan plan" section goes near
+    the top and each tool section appears only if its action was selected.
+    Without one, every section renders as before. path is where to write;
+    without it the report goes to a new flat file in REPORT_DIR, as before.
+    """
     target = scan.get("target", "unknown")
     status = scan.get("status", "unknown")
     ports = scan.get("ports", [])
@@ -788,9 +898,13 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
 
     now = datetime.now()
     stamp = now.strftime("%Y-%m-%d %H:%M:%S")
-    safe_target = str(target).replace("/", "_").replace(":", "_")
-    fname = "recon_{t}_{s}.md".format(t=safe_target, s=now.strftime("%Y%m%d_%H%M%S"))
-    path = os.path.join(REPORT_DIR, fname)
+    if path is None:
+        os.makedirs(REPORT_DIR, exist_ok=True)
+        safe_target = str(target).replace("/", "_").replace(":", "_")
+        fname = "recon_{t}_{s}.md".format(t=safe_target, s=now.strftime("%Y%m%d_%H%M%S"))
+        path = os.path.join(REPORT_DIR, fname)
+    elif os.path.dirname(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
 
     lines = [
         "# ReconMind Report",
@@ -801,6 +915,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
         "",
     ]
 
+    _plan_section(lines, plan, scan)
     _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
                      rate_limited, attack_check)
 
@@ -825,32 +940,45 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     else:
         _ports_table(lines, ports)
         _port_states_section(lines, scan.get("port_states"), unconfirmed)
-        _risky_section(lines, ports)
-        _exploits_section(lines, ports)
-        _cve_section(lines, ports, scan.get("nvd"), scan.get("nuclei"))
-        _web_section(lines, ports, scan.get("web"))
-        _discovery_section(lines, ports, scan.get("discovery"))
-        _nuclei_section(lines, ports, scan.get("nuclei"))
-        _tls_section(lines, ports, scan.get("tls"))
-        _smb_section(lines, ports, scan.get("smb"))
-        all_exploits = [e for p in ports for e in p.get("exploits", [])]
-        counts = {k: sum(1 for e in all_exploits if e.get("match") == k)
-                  for k in MATCH_WORDING}
+        # Each tool section only for an action in the plan. Inside a section,
+        # "Not checked" still means selected but not run on that port.
+        exploits = _selected(plan, "exploits")
+        if exploits:
+            _risky_section(lines, ports)
+            _exploits_section(lines, ports)
+        if _selected(plan, "cves"):
+            _cve_section(lines, ports, scan.get("nvd"), scan.get("nuclei"))
+        if _selected(plan, "web"):
+            _web_section(lines, ports, scan.get("web"))
+        if _selected(plan, "paths"):
+            _discovery_section(lines, ports, scan.get("discovery"))
+        if _selected(plan, "vulns"):
+            _nuclei_section(lines, ports, scan.get("nuclei"))
+        if _selected(plan, "crypto"):
+            _tls_section(lines, ports, scan.get("tls"))
+        if _selected(plan, "smb"):
+            _smb_section(lines, ports, scan.get("smb"))
         lines.append("## Notes")
         lines.append("")
-        failed = sum(1 for p in ports if _lookup_failed(p))
-        risky = len(flag_ports(ports))
-        note = ("{n} open port(s) found, {e} known exploit match(es) across "
-                "those services: {x} exact version, {f} version family "
-                "(unconfirmed), {o} product only (unconfirmed). {u} match(es) "
-                "unverified because the version range could not be checked "
-                "(unconfirmed). {r} risky service(s) flagged.".format(
-                    n=len(ports), e=len(all_exploits),
-                    x=counts["exact_version"], f=counts["version_family"],
-                    o=counts["product_only"], u=counts["unverified"], r=risky))
-        if failed:
-            note += (" Exploit lookup failed for {k} port(s), so those services "
-                     "were not checked.".format(k=failed))
+        if exploits:
+            all_exploits = [e for p in ports for e in p.get("exploits", [])]
+            counts = {k: sum(1 for e in all_exploits if e.get("match") == k)
+                      for k in MATCH_WORDING}
+            failed = sum(1 for p in ports if _lookup_failed(p))
+            risky = len(flag_ports(ports))
+            note = ("{n} open port(s) found, {e} known exploit match(es) across "
+                    "those services: {x} exact version, {f} version family "
+                    "(unconfirmed), {o} product only (unconfirmed). {u} match(es) "
+                    "unverified because the version range could not be checked "
+                    "(unconfirmed). {r} risky service(s) flagged.".format(
+                        n=len(ports), e=len(all_exploits),
+                        x=counts["exact_version"], f=counts["version_family"],
+                        o=counts["product_only"], u=counts["unverified"], r=risky))
+            if failed:
+                note += (" Exploit lookup failed for {k} port(s), so those services "
+                         "were not checked.".format(k=failed))
+        else:
+            note = NOTES_NO_EXPLOITS.format(n=len(ports))
         if unconfirmed:
             note += (" {k} more port(s) answered as open in discovery only and "
                      "were not confirmed, so they are not counted here.".format(

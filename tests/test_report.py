@@ -455,22 +455,32 @@ WEB_SCAN = {
          "version": "5.5", "exploits": []},
     ],
     "web": {
+        # Built from httpx's real output for Metasploitable's port 80.
         80: {"status": "ok", "url": "http://10.10.1.100:80", "http_status": 200,
-             "command": "whatweb ...",
-             "components": [
-                 {"name": "Apache", "versions": ["2.2.8"], "strings": []},
-                 {"name": "HTTPServer", "versions": [],
-                  "strings": ["Apache/2.2.8 (Ubuntu) DAV/2"]},
-                 {"name": "PHP", "versions": ["5.2.4-2ubuntu5.10"], "strings": []},
-                 {"name": "Title", "versions": [], "strings": ["Metasploitable2 - Linux"]},
-                 {"name": "nginx", "versions": [], "strings": []},
+             "server": "Apache/2.2.8 (Ubuntu) DAV/2", "title": "Metasploitable2 - Linux",
+             "location": "", "command": "httpx-toolkit ...", "raw_json": '{"raw": "evidence"}',
+             "technologies": [
+                 {"name": "Apache HTTP Server", "version": "2.2.8",
+                  "raw": "Apache HTTP Server:2.2.8"},
+                 {"name": "PHP", "version": "5.2.4", "raw": "PHP:5.2.4"},
+                 {"name": "Ubuntu", "version": "", "raw": "Ubuntu"},
+                 {"name": "bun", "version": "", "raw": "bun"},
+                 {"name": "mod_dav", "version": "2", "raw": "mod_dav:2"},
              ]},
-        443: {"status": "timeout", "url": "https://10.10.1.100:443", "http_status": None,
-              "components": [], "command": "whatweb ...",
-              "error": "whatweb did not finish within 120 seconds."},
+        443: {"status": "bad-output", "url": "https://10.10.1.100:443", "http_status": None,
+              "server": "", "title": "", "location": "", "technologies": [],
+              "command": "httpx-toolkit ...", "raw_json": "not json",
+              "error": "httpx output is not a JSON object."},
     },
 }
-WEB_HEAD = "## Web technology (whatweb)"
+WEB_HEAD = "## Web technology (httpx)"
+FINGERPRINT_NOTE = ("Technologies are matched by Wappalyzer fingerprints and can include "
+                    "false matches. Only technologies with a version are used for CVE "
+                    "lookups.")
+BASIC_8180 = {"status": "ok", "url": "http://10.10.1.100:8180", "method": "basic header check",
+              "http_status": 200, "server": "Apache-Coyote/1.1", "x_powered_by": "",
+              "title": "Apache Tomcat/5.5", "fallback_reason": "timeout",
+              "httpx_error": "httpx did not finish within 60 seconds."}
 
 
 class WebReportTests(unittest.TestCase):
@@ -484,14 +494,73 @@ class WebReportTests(unittest.TestCase):
         os.chdir(self._cwd)
         self._tmp.cleanup()
 
-    def test_web_section_lists_components(self):
-        report = read_report(WEB_SCAN)
-        self.assertIn(WEB_HEAD, report)
-        self.assertIn("**80/tcp** http://10.10.1.100:80 (HTTP status 200)", report)
-        self.assertIn("- Apache: version 2.2.8", report)
-        self.assertIn("- HTTPServer: Apache/2.2.8 (Ubuntu) DAV/2", report)
-        self.assertIn("- PHP: version 5.2.4-2ubuntu5.10", report)
-        self.assertIn("- nginx\n", report)
+    def section(self, report):
+        return report.split(WEB_HEAD)[1].split("\n## ")[0]
+
+    def test_web_section_lists_url_status_server_title_and_technologies(self):
+        section = self.section(read_report(WEB_SCAN))
+        self.assertIn("**80/tcp**\n\n"
+                      "- URL: http://10.10.1.100:80\n"
+                      "- HTTP status: 200\n"
+                      "- Server: Apache/2.2.8 (Ubuntu) DAV/2\n"
+                      "- Title: Metasploitable2 - Linux\n\n"
+                      "Technologies:\n\n"
+                      "- Apache HTTP Server, version 2.2.8\n"
+                      "- PHP, version 5.2.4\n"
+                      "- Ubuntu\n"
+                      "- bun\n"
+                      "- mod_dav, version 2\n", section)
+        self.assertNotIn("Redirect location", section)
+        self.assertNotIn("evidence", section)  # raw_json is never printed
+
+    def test_fingerprint_note_is_always_there(self):
+        self.assertIn(WEB_HEAD + "\n\n" + FINGERPRINT_NOTE + "\n", read_report(WEB_SCAN))
+        scan = {k: v for k, v in WEB_SCAN.items() if k != "web"}
+        self.assertIn(FINGERPRINT_NOTE, self.section(read_report(scan)))
+
+    def test_redirect_location_is_shown(self):
+        web = dict(WEB_SCAN["web"])
+        web[80] = dict(web[80], http_status=302, location="/phpinfo.php")
+        section = self.section(read_report(dict(WEB_SCAN, web=web)))
+        self.assertIn("- HTTP status: 302\n- Server: Apache/2.2.8 (Ubuntu) DAV/2\n"
+                      "- Title: Metasploitable2 - Linux\n- Redirect location: /phpinfo.php\n",
+                      section)
+
+    def test_no_technologies(self):
+        web = {80: dict(WEB_SCAN["web"][80], technologies=[])}
+        section = self.section(read_report(dict(WEB_SCAN, web=web)))
+        self.assertIn("_httpx matched no technologies._", section)
+
+    def test_basic_header_check_result(self):
+        web = {**WEB_SCAN["web"], 8180: BASIC_8180}
+        section = self.section(read_report(dict(WEB_SCAN, web=web)))
+        self.assertIn("**8180/tcp**\n\n"
+                      "Basic header check (httpx timeout)\n\n"
+                      "_httpx did not complete, so only the server's own headers and title "
+                      "are shown. No technology matching was done._\n\n"
+                      "- URL: http://10.10.1.100:8180\n"
+                      "- HTTP status: 200\n"
+                      "- Server: Apache-Coyote/1.1\n"
+                      "- X-Powered-By: not reported\n"
+                      "- Title: Apache Tomcat/5.5\n", section)
+        self.assertNotIn("8180/tcp (http).", section)  # checked, so not in "Not checked"
+
+    def test_basic_header_check_notes_unverified_certificate(self):
+        basic = dict(BASIC_8180, url="https://10.10.1.100:443",
+                     certificate_check="Certificate not verified: self signed "
+                                       "certificates are accepted on lab targets.")
+        web = {**WEB_SCAN["web"], 443: basic}
+        section = self.section(read_report(dict(WEB_SCAN, web=web)))
+        self.assertIn("Certificate not verified: self signed certificates are accepted "
+                      "on lab targets.", section)
+
+    def test_failed_basic_header_check_says_not_checked(self):
+        basic = dict(BASIC_8180, status="failed", http_status=None, server="", title="",
+                     error="The request failed: refused")
+        web = {**WEB_SCAN["web"], 8180: basic}
+        section = self.section(read_report(dict(WEB_SCAN, web=web)))
+        self.assertIn("_httpx did not complete (status timeout) and the basic header check "
+                      "failed too (status failed), so this port was not checked._", section)
 
     def test_web_section_after_exploits_before_notes(self):
         report = read_report(WEB_SCAN)
@@ -501,27 +570,26 @@ class WebReportTests(unittest.TestCase):
     def test_not_checked_line(self):
         report = read_report(WEB_SCAN)
         self.assertIn("**Not checked:** these open web ports were not fingerprinted with "
-                      "whatweb: 8180/tcp (http).", report)
+                      "httpx: 8180/tcp (http).", report)
         section = report.split(WEB_HEAD)[1].split("## Notes")[0]
         self.assertNotIn("22/tcp", section)  # ssh is not a web port
 
     def test_failed_run_says_not_checked(self):
-        report = read_report(WEB_SCAN)
-        self.assertIn("**443/tcp** https://10.10.1.100:443", report)
-        self.assertIn("_whatweb did not complete (status timeout), so this port was not "
-                      "checked._", report)
+        section = self.section(read_report(WEB_SCAN))
+        self.assertIn("**443/tcp**\n\n_httpx did not complete (status bad-output), so this "
+                      "port was not checked._", section)
 
     def test_all_web_ports_not_checked_without_web_results(self):
         scan = {k: v for k, v in WEB_SCAN.items() if k != "web"}
         report = read_report(scan)
         self.assertIn(WEB_HEAD, report)
-        self.assertIn("whatweb: 80/tcp (http), 443/tcp (http), 8180/tcp (http).", report)
+        self.assertIn("httpx: 80/tcp (http), 443/tcp (http), 8180/tcp (http).", report)
 
     def test_string_port_keys_from_json(self):
         scan = dict(WEB_SCAN, web={str(k): v for k, v in WEB_SCAN["web"].items()})
         report = read_report(scan)
-        self.assertIn("**80/tcp** http://10.10.1.100:80 (HTTP status 200)", report)
-        self.assertIn("whatweb: 8180/tcp (http).", report)
+        self.assertIn("**80/tcp**\n\n- URL: http://10.10.1.100:80\n", report)
+        self.assertIn("httpx: 8180/tcp (http).", report)
 
     def test_no_section_without_web_ports(self):
         self.assertNotIn(WEB_HEAD, read_report(SCAN))
@@ -529,17 +597,21 @@ class WebReportTests(unittest.TestCase):
                                                 "ports": []}))
 
     def test_web_text_has_no_em_dashes_or_dash_separators(self):
-        report = read_report(WEB_SCAN)
+        web = {**WEB_SCAN["web"], 8180: BASIC_8180}
+        report = read_report(dict(WEB_SCAN, web=web))
         report += read_report({k: v for k, v in WEB_SCAN.items() if k != "web"})
         for p in WEB_SCAN["ports"]:
             for e in p["exploits"]:
                 report = report.replace(e["title"], "")
             report = report.replace(p["version"], "")  # nmap data, not our text
-        for result in WEB_SCAN["web"].values():
-            for c in result["components"]:  # whatweb data, not our text
-                for s in c["versions"] + c["strings"]:
-                    report = report.replace(s, "")
+        for result in web.values():  # httpx and header data, not our text
+            for key in ("server", "title", "x_powered_by"):
+                if result.get(key):
+                    report = report.replace(result[key], "")
+            for t in result.get("technologies", []):
+                report = report.replace(t["raw"], "")
         self.assertIn(WEB_HEAD, report)
+        self.assertIn(FINGERPRINT_NOTE, report)
         self.assertNotIn("\u2014", report)
         self.assertNotIn(" - ", report)
 

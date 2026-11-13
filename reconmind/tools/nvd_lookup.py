@@ -8,7 +8,7 @@ Privacy rule: only CPE strings ever leave the machine. The target address,
 ports, banners and every other scan detail stay local. lookup_targets reads
 each port's "cpe" list, product and version (the version only to complete a
 versionless CPE, and only its leading upstream number is kept) and
-whatweb's PHP versions. CVE request URLs carry only cpeName, resultsPerPage
+httpx's PHP versions. CVE request URLs carry only cpeName, resultsPerPage
 and startIndex; CPE dictionary request URLs carry only cpeMatchString,
 resultsPerPage and startIndex. The only header sent is apiKey, when
 NVD_API_KEY is set.
@@ -25,9 +25,11 @@ Where the CPEs come from:
       cannot land on the wrong product, and never for an OS CPE. Any other
       CPE without a version is skipped and reported as skipped, because NVD
       would answer for every version of the product.
-    - whatweb's PHP component, the only explicit mapping: PHP 5.2.4-2ubuntu5.10
-      becomes cpe:2.3:a:php:php:5.2.4:*:*:*:*:*:*:*, using only the leading
-      upstream version. Nothing else is guessed.
+    - httpx's PHP technology, the only explicit mapping: a technology named
+      PHP with a version, such as PHP:5.2.4, becomes
+      cpe:2.3:a:php:php:5.2.4:*:*:*:*:*:*:*, using only the leading upstream
+      version. A PHP technology without a version is not used. Nothing else
+      is guessed.
 
 Official names: nmap's vendor names do not always match NVD's (nmap says
 vsftpd, NVD says vsftpd_project), and the CVE API only answers for exact
@@ -186,7 +188,7 @@ def cpe22_to_23(cpe):
 
 
 def php_cpe(version):
-    """cpe:2.3:a:php:php:<upstream version> for a whatweb PHP version, or ""."""
+    """cpe:2.3:a:php:php:<upstream version> for an httpx PHP version, or ""."""
     match = _UPSTREAM_VERSION.match(str(version or "").strip())
     if not match:
         return ""
@@ -304,7 +306,7 @@ def choose_cpe(cpe, names):
 
 def lookup_targets(ports, web=None):
     """
-    Return (products, skipped) for a scan's open ports and whatweb results.
+    Return (products, skipped) for a scan's open ports and httpx results.
 
     products: [{"product", "cpe", "source", "from", "ports"}], one per
     distinct CPE 2.3 string, plus "version_from" when the version came from
@@ -362,16 +364,20 @@ def lookup_targets(ports, web=None):
         if not isinstance(result, dict) or result.get("status") != "ok":
             continue
         port_label = "{p}/tcp".format(p=number)
-        for component in result.get("components") or []:
-            if str(component.get("name", "")).lower() != "php":
+        # Only httpx technologies named PHP that carry a version. A basic
+        # header check result has no technologies and adds nothing.
+        for tech in result.get("technologies") or []:
+            if not isinstance(tech, dict) or str(tech.get("name", "")).lower() != "php":
                 continue
-            for version in component.get("versions") or []:
-                raw = "PHP {v}".format(v=version)
-                cpe23 = php_cpe(version)
-                if cpe23:
-                    add(cpe23, raw, "whatweb", raw, port_label)
-                else:
-                    skip(raw, port_label, REASON_PHP_NO_VERSION)
+            version = str(tech.get("version") or "").strip()
+            if not version:
+                continue
+            raw = "PHP {v}".format(v=version)
+            cpe23 = php_cpe(version)
+            if cpe23:
+                add(cpe23, raw, "httpx", raw, port_label)
+            else:
+                skip(raw, port_label, REASON_PHP_NO_VERSION)
     return products, skipped
 
 

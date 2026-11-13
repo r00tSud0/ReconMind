@@ -22,6 +22,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 
 from reconmind.core.authorization import is_authorized
+from reconmind.core.scan_plan import (
+    PORTS_ALL, PORTS_TOP, PortsSpecError, parse_ports, port_count)
 
 # Service and version detection, reasonable speed. No exploit scripts.
 # Both scripts are in the default, discovery and safe categories only.
@@ -46,6 +48,12 @@ DISCOVERY_TIMEOUT = 1800  # pass 1 (discovery) over every TCP port
 
 MODE_DEFAULT = "top 1000 ports"
 MODE_ALL_PORTS = "all 65535 ports, two pass"
+MODE_PORT_LIST = "port list {ports}"
+
+# An explicit port list longer than this gets the long timeout.
+PORT_LIST_SHORT = 1000
+
+STATUS_BAD_PORTS = "bad-ports"
 
 SMB_PORTS = (139, 445)
 
@@ -253,12 +261,21 @@ def _run_pass(flags, target_ip, timeout):
     return shlex.join(cmd), xml_text
 
 
-def run_nmap(target_ip, all_ports=False):
+def run_nmap(target_ip, all_ports=False, ports=None):
     """
     Scan one authorized target and return a dict:
         {"target", "status", "ports": [...], "unconfirmed_ports": [...],
          "port_states": [...], "scan_info": {...}, "raw_xml": [...]}
     If the gate refuses the target, status is "refused" and nmap never runs.
+
+    ports is an optional ports spec ("top", "all" or a list such as
+    "21,22,80,8000-8100"). When given it wins over all_ports. It is checked
+    with parse_ports right after the gate; a spec that fails gives status
+    "bad-ports" with an "error" and nmap never runs. "top" and "all" behave
+    exactly like all_ports=False and all_ports=True.
+
+    Explicit list: one pass, NMAP_FLAGS plus --reason plus -p with the
+    validated list, 300 second timeout (1800 above 1000 ports).
 
     Default (all_ports=False): one pass, NMAP_FLAGS plus --reason on nmap's
     default top 1000 ports, 300 second timeout.
@@ -283,6 +300,20 @@ def run_nmap(target_ip, all_ports=False):
         return {"target": target_ip, "status": "refused", "ports": [],
                 "unconfirmed_ports": [], "raw_xml": []}
 
+    # Checked again here, whatever the caller already did, so no text that
+    # is not a clean port list can reach the command line. The list that goes
+    # after -p is the one parse_ports rebuilt from integers.
+    port_list = None
+    if ports is not None:
+        try:
+            spec = parse_ports(ports)
+        except PortsSpecError as exc:
+            return {"target": target_ip, "status": STATUS_BAD_PORTS, "ports": [],
+                    "unconfirmed_ports": [], "raw_xml": [], "error": str(exc)}
+        all_ports = spec == PORTS_ALL
+        if spec not in (PORTS_TOP, PORTS_ALL):
+            port_list = spec
+
     # Make sure nmap is actually present before trying to call it.
     if shutil.which("nmap") is None:
         return {"target": target_ip, "status": "nmap-not-found", "ports": [],
@@ -290,7 +321,16 @@ def run_nmap(target_ip, all_ports=False):
 
     commands = []
     unconfirmed = []
-    if all_ports:
+    if port_list:
+        mode = MODE_PORT_LIST.format(ports=port_list)
+        timeout = (DEFAULT_TIMEOUT if port_count(port_list) <= PORT_LIST_SHORT
+                   else DISCOVERY_TIMEOUT)
+        cmd, state_xml = _run_pass(NMAP_FLAGS + [REASON_FLAG, "-p", port_list], target_ip,
+                                   timeout)
+        commands.append(cmd)
+        runs = [state_xml]
+        ports = _parse_nmap_xml(state_xml)
+    elif all_ports:
         mode = MODE_ALL_PORTS
         cmd, state_xml = _run_pass(DISCOVERY_FLAGS + [REASON_FLAG], target_ip,
                                    DISCOVERY_TIMEOUT)

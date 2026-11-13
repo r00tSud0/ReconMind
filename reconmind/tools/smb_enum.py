@@ -2,7 +2,7 @@
 ReconMind enum4linux-ng tool (Stage 2, SMB enumeration).
 
 A thin wrapper around enum4linux-ng. The only entry point is
-run_enum4linux(target_ip), and like run_nmap, run_whatweb and run_testssl its
+run_enum4linux(target_ip), and like run_nmap, run_httpx and run_testssl its
 very first action is to ask the authorization gate whether the target is
 allowed. If the gate says no, enum4linux-ng is never launched.
 

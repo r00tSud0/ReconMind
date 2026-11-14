@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>ReconMind</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="/static/css/app.css">
+<script type="module" src="/static/js/app.js"></script>
+</head>
+<body>
+<!-- Background layer: glows, dot grid, sonar rings from the logo, column lines. -->
+<div class="bg" aria-hidden="true">
+  <div class="glow1"></div>
+  <div class="glow2"></div>
+  <div class="grid"></div>
+  <div class="ring"></div>
+  <div class="ring r2"></div>
+  <div class="ring r3"></div>
+  <div class="cols"></div>
+</div>
+
+<div class="app">
+  <header class="top">
+    <a class="mark" href="#/new" aria-label="ReconMind, new scan">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>
+      ReconMind
+    </a>
+    <nav class="mainnav" aria-label="Main">
+      <a class="nav" href="#/new" data-route="new">New scan</a>
+      <a class="nav" href="#/live" data-route="live"><span class="livedot" id="live-dot" hidden></span>Live run</a>
+      <a class="nav" href="#/targets" data-route="targets">Targets</a>
+      <a class="nav" href="#/hosts" data-route="hosts">Host lists</a>
+      <a class="nav" href="#/system" data-route="system">System</a>
+    </nav>
+    <div class="scope"><span class="sdot" aria-hidden="true"></span><span id="scope-text">Scope locked to the lab networks</span></div>
+  </header>
+
+  <div class="banner" id="server-error" hidden>
+    <div class="alert red" role="alert">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF6B5E" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" class="alert-icon"><circle cx="12" cy="12" r="9"></circle><path d="M6 6l12 12"></path></svg>
+      <div><b>The ReconMind server is not answering.</b><p>Check that <code>python3 -m reconmind.web</code> is still running.</p></div>
+    </div>
+  </div>
+
+  <main class="main" id="view" tabindex="-1"></main>
+</div>
+
+<!-- New scan (#/new). Lists and values are filled in by js/views/newscan.js. -->
+<template id="tpl-newscan">
+  <div class="page">
+    <section class="hero">
+      <div class="hero-main reveal">
+        <h1 class="title page-title">New scan</h1>
+        <p class="lead">Choose a target and what to run. Every result is saved to that target's folder.</p>
+        <div class="seg seg-mode" role="tablist" aria-label="What are you scanning">
+          <span class="ind" aria-hidden="true"></span>
+          <button type="button" role="tab" data-mode="host">One host</button>
+          <button type="button" role="tab" data-mode="list">Host list</button>
+          <button type="button" role="tab" data-mode="code">Source code</button>
+        </div>
+      </div>
+      <aside class="feed" aria-label="Last scan" data-ref="last"></aside>
+    </section>
+
+    <section class="glass panel reveal d1">
+      <div class="head">
+        <h2 class="h2" data-ref="targetHead">Target</h2>
+        <p class="help" data-ref="targetHelp">One IP address from your lab.</p>
+      </div>
+      <div class="body">
+        <div class="group" data-group="host">
+          <label for="target" class="sr-only">Target IP</label>
+          <input id="target" class="field field-big" type="text" autocomplete="off" spellcheck="false" inputmode="decimal" placeholder="10.10.1.20" aria-describedby="target-error target-allowed">
+          <p class="field-error" id="target-error" data-error="target" hidden></p>
+          <p class="help" id="target-allowed">Allowed: <span data-ref="allowed">loading the allowlist</span></p>
+        </div>
+        <div class="group" data-group="list" hidden>
+          <label for="hosts" class="sr-only">Hosts, one IP per line</label>
+          <textarea id="hosts" class="field field-list" rows="4" spellcheck="false" placeholder="10.10.1.20&#10;10.10.2.15"></textarea>
+          <span class="tag" data-ref="hostsNote">Up to 8 hosts. Ranges like /24 are not accepted.</span>
+        </div>
+        <div class="group" data-group="code" hidden>
+          <label for="path" class="label">File or folder on this machine</label>
+          <input id="path" class="field field-mono" type="text" autocomplete="off" spellcheck="false" placeholder="/home/you/project/app.py" aria-describedby="path-error path-help">
+          <p class="field-error" id="path-error" data-error="path" hidden></p>
+          <p class="tag" id="path-help">A full path, or a path inside the ReconMind folder such as examples/vulnerable_python/app.py.</p>
+          <label class="toggle-row">
+            <span class="toggle-text">
+              <span class="toggle-name">Explain findings with AI</span>
+              <span class="tag">Why each finding is dangerous and how to fix it. Only the flagged lines are sent, never whole files.</span>
+            </span>
+            <input type="checkbox" class="switch" id="explain">
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="glass panel reveal d2" data-ref="portsPanel">
+      <div class="head">
+        <h2 class="h2">Ports</h2>
+        <p class="help" data-ref="portsHelp">All 65535 finds open ports fast first, then looks closely at those.</p>
+      </div>
+      <div class="body">
+        <div class="seg seg-ports" role="group" aria-label="Ports">
+          <span class="ind" aria-hidden="true"></span>
+          <button type="button" data-ports="top">Top 1000</button>
+          <button type="button" data-ports="all">All 65535</button>
+          <button type="button" data-ports="custom">Custom list</button>
+        </div>
+        <div class="group" data-ref="customPorts" hidden>
+          <label for="ports" class="label">Ports and ranges, separated by commas</label>
+          <input id="ports" class="field field-ports" type="text" autocomplete="off" spellcheck="false" placeholder="22,80,443,8000-8100" aria-describedby="ports-error">
+          <p class="field-error" id="ports-error" data-error="ports" hidden></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="glass panel reveal d3" data-ref="runPanel">
+      <div class="head">
+        <h2 class="h2">What to run</h2>
+        <p class="help">Start from a preset, then tick or untick anything.</p>
+      </div>
+      <div class="body body-run">
+        <div class="presets" data-ref="presets" role="group" aria-label="Presets"></div>
+        <p class="tag custom-note" data-ref="customNote" hidden></p>
+        <div class="actions" data-ref="actions" role="group" aria-label="Actions"></div>
+        <p class="field-error" data-error="actions" hidden></p>
+      </div>
+    </section>
+
+    <div class="alert-slot" data-ref="alert" aria-live="polite"></div>
+
+    <section class="glass launch reveal d4">
+      <div class="launch-text">
+        <p class="plan" data-ref="plan"></p>
+        <p class="help small">The authorization gate checks every target before a single packet is sent. No brute force, no DoS, no outside callbacks.</p>
+        <p class="tag start-note" data-ref="startNote" hidden>Host lists arrive in a later step.</p>
+      </div>
+      <button type="button" class="btn primary btn-start" data-ref="start">
+        <span class="spinner" data-ref="spinner" aria-hidden="true" hidden></span>
+        <span data-ref="startLabel">Start scan</span>
+      </button>
+    </section>
+  </div>
+</template>
+
+<!-- Last scan: the newest history entry. -->
+<template id="tpl-last">
+  <div class="evcard">
+    <span class="ev-kicker" data-ref="when"></span>
+    <span class="ev-title" data-ref="title"></span>
+    <span class="ev-sub" data-ref="sub"></span>
+    <div class="ev-rows" data-ref="rows"></div>
+  </div>
+</template>
+
+<template id="tpl-last-empty">
+  <div class="evcard empty">
+    <span class="ev-kicker">Last scan</span>
+    <span class="ev-title">No scans yet</span>
+    <span class="ev-sub" data-ref="sub">Your first scan will appear here when it finishes.</span>
+  </div>
+</template>
+
+<!-- Refused by the authorization gate (09_States.html). -->
+<template id="tpl-refused">
+  <section class="glass case">
+    <div class="alert red shake" role="alert">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF6B5E" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" class="alert-icon"><circle cx="12" cy="12" r="9"></circle><path d="M6 6l12 12"></path></svg>
+      <div><b data-ref="title"></b><p>The scan was refused and nothing was sent to that address. Choose a target inside one of these networks:</p></div>
+    </div>
+    <div class="nets" data-ref="nets"></div>
+    <div><button type="button" class="btn quiet" data-ref="change">Change target</button></div>
+  </section>
+</template>
+
+<!-- A calm notice: a message with an optional action. -->
+<template id="tpl-notice">
+  <div class="alert grey" role="status">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#BDBDC2" stroke-width="2" stroke-linecap="round" aria-hidden="true" class="alert-icon"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.01"></path></svg>
+    <div><b data-ref="title"></b><p data-ref="text"></p><div class="notice-extra" data-ref="extra"></div></div>
+  </div>
+</template>
+
+<!-- Job page (#/job/<id>). Temporary; the Live run screen replaces it later. -->
+<template id="tpl-job">
+  <div class="page">
+    <div class="job-head reveal">
+      <span class="kicker">Scan job</span>
+      <h1 class="title job-title" data-ref="label">Loading the scan</h1>
+      <div class="job-meta">
+        <span class="pill" data-ref="status">Loading</span>
+        <span class="tag num" data-ref="elapsed"></span>
+        <span class="tag" data-ref="runid" hidden>Run id <code class="mono" data-ref="runidValue"></code></span>
+      </div>
+    </div>
+    <div class="alert-slot" data-ref="alert" aria-live="polite"></div>
+    <section class="glass panel-col reveal d1">
+      <div class="out-head">
+        <h2 class="h2">Output</h2>
+        <button type="button" class="btn danger" data-ref="stop" hidden>Stop scan</button>
+      </div>
+      <pre class="out" data-ref="out" tabindex="0" aria-label="Scan output"></pre>
+      <p class="help small">This page is temporary. The Live run screen arrives in a later step.</p>
+    </section>
+  </div>
+</template>
+
+<!-- Nav items that come in later steps. -->
+<template id="tpl-later">
+  <div class="page">
+    <section class="glass later reveal">
+      <h1 class="h2 later-title" data-ref="title"></h1>
+      <p class="help">Arrives in a later step.</p>
+      <div><a class="btn quiet" href="#/new">Back to New scan</a></div>
+    </section>
+  </div>
+</template>
+</body>
+</html>

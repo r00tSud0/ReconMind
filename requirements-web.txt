@@ -1,0 +1,9 @@
+# Web app (python3 -m reconmind.web), served on 127.0.0.1 only.
+#     pip install -r requirements-web.txt
+#
+# Start it from the repo root, then open the address it prints:
+#     python3 -m reconmind.web --port 8000
+# httpx is only needed by FastAPI's TestClient in tests/test_web.py.
+fastapi>=0.100
+uvicorn>=0.23
+httpx>=0.24

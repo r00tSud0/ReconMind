@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind New scan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@property --a{syntax:'<angle>';initial-value:0deg;inherits:false}
+@property --n{syntax:'<integer>';initial-value:0;inherits:false}
+body{margin:0;background:#070708;color:#D4D4D8;font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:#FF5A5F}a:hover{color:#FFB3B5}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.glow1{position:absolute;width:900px;height:900px;left:-300px;top:-420px;border-radius:50%;background:radial-gradient(circle,rgba(229,72,77,.15),transparent 62%);animation:drift 22s ease-in-out infinite alternate}
+.glow2{position:absolute;width:820px;height:820px;right:-320px;bottom:-380px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.035),transparent 62%);animation:drift 27s ease-in-out infinite alternate-reverse}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%);mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%)}
+.ring{position:absolute;left:clamp(27px,calc(4vw + 11px),59px);top:34px;border-radius:50%;border:1px solid rgba(255,255,255,.35);animation:ping 7.5s cubic-bezier(.15,.6,.3,1) infinite}
+.ring:nth-child(5){animation-delay:2.5s}.ring:nth-child(6){animation-delay:5s}
+.app{position:relative;z-index:1;min-height:100vh}
+.top{display:flex;align-items:center;gap:12px 32px;flex-wrap:wrap;padding:0 clamp(16px,4vw,48px);min-height:68px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(10,10,11,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mark{display:flex;align-items:center;gap:10px;font-stretch:125%;font-weight:800;font-size:18px;color:#F4F4F5;text-decoration:none;letter-spacing:-0.01em}
+.mark:hover{color:#F4F4F5}
+.a1,.a2,.a3{animation:arc 2.4s ease-in-out infinite}.a2{animation-delay:.25s}.a3{animation-delay:.5s}
+.nav{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;color:#8E8E96;text-decoration:none;font-weight:500;font-size:14px;transition:color .25s}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
+.nav.on{color:#F4F4F5}.nav.on::after{transform:scaleX(1);box-shadow:0 0 12px rgba(229,72,77,.7)}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
+.glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
+.btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 24px;border-radius:10px;font:700 15px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.primary{color:#FFFFFF;background:linear-gradient(135deg,#E5484D,#B4232A);border:0;padding-right:8px;border-radius:8px;box-shadow:0 10px 34px -10px rgba(229,72,77,.85),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary::before{content:"\2197";order:2;display:flex;align-items:center;justify-content:center;width:36px;height:36px;margin-left:8px;border-radius:6px;background:rgba(0,0,0,.42);font-size:16px;line-height:1;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.btn.primary:hover::before{transform:translate(2px,-2px)}
+.btn.primary::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.6) 50%,transparent 70%);transform:translateX(-130%);transition:transform .8s ease}
+.btn.primary:hover{color:#FFFFFF;transform:translateY(-2px);box-shadow:0 16px 46px -10px rgba(229,72,77,1),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn.primary:hover::after{transform:translateX(130%)}
+.btn.quiet{background:rgba(255,255,255,.02);color:#D4D4D8;border:1px solid rgba(255,255,255,.2)}
+.btn.quiet:hover{border-color:rgba(255,255,255,.5);color:#F4F4F5;box-shadow:0 0 24px -8px rgba(229,72,77,.5)}
+.title{background:linear-gradient(100deg,#F4F4F5 0%,#F4F4F5 42%,#FF7A7F 50%,#F4F4F5 58%,#F4F4F5 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.8s cubic-bezier(.3,.6,.3,1) .5s both}
+.reveal{animation:reveal .8s cubic-bezier(.2,.8,.2,1) both}
+.seg{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:4px;border-radius:12px;background:rgba(10,10,11,.6);border:1px solid rgba(255,255,255,.14);min-width:min(400px,100%);box-sizing:border-box}
+.ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / 3);border-radius:9px;background:linear-gradient(135deg,rgba(255,107,107,.20),rgba(180,35,42,.20));border:1px solid rgba(255,107,107,.5);box-shadow:0 0 26px -6px rgba(229,72,77,.6);transition:transform .5s cubic-bezier(.3,1.35,.5,1);box-sizing:border-box}
+.seg button{position:relative;z-index:1;min-height:42px;padding:0 14px;border:0;background:transparent;color:#8E8E96;font:600 14px Archivo,sans-serif;cursor:pointer;transition:color .3s}
+.seg button:hover{color:#F4F4F5}
+.seg button.on{color:#F4F4F5}
+.seg button:disabled{opacity:.3;cursor:not-allowed}
+.panel{display:flex;flex-wrap:wrap;gap:20px 48px;padding:30px 32px}
+.head{flex:1 1 200px;max-width:260px;display:flex;flex-direction:column;gap:6px}
+.body{flex:999 1 440px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.help{margin:0;font-size:14px;color:#8E8E96}
+.field{width:100%;box-sizing:border-box;min-height:50px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(10,10,11,.6);color:#F4F4F5;font:500 16px Archivo,sans-serif;font-variant-numeric:tabular-nums;transition:border-color .25s,box-shadow .3s}
+.field:focus{outline:none;border-color:#FF5A5F;box-shadow:0 0 0 4px rgba(229,72,77,.14),0 0 34px -8px rgba(229,72,77,.6)}
+.preset{position:relative;display:flex;align-items:flex-start;gap:14px;width:100%;padding:18px;border:1px solid rgba(255,255,255,.13);border-radius:14px;background:rgba(10,10,11,.4);color:#D4D4D8;text-align:left;font:inherit;cursor:pointer;transition:transform .3s cubic-bezier(.3,1.4,.5,1),background .3s,border-color .3s}
+.preset:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.3)}
+.preset.on{border-color:transparent;background:linear-gradient(135deg,rgba(255,107,107,.11),rgba(180,35,42,.08))}
+.preset.on::before,.launch::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:conic-gradient(from var(--a),#FF7A7F,#C2252D,rgba(180,35,42,0) 35%,rgba(180,35,42,0) 65%,#FF7A7F);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:rot 4s linear infinite;pointer-events:none}
+.preset:disabled{opacity:.32;cursor:not-allowed;transform:none}
+.dot{width:18px;height:18px;border-radius:50%;border:2px solid #55555C;box-sizing:border-box;flex:none;margin-top:3px;transition:border .3s cubic-bezier(.3,1.5,.5,1),box-shadow .3s}
+.preset.on .dot{border:6px solid #FF7A7F;box-shadow:0 0 12px rgba(229,72,77,.8)}
+.act{display:flex;gap:14px;align-items:flex-start;padding:14px 12px;margin:0 -12px;border-radius:12px;cursor:pointer;transition:background .25s}
+.act:hover{background:rgba(255,255,255,.05)}
+.act .nm{font-weight:650;color:#F4F4F5;transition:color .3s}
+.act.off .nm{color:#7A7A82}
+.ck{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:7px;border:1.5px solid #55555C;margin:1px 0 0;flex:none;position:relative;cursor:pointer;transition:background .3s,border-color .3s,box-shadow .3s}
+.ck:checked{background:linear-gradient(135deg,#FF7A7F,#C2252D);border-color:transparent;box-shadow:0 0 16px -2px rgba(229,72,77,.7)}
+.ck::after{content:"";position:absolute;left:6.5px;top:2.5px;width:5px;height:10px;border:solid #0A0A0A;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) scale(0);transition:transform .3s cubic-bezier(.3,1.7,.5,1)}
+.ck:checked::after{transform:rotate(45deg) scale(1)}
+.ck:disabled{cursor:not-allowed}
+.switch{appearance:none;-webkit-appearance:none;width:50px;height:28px;border-radius:14px;background:#232327;position:relative;cursor:pointer;transition:background .3s,box-shadow .3s;flex:none;margin:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#F4F4F5;transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
+.switch:checked{background:linear-gradient(135deg,#FF7A7F,#C2252D);box-shadow:0 0 18px -2px rgba(229,72,77,.7)}
+.switch:checked::after{transform:translateX(22px)}
+.tag{font-size:13px;color:#8E8E96}
+.launch{position:relative;border-radius:20px;padding:30px 32px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px 32px}
+.plan{margin:0;font-size:20px;line-height:1.45;color:#F4F4F5;max-width:60ch;animation:fadein .4s ease both}
+.drop{border:1.5px dashed rgba(255,255,255,.3);border-radius:14px;padding:28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;transition:border-color .3s,background .3s}
+.drop:hover{border-color:#FF5A5F;background:rgba(255,255,255,.04)}
+.drop svg{animation:bob 2.4s ease-in-out infinite}
+:focus-visible{outline:2px solid #FF5A5F;outline-offset:3px}
+@keyframes drift{to{transform:translate(140px,90px) scale(1.12)}}
+@keyframes ping{0%{width:0;height:0;margin:0;opacity:.8}100%{width:1600px;height:1600px;margin:-800px 0 0 -800px;opacity:0}}
+@keyframes arc{0%,100%{opacity:.3}35%{opacity:1}}
+@keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes rot{to{--a:360deg}}
+.cols{position:absolute;top:0;bottom:0;left:50%;width:min(1180px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 55%,transparent);mask-image:linear-gradient(#000 0,#000 55%,transparent)}
+.slabs{position:absolute;top:70px;width:min(340px,24vw);height:560px;pointer-events:none;z-index:0;opacity:.85}
+.slabs.l{left:0;-webkit-mask-image:linear-gradient(90deg,#000 30%,transparent);mask-image:linear-gradient(90deg,#000 30%,transparent)}
+.slabs.r{right:0;-webkit-mask-image:linear-gradient(270deg,#000 30%,transparent);mask-image:linear-gradient(270deg,#000 30%,transparent)}
+.slab{position:absolute;height:42px;border-radius:3px;box-shadow:0 0 36px rgba(229,72,77,.55),inset 0 1px 0 rgba(255,255,255,.35)}
+.slabs.l .slab{left:-40px;background:linear-gradient(90deg,rgba(180,35,42,.1),#E5484D 60%,#FF9A9A);transform:perspective(500px) rotateY(52deg) skewY(-9deg);transform-origin:left center;animation:slabL 5.5s ease-in-out infinite alternate}
+.slabs.r .slab{right:-40px;background:linear-gradient(270deg,rgba(180,35,42,.1),#E5484D 60%,#FF9A9A);transform:perspective(500px) rotateY(-52deg) skewY(9deg);transform-origin:right center;animation:slabR 5.5s ease-in-out infinite alternate}
+.slab.thin{height:5px;box-shadow:0 0 18px rgba(255,154,154,.9)}
+.hero{position:relative;display:flex;flex-wrap:wrap;gap:44px 56px;align-items:center;padding:8px 0 12px}
+.h-big{font-size:clamp(42px,6.4vw,84px);font-weight:800;line-height:.96;letter-spacing:-0.035em;margin:0}
+.accent{display:block;background:linear-gradient(90deg,#FF7A7F,#FF5A5F 65%,#FF8A8F);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 26px rgba(229,72,77,.35));animation:reveal .9s cubic-bezier(.2,.8,.2,1) .25s both}
+.net{padding:5px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(10,10,11,.5);font:12px 'IBM Plex Mono',monospace;color:#C8C8CE}
+.feed{position:relative;display:flex;flex-direction:column;gap:14px;padding-left:32px}
+.feed::before{content:"";position:absolute;left:6px;top:16px;height:176px;border-left:1.5px dashed rgba(255,255,255,.3)}
+.evt.off{margin-left:24px}
+.evt.off::before{left:-55px}
+.evt{position:relative;align-self:flex-start;display:inline-flex;gap:12px;padding:9px 14px;border-radius:8px;background:rgba(10,10,11,.78);border:1px solid rgba(255,255,255,.13);font:13px 'IBM Plex Mono',monospace;color:#C8C8CE;animation:drop .55s cubic-bezier(.2,.9,.3,1.25) both}
+.evt::before{content:"";position:absolute;left:-31px;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:#6E6E76}
+.evt time{color:#FF5A5F}
+.evcard{position:relative;padding:20px 20px 8px;border-radius:14px;background:linear-gradient(180deg,rgba(38,14,16,.9),rgba(14,10,11,.9));border:1px solid rgba(229,72,77,.6);box-shadow:0 0 54px -12px rgba(229,72,77,.8);animation:drop .7s cubic-bezier(.2,.9,.3,1.2) 1.3s both}
+.evcard::before{content:"";position:absolute;left:-32px;top:26px;width:12px;height:12px;border-radius:50%;background:#FF5A5F;box-shadow:0 0 0 4px rgba(229,72,77,.25),0 0 16px #FF5A5F;animation:pulse 1.8s ease-in-out infinite}
+.frw{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid rgba(255,255,255,.1);font-size:14px;color:#E4E4E7}
+.tagb{flex:none;font:600 11px/1 'IBM Plex Mono',monospace;padding:5px 7px;border-radius:4px;border:1px solid}
+.tagb.c{background:#FF6B5E;border-color:#FF6B5E;color:#1A0606}
+.tagb.h{color:#FDBA74;border-color:rgba(247,154,75,.6)}
+.arrowbox{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:8px;background:#E5484D;color:#FFFFFF;text-decoration:none;font-size:18px;flex:none;box-shadow:0 0 22px -4px rgba(229,72,77,.95);transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.arrowbox:hover{color:#FFFFFF;transform:translate(2px,-2px)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1)}
+.stat{padding:28px 24px;display:flex;flex-direction:column;gap:8px;border-left:1px solid rgba(255,255,255,.1)}
+.stat:first-child{border-left:0;padding-left:0}
+.num{font:800 50px/1 Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;font-variant-numeric:tabular-nums;counter-reset:n var(--n);animation:count 2s cubic-bezier(.2,.8,.2,1) .7s both}
+.num::after{content:counter(n)}
+.marq{position:relative;overflow:hidden;padding:8px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.track{display:flex;width:max-content;animation:marq 34s linear infinite}
+.track span{padding-right:60px;font:800 26px Archivo,sans-serif;font-stretch:115%;color:rgba(211,220,233,.5);white-space:nowrap;transition:color .3s}
+.track span:hover{color:#F4F4F5}
+.marq:hover .track{animation-play-state:paused}
+@keyframes slabL{from{filter:brightness(.6);translate:-14px 0}to{filter:brightness(1.3);translate:6px 0}}
+@keyframes slabR{from{filter:brightness(.6);translate:14px 0}to{filter:brightness(1.3);translate:-6px 0}}
+@keyframes drop{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes count{from{--n:0}}
+@keyframes marq{to{transform:translateX(-50%)}}
+@keyframes fadein{from{opacity:.2}to{opacity:1}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.title{color:#F4F4F5}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #070708">
+  <div class="bg" aria-hidden="true"><div class="glow1"></div><div class="glow2"></div><div class="grid"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="cols"></div></div>
+  <div class="app">
+    <div class="slabs l" aria-hidden="true">
+      <span class="slab" style="top: 30px; width: 230px; animation-delay: 0s"></span>
+      <span class="slab thin" style="top: 96px; width: 280px; animation-delay: .6s"></span>
+      <span class="slab" style="top: 128px; width: 300px; height: 64px; animation-delay: 1.1s"></span>
+      <span class="slab" style="top: 232px; width: 260px; animation-delay: .3s"></span>
+      <span class="slab thin" style="top: 302px; width: 220px; animation-delay: 1.5s"></span>
+      <span class="slab" style="top: 340px; width: 310px; height: 54px; animation-delay: .8s"></span>
+      <span class="slab" style="top: 440px; width: 240px; animation-delay: 1.9s"></span>
+    </div>
+    <div class="slabs r" aria-hidden="true">
+      <span class="slab" style="top: 20px; width: 260px; animation-delay: .4s"></span>
+      <span class="slab" style="top: 92px; width: 310px; height: 60px; animation-delay: 1.2s"></span>
+      <span class="slab thin" style="top: 178px; width: 250px; animation-delay: .2s"></span>
+      <span class="slab" style="top: 214px; width: 230px; animation-delay: 1.7s"></span>
+      <span class="slab" style="top: 300px; width: 300px; height: 52px; animation-delay: .9s"></span>
+      <span class="slab thin" style="top: 380px; width: 270px; animation-delay: 1.4s"></span>
+      <span class="slab" style="top: 420px; width: 250px; animation-delay: .6s"></span>
+    </div>
+    <header class="top">
+      <a class="mark" href="Main.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+        <a class="nav on" href="Main.dc.html">New scan</a>
+        <a class="nav" href="LiveRun.dc.html">Live run</a>
+        <a class="nav" href="Targets.dc.html">Targets</a>
+        <a class="nav" href="Batch.dc.html">Host lists</a>
+        <a class="nav" href="System.dc.html">System</a>
+      </nav>
+      <div class="scope"><span class="sdot"></span>Scope locked to 4 lab networks</div>
+    </header>
+
+    <main style="position: relative; z-index: 1; box-sizing: border-box; padding: 72px clamp(16px, 4vw, 48px) 80px">
+      <div style="max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px">
+        <section class="hero">
+          <div class="reveal" style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 18px">
+            <h1 class="title" style="font-size: clamp(38px, 5.4vw, 60px); font-weight: 800; line-height: 1; letter-spacing: -0.03em">New scan</h1>
+            <p style="margin: 0; font-size: 17px; line-height: 1.6; color: #A1A1AA; max-width: 46ch">Choose a target and what to run. Every result is saved to that target's folder.</p>
+            <div class="seg" role="tablist" aria-label="What are you scanning" style="max-width: 460px; margin-top: 10px">
+              <span class="ind" style="transform: translateX({{modeInd}}%)"></span>
+              <sc-for list="{{modes}}" as="m" hint-placeholder-count="3">
+                <button type="button" role="tab" class="{{m.cls}}" onClick="{{m.pick}}">{{m.label}}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div class="feed" aria-label="Last scan" style="flex: 1 1 360px; min-width: 0">
+            <div class="evt" style="animation-delay: .35s"><time>21:36</time>Gate passed, 10.10.1.20 allowed</div>
+            <div class="evt off" style="animation-delay: .65s"><time>21:38</time>23 open ports mapped</div>
+            <div class="evt" style="animation-delay: .95s"><time>21:44</time>4 CVEs matched in NVD</div>
+            <div class="evcard">
+              <div style="display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; padding-bottom: 14px">
+                <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+                  <span style="font: 13px 'IBM Plex Mono', monospace; color: #FF5A5F">21:49  Report written</span>
+                  <span style="font: 750 21px/1.2 Archivo, sans-serif; font-stretch: 115%; color: #F4F4F5">Standard scan, 10.10.1.20</span>
+                  <span style="font-size: 13px; color: #A1A1AA">9 findings, 2 critical. T1190 verified.</span>
+                </div>
+                <a class="arrowbox" href="Report.dc.html" aria-label="Open this report">&#8599;</a>
+              </div>
+              <div class="frw"><span>vsftpd 2.3.4 backdoor</span><span class="tagb c">Critical</span></div>
+              <div class="frw"><span>UnrealIRCd 3.2.8.1 backdoor</span><span class="tagb c">Critical</span></div>
+              <div class="frw"><span>Samba usermap script</span><span class="tagb h">High</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass panel reveal" style="animation-delay: .08s">
+          <div class="head">
+            <h2 style="font-size: 18px; font-weight: 750">{{targetHead}}</h2>
+            <p class="help">{{targetHelp}}</p>
+          </div>
+          <div class="body">
+            <sc-if value="{{isHost}}" hint-placeholder-val="{{ true }}">
+              <label for="target" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Target IP</label>
+              <input id="target" class="field" defaultValue="10.10.1.20" autocomplete="off" style="font-size: 24px; font-weight: 650; max-width: 380px; letter-spacing: .01em">
+              <p class="help">Allowed: 10.10.1.0/24, 10.10.2.0/24, 192.168.100.0/24 and 192.168.56.0/24</p>
+            </sc-if>
+            <sc-if value="{{isList}}" hint-placeholder-val="{{ false }}">
+              <label for="hosts" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Hosts</label>
+              <textarea id="hosts" class="field" rows="4" defaultValue="{{hostsText}}" style="resize: vertical; line-height: 1.8; max-width: 440px"></textarea>
+              <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap">
+                <button type="button" class="btn quiet" style="min-height: 44px">Load a .txt file</button>
+                <span class="tag">3 of 8 hosts. Ranges like /24 are not accepted.</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{isCode}}" hint-placeholder-val="{{ false }}">
+              <div class="drop">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"></path></svg>
+                <div style="flex: 1; min-width: 200px"><div style="font-weight: 650; color: #F4F4F5">Drop a source file or folder here</div><div class="tag">examples/vulnerable_python/app.py is ready to try</div></div>
+                <button type="button" class="btn quiet" style="min-height: 44px">Browse</button>
+              </div>
+              <label style="display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 0 0; border-top: 1px solid rgba(255,255,255,.08); cursor: pointer">
+                <span style="display: flex; flex-direction: column; gap: 4px">
+                  <span style="font-weight: 650; color: #F4F4F5">Explain findings with AI</span>
+                  <span class="tag">Why each finding is dangerous and how to fix it. Only the flagged lines are sent, never whole files.</span>
+                </span>
+                <input type="checkbox" class="switch" checked="{{explain}}" onChange="{{toggleExplain}}" aria-label="Explain findings with AI">
+              </label>
+            </sc-if>
+          </div>
+        </section>
+
+        <sc-if value="{{showPlan}}" hint-placeholder-val="{{ true }}">
+          <section class="glass panel reveal" style="animation-delay: .16s">
+            <div class="head">
+              <h2 style="font-size: 18px; font-weight: 750">Ports</h2>
+              <p class="help">{{portsHelp}}</p>
+            </div>
+            <div class="body">
+              <div class="seg" style="max-width: 440px">
+                <span class="ind" style="transform: translateX({{portInd}}%)"></span>
+                <sc-for list="{{portOpts}}" as="p" hint-placeholder-count="3">
+                  <button type="button" class="{{p.cls}}" disabled="{{p.disabled}}" onClick="{{p.pick}}">{{p.label}}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{isCustomPorts}}" hint-placeholder-val="{{ false }}">
+                <label for="ports" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Ports and ranges</label>
+                <input id="ports" class="field reveal" defaultValue="22, 80, 443, 8000-8100" style="max-width: 440px; animation-duration: .45s">
+              </sc-if>
+            </div>
+          </section>
+
+          <section class="glass panel reveal" style="animation-delay: .24s">
+            <div class="head">
+              <h2 style="font-size: 18px; font-weight: 750">What to run</h2>
+              <p class="help">Start from a preset, then tick or untick anything.</p>
+            </div>
+            <div class="body" style="gap: 24px">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px">
+                <sc-for list="{{presets}}" as="p" hint-placeholder-count="3">
+                  <button type="button" class="{{p.cls}}" disabled="{{p.disabled}}" onClick="{{p.pick}}">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font-stretch: 125%; font-weight: 750; color: #F4F4F5">{{p.name}}</span>
+                      <span style="font-size: 13px; line-height: 1.45; color: #8E8E96">{{p.desc}}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); column-gap: 36px; row-gap: 2px">
+                <sc-for list="{{actions}}" as="a" hint-placeholder-count="8">
+                  <label class="{{a.cls}}">
+                    <input type="checkbox" class="ck" checked="{{a.checked}}" disabled="{{a.locked}}" onChange="{{a.toggle}}">
+                    <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                      <span><span class="nm">{{a.name}}</span><span class="tag" style="margin-left: 8px">{{a.tool}}</span></span>
+                      <span style="font-size: 14px; color: #8E8E96">{{a.desc}}</span>
+                    </span>
+                  </label>
+                </sc-for>
+              </div>
+            </div>
+          </section>
+        </sc-if>
+
+        <section class="glass launch reveal" style="animation-delay: .32s; margin-top: 10px">
+          <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+            <p class="plan">{{planSentence}}</p>
+            <p class="help" style="font-size: 13px">The authorization gate checks every target before a single packet is sent. No brute force, no DoS, no outside callbacks.</p>
+          </div>
+          <a class="btn primary" href="LiveRun.dc.html" style="min-height: 54px; padding: 0 30px; font-size: 16px">{{startLabel}}</a>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+const ACTIONS = [
+  { id: 'surface', name: 'Surface Map', tool: 'nmap', desc: 'Scans the target with nmap to find which TCP ports are open and which service and version runs on each. Always runs.' },
+  { id: 'exploits', name: 'Exploit Hunt', tool: 'searchsploit', desc: 'Searches Exploit-DB for public exploits that match each service and version nmap found, and marks whether the version match is exact.' },
+  { id: 'cves', name: 'CVE Intel', tool: 'NVD', desc: 'Looks up each service version in the NVD database and lists its known CVEs with CVSS scores. Flags any that CISA lists as actively exploited.' },
+  { id: 'web', name: 'Web Fingerprint', tool: 'httpx', desc: 'Connects to each web port and identifies the web server, frameworks and technologies in use, plus which security headers are missing.' },
+  { id: 'paths', name: 'Hidden Paths', tool: 'ffuf', desc: 'Requests a list of common file and folder names on each web port to find pages that exist but are not linked, such as admin panels.' },
+  { id: 'vulns', name: 'Vuln Probe', tool: 'nuclei', desc: 'Runs nuclei templates against web services to confirm known vulnerabilities and misconfigurations. Safe templates only, no DoS or fuzzing.' },
+  { id: 'crypto', name: 'Crypto Check', tool: 'testssl.sh', desc: 'Tests every TLS port, including STARTTLS, for outdated protocol versions, weak ciphers and certificate problems.' },
+  { id: 'smb', name: 'SMB Recon', tool: 'enum4linux-ng', desc: 'Connects to SMB without a password and lists the shares, users, groups and domain details an anonymous user can see.' }
+];
+const ALL = ACTIONS.map(function (a) { return a.id; });
+const PRESETS = { quick: ['surface', 'exploits', 'cves'], standard: ALL, full: ALL };
+const PRESET_INFO = [
+  { id: 'quick', name: 'Quick', desc: 'Scans the top 1000 ports, then checks each service for public exploits and known CVEs.' },
+  { id: 'standard', name: 'Standard', desc: 'Scans the top 1000 ports and runs all 8 actions. Nuclei only runs templates that match the technology it detects.' },
+  { id: 'full', name: 'Full report', desc: 'Scans all 65535 ports and runs all 8 actions with the larger nuclei template set. One host at a time.' }
+];
+const MODES = [['host', 'One host'], ['list', 'Host list'], ['code', 'Source code']];
+const PORT_OPTS = [['top', 'Top 1000'], ['all', 'All 65535'], ['custom', 'Custom list']];
+const PORT_WORDS = { top: 'the top 1000 TCP ports', all: 'all 65535 TCP ports', custom: 'ports 22, 80, 443 and 8000 to 8100' };
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { mode: 'host', preset: 'standard', sel: ALL.slice(), ports: 'top', explain: false };
+  }
+  setMode(m) {
+    const s = this.state;
+    const next = { mode: m };
+    if (m === 'list') {
+      if (s.preset === 'full') { next.preset = 'standard'; next.sel = ALL.slice(); }
+      if (s.ports === 'all') next.ports = 'top';
+    }
+    this.setState(next);
+  }
+  pickPreset(id) {
+    if (this.state.mode === 'list' && id === 'full') return;
+    const ports = id === 'full' ? 'all' : (this.state.ports === 'all' ? 'top' : this.state.ports);
+    this.setState({ preset: id, sel: PRESETS[id].slice(), ports: ports });
+  }
+  toggle(id) {
+    if (id === 'surface') return;
+    const cur = this.state.sel;
+    const sel = cur.indexOf(id) >= 0 ? cur.filter(function (x) { return x !== id; }) : cur.concat(id);
+    const match = ['quick', 'standard'].find(function (k) {
+      return PRESETS[k].length === sel.length && PRESETS[k].every(function (x) { return sel.indexOf(x) >= 0; });
+    });
+    this.setState({ sel: sel, preset: match || 'custom' });
+  }
+  pickPorts(id) {
+    if (this.state.mode === 'list' && id === 'all') return;
+    const next = { ports: id };
+    if (this.state.preset === 'full' && id !== 'all') next.preset = 'custom';
+    this.setState(next);
+  }
+  renderVals() {
+    const s = this.state;
+    const self = this;
+    const isList = s.mode === 'list';
+    const isCode = s.mode === 'code';
+    const modeIdx = MODES.findIndex(function (m) { return m[0] === s.mode; });
+    const portIdx = PORT_OPTS.findIndex(function (p) { return p[0] === s.ports; });
+    const modes = MODES.map(function (m) {
+      return { label: m[1], cls: s.mode === m[0] ? 'on' : '', pick: function () { self.setMode(m[0]); } };
+    });
+    const presets = PRESET_INFO.map(function (p) {
+      return {
+        name: p.name, desc: p.desc,
+        disabled: isList && p.id === 'full',
+        cls: 'preset' + (s.preset === p.id ? ' on' : ''),
+        pick: function () { self.pickPreset(p.id); }
+      };
+    });
+    const actions = ACTIONS.map(function (a) {
+      const on = s.sel.indexOf(a.id) >= 0;
+      return {
+        name: a.name, tool: a.tool, desc: a.desc,
+        checked: on, locked: a.id === 'surface',
+        cls: 'act' + (on ? '' : ' off'),
+        toggle: function () { self.toggle(a.id); }
+      };
+    });
+    const portOpts = PORT_OPTS.map(function (p) {
+      return {
+        label: p[1],
+        disabled: isList && p[0] === 'all',
+        cls: s.ports === p[0] ? 'on' : '',
+        pick: function () { self.pickPorts(p[0]); }
+      };
+    });
+    const n = s.sel.length;
+    const nuclei = s.sel.indexOf('vulns') < 0 ? 'nuclei off' : (s.preset === 'full' ? 'nuclei on deep' : 'nuclei on auto');
+    const who = isList ? '3 hosts, one at a time,' : '10.10.1.20';
+    const planSentence = isCode
+      ? 'Read app.py with Semgrep and Bandit' + (s.explain ? ', then explain each finding with AI.' : '. No AI explanation.')
+      : 'Scan ' + who + ' on ' + PORT_WORDS[s.ports] + ' with ' + n + (n === 1 ? ' action' : ' actions') + ', ' + nuclei + '.';
+    return {
+      modes: modes, presets: presets, actions: actions, portOpts: portOpts,
+      modeInd: modeIdx * 100, portInd: portIdx * 100,
+      isHost: s.mode === 'host', isList: isList, isCode: isCode, showPlan: !isCode,
+      isCustomPorts: s.ports === 'custom',
+      hostsText: '10.10.1.20\n10.10.2.15\n192.168.56.101',
+      targetHead: isCode ? 'Source code' : (isList ? 'Hosts' : 'Target'),
+      targetHelp: isCode ? 'The code is read, never run.' : (isList ? 'One IP per line, up to 8. Each one is checked against the allowlist on its own.' : 'One IP address from your lab.'),
+      portsHelp: isList ? 'All 65535 is for one host only, so a list stays quick.' : 'All 65535 finds open ports fast first, then looks closely at those.',
+      explain: s.explain,
+      toggleExplain: function () { self.setState({ explain: !self.state.explain }); },
+      planSentence: planSentence,
+      startLabel: isCode ? 'Scan code' : (isList ? 'Scan 3 hosts' : 'Start scan')
+    };
+  }
+}
+</script>
+</body>
+</html>

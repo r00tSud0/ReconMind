@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind Code report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@property --n{syntax:'<integer>';initial-value:0;inherits:false}
+body{margin:0;background:#070708;color:#D4D4D8;font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:#FF5A5F}a:hover{color:#FFB3B5}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.glow1{position:absolute;width:900px;height:900px;left:-300px;top:-420px;border-radius:50%;background:radial-gradient(circle,rgba(229,72,77,.15),transparent 62%);animation:drift 22s ease-in-out infinite alternate}
+.glow2{position:absolute;width:820px;height:820px;right:-320px;bottom:-380px;border-radius:50%;background:radial-gradient(circle,rgba(180,35,42,.12),transparent 62%);animation:drift 27s ease-in-out infinite alternate-reverse}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%);mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%)}
+.ring{position:absolute;left:clamp(27px,calc(4vw + 11px),59px);top:34px;border-radius:50%;border:1px solid rgba(255,255,255,.35);animation:ping 7.5s cubic-bezier(.15,.6,.3,1) infinite}
+.ring:nth-child(5){animation-delay:2.5s}.ring:nth-child(6){animation-delay:5s}
+.cols{position:absolute;top:0;bottom:0;left:50%;width:min(1200px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 50%,transparent);mask-image:linear-gradient(#000 0,#000 50%,transparent)}
+.app{position:relative;z-index:1;min-height:100vh}
+.top{display:flex;align-items:center;gap:12px 32px;flex-wrap:wrap;padding:0 clamp(16px,4vw,48px);min-height:68px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(10,10,11,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mark{display:flex;align-items:center;gap:10px;font-stretch:125%;font-weight:800;font-size:18px;color:#F4F4F5;text-decoration:none;letter-spacing:-0.01em}
+.mark:hover{color:#F4F4F5}
+.a1,.a2,.a3{animation:arc 2.4s ease-in-out infinite}.a2{animation-delay:.25s}.a3{animation-delay:.5s}
+.nav{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;color:#8E8E96;text-decoration:none;font-weight:500;font-size:14px;transition:color .25s}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
+.nav.on{color:#F4F4F5}.nav.on::after{transform:scaleX(1);box-shadow:0 0 12px rgba(229,72,77,.7)}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
+.glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
+.btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:10px;font:700 14px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.primary{color:#FFFFFF;background:linear-gradient(135deg,#E5484D,#B4232A);border:0;padding-right:6px;border-radius:8px;box-shadow:0 10px 34px -10px rgba(229,72,77,.85),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary::before{content:"\2197";order:2;display:flex;align-items:center;justify-content:center;width:34px;height:34px;margin-left:8px;border-radius:6px;background:rgba(0,0,0,.42);font-size:15px;line-height:1;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.btn.primary:hover::before{transform:translate(2px,-2px)}
+.btn.primary:hover{color:#FFFFFF;transform:translateY(-2px);box-shadow:0 16px 46px -10px rgba(229,72,77,1),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn.quiet{background:rgba(255,255,255,.02);color:#D4D4D8;border:1px solid rgba(255,255,255,.2)}
+.btn.quiet:hover{border-color:rgba(255,255,255,.5);color:#F4F4F5;box-shadow:0 0 24px -8px rgba(229,72,77,.5)}
+.reveal{animation:reveal .8s cubic-bezier(.2,.8,.2,1) both}
+.title{background:linear-gradient(100deg,#F4F4F5 0%,#F4F4F5 42%,#FF7A7F 50%,#F4F4F5 58%,#F4F4F5 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.8s cubic-bezier(.3,.6,.3,1) .5s both}
+.chip{padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(10,10,11,.45);font:12px 'IBM Plex Mono',monospace;color:#C8C8CE}
+.heat{display:inline-flex;gap:2px;flex:none}
+.heat i{display:block;width:5px;height:16px;border-radius:1px}
+.num{font:800 46px/1 Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;font-variant-numeric:tabular-nums;animation:count 1.4s cubic-bezier(.2,.8,.2,1) .5s both;counter-reset:n var(--n)}
+.num::after{content:counter(n)}
+.count{flex:1 1 140px;display:flex;flex-direction:column;gap:10px;padding:22px 24px}
+.frow{position:relative;display:flex;align-items:center;gap:16px;width:100%;min-height:66px;padding:14px 18px;border:0;border-top:1px solid rgba(255,255,255,.07);background:transparent;color:#D4D4D8;font:inherit;text-align:left;cursor:pointer;transition:background .25s}
+.frow:hover{background:rgba(255,255,255,.03)}
+.frow::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:2px;background:var(--sc);transform:scaleY(0);transition:transform .3s cubic-bezier(.3,1.4,.5,1);box-shadow:0 0 12px var(--sc)}
+.frow.open::before,.frow:hover::before{transform:scaleY(1)}
+.chev{transition:transform .35s cubic-bezier(.3,1.4,.5,1);flex:none}
+.chev.open{transform:rotate(90deg)}
+.evw{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .45s cubic-bezier(.2,.8,.2,1),opacity .35s}
+.evw.open{grid-template-rows:1fr;opacity:1}
+.evw>div{overflow:hidden;min-height:0}
+.detail{display:flex;flex-wrap:wrap;gap:20px;padding:4px 18px 22px 68px}
+.code{flex:1 1 380px;min-width:0;border-radius:12px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.08);overflow-x:auto;padding:10px 0}
+.ln{display:flex;font:13px/1.9 'IBM Plex Mono',monospace;color:#A1A1AA;white-space:pre;padding-right:16px}
+.ln b{display:inline-block;width:44px;padding-right:14px;text-align:right;color:#55555C;font-weight:400;flex:none}
+.ln.hit{background:rgba(229,72,77,.12);color:#F4F4F5;box-shadow:inset 3px 0 0 #E5484D}
+.ln.hit b{color:#FF7A7F}
+.ai{flex:1 1 340px;min-width:0;display:flex;flex-direction:column;gap:12px;padding:16px 18px;border-radius:12px;border:1px solid rgba(229,72,77,.25);background:linear-gradient(180deg,rgba(229,72,77,.06),rgba(229,72,77,.02))}
+.ai h4{margin:0;font-size:13px;font-weight:700;color:#F4F4F5}
+.ai p{margin:0;font-size:14px;line-height:1.6;color:#C8C8CE}
+.sub{font-size:14px;color:#8E8E96}
+:focus-visible{outline:2px solid #FF5A5F;outline-offset:3px}
+@keyframes drift{to{transform:translate(140px,90px) scale(1.12)}}
+@keyframes ping{0%{width:0;height:0;margin:0;opacity:.8}100%{width:1600px;height:1600px;margin:-800px 0 0 -800px;opacity:0}}
+@keyframes arc{0%,100%{opacity:.3}35%{opacity:1}}
+@keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes count{from{--n:0}}
+@media (max-width:700px){.detail{padding-left:18px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.title{color:#F4F4F5}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #070708">
+  <div class="bg" aria-hidden="true"><div class="glow1"></div><div class="glow2"></div><div class="grid"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="cols"></div></div>
+  <div class="app">
+    <header class="top">
+      <a class="mark" href="Main.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+        <a class="nav" href="Main.dc.html">New scan</a>
+        <a class="nav" href="LiveRun.dc.html">Live run</a>
+        <a class="nav on" href="Targets.dc.html">Targets</a>
+        <a class="nav" href="Batch.dc.html">Host lists</a>
+        <a class="nav" href="System.dc.html">System</a>
+      </nav>
+      <div class="scope"><span class="sdot"></span>Scope locked to 4 lab networks</div>
+    </header>
+
+    <main style="box-sizing: border-box; padding: 40px clamp(16px, 4vw, 48px) 80px">
+      <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px">
+        <nav aria-label="Breadcrumb" class="reveal" style="font-size: 14px; color: #8E8E96; display: flex; gap: 8px; flex-wrap: wrap">
+          <a href="Targets.dc.html" style="text-decoration: none">Targets</a><span aria-hidden="true">/</span><a href="Targets.dc.html" style="text-decoration: none">app.py</a><span aria-hidden="true">/</span><span>Code scan, 12 Nov</span>
+        </nav>
+
+        <section class="glass reveal" style="padding: 34px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 22px; animation-delay: .05s">
+          <div style="display: flex; flex-direction: column; gap: 12px">
+            <h1 class="title" style="font-size: clamp(38px, 6vw, 64px); font-weight: 800; line-height: .95; letter-spacing: -0.03em">app.py</h1>
+            <p style="margin: 0; font-size: 16px; color: #A1A1AA">Code scan on 12 Nov 2026 at 21:54. One Python file. The code was read, never run.</p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap"><span class="chip">Semgrep 1.185.0</span><span class="chip">Bandit 1.9.4</span><span class="chip">AI explanation on</span></div>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <button type="button" class="btn quiet">Export .md</button>
+            <a class="btn quiet" href="PdfReport.dc.html">Export PDF</a>
+            <a class="btn primary" href="AnalystReport.dc.html">Write my own report</a>
+          </div>
+        </section>
+
+        <section class="glass reveal" style="display: flex; flex-wrap: wrap; padding: 0; animation-delay: .12s">
+          <div class="count"><span class="heat" aria-hidden="true"><i style="background: #FF6B5E; box-shadow: 0 0 8px #FF6B5E"></i><i style="background: #FF6B5E; box-shadow: 0 0 8px #FF6B5E"></i><i style="background: #FF6B5E; box-shadow: 0 0 8px #FF6B5E"></i><i style="background: #2A2A2F"></i></span><span class="num" style="--n: 5" aria-label="5"></span><span class="sub">high</span></div>
+          <div class="count"><span class="heat" aria-hidden="true"><i style="background: #E9D267"></i><i style="background: #E9D267"></i><i style="background: #2A2A2F"></i><i style="background: #2A2A2F"></i></span><span class="num" style="--n: 4; animation-delay: .6s" aria-label="4"></span><span class="sub">medium</span></div>
+          <div class="count"><span class="heat" aria-hidden="true"><i style="background: #BDBDC2"></i><i style="background: #2A2A2F"></i><i style="background: #2A2A2F"></i><i style="background: #2A2A2F"></i></span><span class="num" style="--n: 3; animation-delay: .7s" aria-label="3"></span><span class="sub">low</span></div>
+          <div class="count" style="border-left: 1px solid rgba(255,255,255,.1); flex: 2 1 280px; justify-content: center">
+            <span style="font-weight: 700; color: #F4F4F5">Findings are merged by file, line and CWE</span>
+            <span class="sub">When Semgrep and Bandit flag the same line for the same weakness, it shows once with both engines listed.</span>
+          </div>
+        </section>
+
+        <section class="glass reveal" style="padding: 22px 26px; display: flex; gap: 14px; align-items: flex-start; animation-delay: .18s; border-color: rgba(229,72,77,.3)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF7A7F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 2px"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; color: #F4F4F5">AI explanation written and checked</span>
+            <span class="sub">Every file, line and CWE the AI mentioned matches a real finding. Only the flagged snippets were sent to OpenRouter (nemotron), never the whole file. The AI does not add, remove or change findings.</span>
+          </div>
+        </section>
+
+        <section class="glass reveal" style="padding: 26px 16px 8px; animation-delay: .24s">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 0 18px 16px">
+            <h2 style="font-size: 22px; font-weight: 800">Findings</h2>
+            <span class="sub">Open a finding to see the code and the explanation</span>
+          </div>
+          <sc-for list="{{findings}}" as="f" hint-placeholder-count="5">
+            <div>
+              <button type="button" class="{{f.rowCls}}" style="--sc: {{f.color}}" onClick="{{f.toggle}}" aria-expanded="{{f.open}}">
+                <svg class="{{f.chevCls}}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8E8E96" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span class="heat" role="img" aria-label="{{f.sev}}"><sc-for list="{{f.cells}}" as="c" hint-placeholder-count="4"><i style="background: {{c.bg}}"></i></sc-for></span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-weight: 700; font-size: 16px; color: #F4F4F5">{{f.title}}</span>
+                  <span class="sub">app.py line {{f.line}}, {{f.cwe}}</span>
+                </span>
+                <span class="sub" style="text-align: right">{{f.engines}}</span>
+              </button>
+              <div class="{{f.evCls}}"><div>
+                <div class="detail">
+                  <div class="code" role="region" aria-label="Code around the finding">
+                    <sc-for list="{{f.lines}}" as="l" hint-placeholder-count="5"><div class="{{l.cls}}"><b>{{l.n}}</b>{{l.t}}</div></sc-for>
+                  </div>
+                  <div class="ai">
+                    <span style="font-size: 12px; font-weight: 700; color: #FF7A7F">AI explanation</span>
+                    <div><h4>Why it is dangerous</h4><p>{{f.why}}</p></div>
+                    <div><h4>How an attacker could use it</h4><p>{{f.how}}</p></div>
+                    <div><h4>How to fix it</h4><p>{{f.fix}}</p></div>
+                  </div>
+                </div>
+              </div></div>
+            </div>
+          </sc-for>
+          <div style="padding: 14px 18px 18px; border-top: 1px solid rgba(255,255,255,.07); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+            <span class="sub">Showing 5 of 12 findings</span>
+            <button type="button" class="btn quiet" style="min-height: 40px">Show all 12</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+const SEV = {
+  high: { c: '#F79A4B', n: 3, word: 'High' },
+  med: { c: '#E9D267', n: 2, word: 'Medium' },
+  low: { c: '#BDBDC2', n: 1, word: 'Low' }
+};
+const FINDINGS = [
+  { id: 1, s: 'high', line: 16, cwe: 'CWE-89 SQL injection', title: 'SQL query built from user input', engines: 'Semgrep and Bandit',
+    code: [[14, 'def find_user(username):'], [15, '    conn = get_db()'], [16, '    query = "SELECT * FROM users WHERE name = \'" + username + "\'"'], [17, '    return conn.execute(query).fetchall()']],
+    why: 'The query is built by gluing a user supplied value into the SQL string, so the database runs whatever the user typed as part of the command.',
+    how: 'Typing a username like admin\' -- skips the password check, and other input can read, change or delete data.',
+    fix: 'Use a parameterized query: conn.execute(text("SELECT * FROM users WHERE name = :name"), {"name": username}).' },
+  { id: 2, s: 'high', line: 21, cwe: 'CWE-78 OS command injection', title: 'Shell command built from user input', engines: 'Semgrep and Bandit',
+    code: [[19, 'def ping(host):'], [20, '    # host comes from the request'], [21, '    return subprocess.check_output("ping -c 1 " + host, shell=True)']],
+    why: 'shell=True hands the whole string to the shell, which treats characters like ; & | and backticks as new commands.',
+    how: 'A host value like 8.8.8.8; cat /etc/passwd runs a second command on the server.',
+    fix: 'Drop shell=True and pass a list: subprocess.check_output(["ping", "-c", "1", host]). Check host against an allowlist.' },
+  { id: 3, s: 'high', line: 25, cwe: 'CWE-327 Weak hash', title: 'Passwords hashed with MD5', engines: 'Bandit',
+    code: [[24, 'def hash_password(password):'], [25, '    return hashlib.md5(password.encode()).hexdigest()']],
+    why: 'MD5 is broken and very fast, so stolen hashes can be cracked quickly with GPUs or lookup tables.',
+    how: 'An attacker who gets the user table recovers most passwords in minutes.',
+    fix: 'Use a slow password hash such as bcrypt, scrypt or Argon2, for example hashlib.scrypt or the bcrypt package.' },
+  { id: 4, s: 'med', line: 29, cwe: 'CWE-502 Unsafe deserialization', title: 'yaml.load without a safe loader', engines: 'Semgrep and Bandit',
+    code: [[28, 'def load_config(text):'], [29, '    return yaml.load(text)']],
+    why: 'yaml.load can build any Python object from the input, including ones that run code while loading.',
+    how: 'A crafted YAML file using !!python/object/apply runs commands when it is parsed.',
+    fix: 'Use yaml.safe_load(text), which only loads plain data types.' },
+  { id: 5, s: 'med', line: 17, cwe: 'CWE-89 SQL injection', title: 'Formatted SQL string executed', engines: 'Bandit',
+    code: [[16, '    query = "SELECT * FROM users WHERE name = \'" + username + "\'"'], [17, '    return conn.execute(query).fetchall()']],
+    why: 'This line runs the query string built on line 16, so it is where the injection actually takes effect.',
+    how: 'Same as line 16: controlled input changes the logic of the query.',
+    fix: 'Fixing line 16 with a parameterized query fixes this line too.' }
+];
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { open: 1 };
+  }
+  renderVals() {
+    const self = this;
+    const open = this.state.open;
+    return {
+      findings: FINDINGS.map(function (f) {
+        const s = SEV[f.s];
+        const isOpen = open === f.id;
+        return {
+          title: f.title, line: f.line, cwe: f.cwe, engines: f.engines, why: f.why, how: f.how, fix: f.fix,
+          sev: s.word, color: s.c, open: isOpen,
+          cells: [0, 1, 2, 3].map(function (k) { return { bg: k < s.n ? s.c : '#2A2A2F' }; }),
+          lines: f.code.map(function (l) { return { n: l[0], t: l[1], cls: 'ln' + (l[0] === f.line ? ' hit' : '') }; }),
+          rowCls: 'frow' + (isOpen ? ' open' : ''),
+          chevCls: 'chev' + (isOpen ? ' open' : ''),
+          evCls: 'evw' + (isOpen ? ' open' : ''),
+          toggle: function () { self.setState({ open: isOpen ? 0 : f.id }); }
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

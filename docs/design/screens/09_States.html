@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind Problem states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070708;color:#D4D4D8;font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:#FF5A5F}a:hover{color:#FFB3B5}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.glow1{position:absolute;width:900px;height:900px;left:-300px;top:-420px;border-radius:50%;background:radial-gradient(circle,rgba(229,72,77,.15),transparent 62%);animation:drift 22s ease-in-out infinite alternate}
+.glow2{position:absolute;width:820px;height:820px;right:-320px;bottom:-380px;border-radius:50%;background:radial-gradient(circle,rgba(180,35,42,.12),transparent 62%);animation:drift 27s ease-in-out infinite alternate-reverse}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%);mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%)}
+.ring{position:absolute;left:clamp(27px,calc(4vw + 11px),59px);top:34px;border-radius:50%;border:1px solid rgba(255,255,255,.35);animation:ping 7.5s cubic-bezier(.15,.6,.3,1) infinite}
+.ring:nth-child(5){animation-delay:2.5s}.ring:nth-child(6){animation-delay:5s}
+.cols{position:absolute;top:0;bottom:0;left:50%;width:min(1200px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 50%,transparent);mask-image:linear-gradient(#000 0,#000 50%,transparent)}
+.app{position:relative;z-index:1;min-height:100vh}
+.top{display:flex;align-items:center;gap:12px 32px;flex-wrap:wrap;padding:0 clamp(16px,4vw,48px);min-height:68px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(10,10,11,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mark{display:flex;align-items:center;gap:10px;font-stretch:125%;font-weight:800;font-size:18px;color:#F4F4F5;text-decoration:none;letter-spacing:-0.01em}
+.mark:hover{color:#F4F4F5}
+.a1,.a2,.a3{animation:arc 2.4s ease-in-out infinite}.a2{animation-delay:.25s}.a3{animation-delay:.5s}
+.nav{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;color:#8E8E96;text-decoration:none;font-weight:500;font-size:14px;transition:color .25s}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
+.glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
+.btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;border-radius:10px;font:700 14px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.primary{color:#FFFFFF;background:linear-gradient(135deg,#E5484D,#B4232A);border:0;padding-right:6px;border-radius:8px;box-shadow:0 10px 34px -10px rgba(229,72,77,.85),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary::before{content:"\2197";order:2;display:flex;align-items:center;justify-content:center;width:32px;height:32px;margin-left:8px;border-radius:6px;background:rgba(0,0,0,.42);font-size:15px;line-height:1}
+.btn.primary:hover{color:#FFFFFF;transform:translateY(-2px)}
+.btn.quiet{background:rgba(255,255,255,.02);color:#D4D4D8;border:1px solid rgba(255,255,255,.2)}
+.btn.quiet:hover{border-color:rgba(255,255,255,.5);color:#F4F4F5}
+.reveal{animation:reveal .8s cubic-bezier(.2,.8,.2,1) both}
+.title{background:linear-gradient(100deg,#F4F4F5 0%,#F4F4F5 42%,#FF7A7F 50%,#F4F4F5 58%,#F4F4F5 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.8s cubic-bezier(.3,.6,.3,1) .5s both}
+.where{font-size:12px;font-weight:700;color:#8E8E96}
+.case{display:flex;flex-direction:column;gap:14px;padding:24px 26px}
+.alert{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border-radius:14px}
+.alert.red{background:rgba(255,107,94,.08);border:1px solid rgba(255,107,94,.45);box-shadow:0 0 40px -16px rgba(255,107,94,.6);animation:deny .5s ease 1s 1}
+.alert.amber{background:rgba(233,210,103,.06);border:1px solid rgba(233,210,103,.4)}
+.alert.grey{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.16)}
+.alert b{display:block;color:#F4F4F5;font-size:15px;margin-bottom:4px}
+.alert p{margin:0;font-size:14px;color:#C8C8CE}
+.net{padding:5px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(10,10,11,.5);font:12px 'IBM Plex Mono',monospace;color:#E4E4E7}
+.cmd{display:flex;align-items:center;gap:12px;padding:6px 6px 6px 16px;border-radius:10px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);font:13px 'IBM Plex Mono',monospace;color:#F4F4F5}
+.copy{min-height:36px;padding:0 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.04);color:#E4E4E7;font:600 13px Archivo,sans-serif;cursor:pointer;transition:background .25s,border-color .25s,color .25s}
+.copy:hover{border-color:rgba(255,255,255,.45)}
+.copy.done{border-color:rgba(229,72,77,.6);color:#FF9A9A;background:rgba(229,72,77,.1)}
+.step{display:flex;gap:16px;align-items:center;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(10,10,11,.35)}
+.ic{width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,107,94,.12);color:#FF6B5E}
+.sonar{position:relative;width:120px;height:120px;flex:none}
+.sonar span{position:absolute;left:50%;top:50%;border-radius:50%;border:1px solid rgba(229,72,77,.5);animation:pingS 3.6s cubic-bezier(.15,.6,.3,1) infinite}
+.sonar span:nth-child(2){animation-delay:1.2s}.sonar span:nth-child(3){animation-delay:2.4s}
+.sonar i{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#FF5A5F;box-shadow:0 0 16px #E5484D}
+.sub{font-size:14px;color:#8E8E96}
+:focus-visible{outline:2px solid #FF5A5F;outline-offset:3px}
+@keyframes drift{to{transform:translate(140px,90px) scale(1.12)}}
+@keyframes ping{0%{width:0;height:0;margin:0;opacity:.8}100%{width:1600px;height:1600px;margin:-800px 0 0 -800px;opacity:0}}
+@keyframes pingS{0%{width:0;height:0;margin:0;opacity:.9}100%{width:120px;height:120px;margin:-60px 0 0 -60px;opacity:0}}
+@keyframes arc{0%,100%{opacity:.3}35%{opacity:1}}
+@keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes deny{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.title{color:#F4F4F5}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #070708">
+  <div class="bg" aria-hidden="true"><div class="glow1"></div><div class="glow2"></div><div class="grid"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="cols"></div></div>
+  <div class="app">
+    <header class="top">
+      <a class="mark" href="Main.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+        <a class="nav" href="Main.dc.html">New scan</a>
+        <a class="nav" href="LiveRun.dc.html">Live run</a>
+        <a class="nav" href="Targets.dc.html">Targets</a>
+        <a class="nav" href="Batch.dc.html">Host lists</a>
+        <a class="nav" href="System.dc.html">System</a>
+      </nav>
+      <div class="scope"><span class="sdot"></span>Scope locked to 4 lab networks</div>
+    </header>
+
+    <main style="box-sizing: border-box; padding: 48px clamp(16px, 4vw, 48px) 80px">
+      <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px">
+        <div class="reveal" style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px">
+          <h1 class="title" style="font-size: clamp(34px, 5vw, 54px); font-weight: 800; line-height: 1; letter-spacing: -0.03em">When something goes wrong</h1>
+          <p style="margin: 0; font-size: 16px; color: #A1A1AA; max-width: 64ch">Each message says what happened, what it means for the results, and what to do next. These appear on the screens named above each one.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 24px">
+          <section class="glass case reveal" style="animation-delay: .05s">
+            <span class="where">On New scan, after pressing Start</span>
+            <div class="alert red" role="alert">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF6B5E" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="9"></circle><path d="M6 6l12 12"></path></svg>
+              <div><b>10.0.3.12 is not on the allowlist</b><p>The scan was refused and nothing was sent to that address. Choose a target inside one of these networks:</p></div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="net">10.10.1.0/24</span><span class="net">10.10.2.0/24</span><span class="net">192.168.100.0/24</span><span class="net">192.168.56.0/24</span></div>
+            <div><button type="button" class="btn quiet">Change target</button></div>
+          </section>
+
+          <section class="glass case reveal" style="animation-delay: .1s">
+            <span class="where">On the report, when the LLM is down</span>
+            <div class="alert amber" role="status">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E9D267" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4M12 17v.01"></path></svg>
+              <div><b>The AI summary could not be written</b><p>OpenRouter answered with 429, too many requests. Every finding below comes straight from the tools and is complete. Only the written summary and the attack path text are missing.</p></div>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap"><button type="button" class="btn quiet">Write the summary again</button></div>
+          </section>
+
+          <section class="glass case reveal" style="animation-delay: .15s">
+            <span class="where">On Live run, when a tool is missing</span>
+            <div class="step">
+              <span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></span>
+              <div style="flex: 1; min-width: 0"><div style="font-weight: 650; color: #F4F4F5">Crypto Check <span class="sub" style="font-size: 13px">testssl.sh</span></div><div class="sub">Skipped because testssl.sh is not installed. The rest of the scan carries on.</div></div>
+            </div>
+            <span class="sub">Install it on Kali, then run the scan again:</span>
+            <div class="cmd"><span style="flex: 1; overflow-x: auto; white-space: nowrap">sudo apt install testssl.sh</span><button type="button" class="{{copyCls}}" onClick="{{copy}}">{{copyLabel}}</button></div>
+          </section>
+
+          <section class="glass case reveal" style="animation-delay: .2s">
+            <span class="where">On the report, when NVD does not answer</span>
+            <div class="alert amber" role="status">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E9D267" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4M12 17v.01"></path></svg>
+              <div><b>CVEs were not checked for 11 services</b><p>NVD did not answer after 3 tries. This does not mean those services have no CVEs. Exploit Hunt results are not affected.</p></div>
+            </div>
+            <div><button type="button" class="btn quiet">Check CVEs again</button></div>
+          </section>
+
+          <section class="glass case reveal" style="animation-delay: .25s">
+            <span class="where">On the report, after packet loss</span>
+            <div class="alert grey" role="status">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8C8CE" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.5v.01"></path></svg>
+              <div><b>2 ports could not be confirmed</b><p>Ports 1524 and 3632 answered in the fast pass but not in the detail pass, usually because packets were dropped. They are not counted as findings.</p></div>
+            </div>
+            <div><button type="button" class="btn quiet">Rescan these ports</button></div>
+          </section>
+
+          <section class="glass case reveal" style="animation-delay: .3s">
+            <span class="where">On the report, when the ATT&amp;CK model is missing</span>
+            <div class="alert grey" role="status">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8C8CE" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.5v.01"></path></svg>
+              <div><b>Mapped with rules only</b><p>The fine-tuned model was not found in models/attack_mapper_run3, so ATT&amp;CK techniques come from the built-in rules. Copy the model folder there to turn it back on.</p></div>
+            </div>
+            <div><a class="btn quiet" href="System.dc.html">Open system check</a></div>
+          </section>
+
+          <section class="glass case reveal" style="grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 28px; padding: 36px; animation-delay: .35s">
+            <div class="sonar" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+            <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 8px">
+              <span class="where">On Targets, before the first scan</span>
+              <h2 style="font-size: 24px; font-weight: 800">No targets yet</h2>
+              <p style="margin: 0; font-size: 15px; color: #C8C8CE; max-width: 56ch">Your first scan creates a folder here. It will hold every scan of that target, your notes and the reports you write.</p>
+            </div>
+            <a class="btn primary" href="Main.dc.html">Start a scan</a>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1800}}'>
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { copied: false };
+  }
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const self = this;
+    const c = this.state.copied;
+    return {
+      copyLabel: c ? 'Copied' : 'Copy',
+      copyCls: 'copy' + (c ? ' done' : ''),
+      copy: function () {
+        self.setState({ copied: true });
+        clearTimeout(self.t);
+        self.t = setTimeout(function () { self.setState({ copied: false }); }, 1600);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

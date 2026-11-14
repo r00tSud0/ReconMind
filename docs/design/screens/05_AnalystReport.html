@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind Your report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070708;color:#D4D4D8;font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:#FF5A5F}a:hover{color:#FFB3B5}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.glow1{position:absolute;width:900px;height:900px;left:-300px;top:-420px;border-radius:50%;background:radial-gradient(circle,rgba(229,72,77,.15),transparent 62%);animation:drift 22s ease-in-out infinite alternate}
+.glow2{position:absolute;width:820px;height:820px;right:-320px;bottom:-380px;border-radius:50%;background:radial-gradient(circle,rgba(180,35,42,.12),transparent 62%);animation:drift 27s ease-in-out infinite alternate-reverse}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%);mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%)}
+.ring{position:absolute;left:clamp(27px,calc(4vw + 11px),59px);top:34px;border-radius:50%;border:1px solid rgba(255,255,255,.35);animation:ping 7.5s cubic-bezier(.15,.6,.3,1) infinite}
+.ring:nth-child(5){animation-delay:2.5s}.ring:nth-child(6){animation-delay:5s}
+.cols{position:absolute;top:0;bottom:0;left:50%;width:min(1200px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 50%,transparent);mask-image:linear-gradient(#000 0,#000 50%,transparent)}
+.app{position:relative;z-index:1;min-height:100vh}
+.top{display:flex;align-items:center;gap:12px 32px;flex-wrap:wrap;padding:0 clamp(16px,4vw,48px);min-height:68px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(10,10,11,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mark{display:flex;align-items:center;gap:10px;font-stretch:125%;font-weight:800;font-size:18px;color:#F4F4F5;text-decoration:none;letter-spacing:-0.01em}
+.mark:hover{color:#F4F4F5}
+.a1,.a2,.a3{animation:arc 2.4s ease-in-out infinite}.a2{animation-delay:.25s}.a3{animation-delay:.5s}
+.nav{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;color:#8E8E96;text-decoration:none;font-weight:500;font-size:14px;transition:color .25s}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
+.nav.on{color:#F4F4F5}.nav.on::after{transform:scaleX(1);box-shadow:0 0 12px rgba(229,72,77,.7)}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
+.glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
+.btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:10px;font:700 14px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.primary{color:#FFFFFF;background:linear-gradient(135deg,#E5484D,#B4232A);border:0;padding-right:6px;border-radius:8px;box-shadow:0 10px 34px -10px rgba(229,72,77,.85),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary::before{content:"\2197";order:2;display:flex;align-items:center;justify-content:center;width:34px;height:34px;margin-left:8px;border-radius:6px;background:rgba(0,0,0,.42);font-size:15px;line-height:1;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.btn.primary:hover::before{transform:translate(2px,-2px)}
+.btn.primary::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.6) 50%,transparent 70%);transform:translateX(-130%);transition:transform .8s ease}
+.btn.primary:hover{color:#FFFFFF;transform:translateY(-2px);box-shadow:0 16px 46px -10px rgba(229,72,77,1),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn.primary:hover::after{transform:translateX(130%)}
+.btn.quiet{background:rgba(255,255,255,.02);color:#D4D4D8;border:1px solid rgba(255,255,255,.2)}
+.btn.quiet:hover{border-color:rgba(255,255,255,.5);color:#F4F4F5;box-shadow:0 0 24px -8px rgba(229,72,77,.5)}
+.reveal{animation:reveal .8s cubic-bezier(.2,.8,.2,1) both}
+.ink{width:100%;box-sizing:border-box;min-height:44px;padding:9px 12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(10,10,11,.45);color:#E4E4E7;font:15px/1.6 Archivo,sans-serif;resize:vertical;transition:border-color .25s,background .25s,box-shadow .3s}
+.ink:hover{border-color:rgba(255,255,255,.2)}
+.ink:focus{outline:none;border-color:#FF5A5F;background:rgba(10,10,11,.7);box-shadow:0 0 0 4px rgba(229,72,77,.12),0 0 34px -8px rgba(229,72,77,.55)}
+.ink::placeholder{color:#66666E}
+select.ink{appearance:none;-webkit-appearance:none;padding-right:34px;background-image:linear-gradient(45deg,transparent 50%,#8E8E96 50%),linear-gradient(135deg,#8E8E96 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;cursor:pointer}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.75;color:#C8C8CE}
+.tt{border-color:transparent;background:transparent;padding:6px 10px;margin-left:-10px;font-stretch:125%;font-weight:800;line-height:1.05;letter-spacing:-0.03em;color:#F4F4F5;resize:none}
+.lbl{font-size:13px;font-weight:650;color:#A1A1AA}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 20px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px 20px}
+.sec{padding:30px clamp(20px,3vw,36px);display:flex;flex-direction:column;gap:18px}
+.sh{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.sn{font:700 13px 'IBM Plex Mono',monospace;color:#FF5A5F}
+.sh h2{font-size:21px;font-weight:800}
+.hint{margin:0;font-size:13px;color:#8E8E96}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(10,10,11,.45);font-size:13px;color:#C8C8CE;cursor:pointer;transition:border-color .25s,background .25s,color .25s}
+.chip input{width:16px;height:16px;margin:0;accent-color:#E5484D}
+.chip:hover{border-color:rgba(255,255,255,.3)}
+.chip.on{border-color:rgba(229,72,77,.6);background:rgba(229,72,77,.1);color:#F4F4F5}
+.check{display:flex;align-items:flex-start;gap:12px;padding:12px 0;font-size:14px;color:#D4D4D8;cursor:pointer}
+.check input{width:18px;height:18px;margin:2px 0 0;accent-color:#E5484D;flex:none}
+.lv{display:inline-flex;align-items:center;gap:2px;padding:4px;border-radius:10px;background:rgba(10,10,11,.6);border:1px solid rgba(255,255,255,.12)}
+.lv button{width:22px;height:36px;padding:0;border:0;border-radius:4px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lv button i{display:block;width:6px;height:22px;border-radius:2px;transition:background .3s,box-shadow .3s,transform .3s cubic-bezier(.3,1.6,.5,1)}
+.lv button:hover i{transform:scaleY(1.15)}
+.find{position:relative;border-radius:14px;background:rgba(10,10,11,.4);border:1px solid rgba(255,255,255,.08);overflow:hidden;animation:pop .5s cubic-bezier(.2,.9,.3,1.1) both}
+.find::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sc);box-shadow:0 0 18px var(--sc);transition:background .4s,box-shadow .4s}
+.fhead{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:12px 18px 12px 22px;border:0;background:transparent;color:#E4E4E7;font:inherit;text-align:left;cursor:pointer;transition:background .2s}
+.fhead:hover{background:rgba(255,255,255,.03)}
+.chev{transition:transform .35s cubic-bezier(.3,1.4,.5,1);flex:none}
+.chev.open{transform:rotate(90deg)}
+.fbw{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .45s cubic-bezier(.2,.8,.2,1),opacity .35s}
+.fbw.open{grid-template-rows:1fr;opacity:1}
+.fbw>div{overflow:hidden;min-height:0}
+.fbody{display:flex;flex-direction:column;gap:16px;padding:4px 22px 24px 26px}
+.pill{flex:none;font:600 11px/1 'IBM Plex Mono',monospace;padding:5px 8px;border-radius:4px;border:1px solid rgba(255,255,255,.2);color:#C8C8CE}
+.heat{display:inline-flex;gap:2px;flex:none}
+.heat i{display:block;width:5px;height:16px;border-radius:1px}
+.rtab{width:100%;border-collapse:collapse;font-size:14px}
+.rtab th{text-align:left;font-size:12px;font-weight:650;color:#8E8E96;padding:0 14px 10px 0}
+.rtab td{padding:12px 14px 12px 0;border-top:1px solid rgba(255,255,255,.07);vertical-align:middle}
+.toc a{display:flex;align-items:center;gap:10px;min-height:38px;padding:0 10px;border-radius:8px;color:#A1A1AA;text-decoration:none;font-size:14px;transition:background .2s,color .2s}
+.toc a:hover{background:rgba(255,255,255,.04);color:#F4F4F5}
+.td{width:16px;height:16px;border-radius:50%;box-sizing:border-box;flex:none;display:flex;align-items:center;justify-content:center}
+.td.done{background:#E5484D;box-shadow:0 0 10px rgba(229,72,77,.6)}
+.td.todo{border:1.5px solid #55555C}
+.prog circle.v{stroke-dasharray:163.36;transform:rotate(-90deg);transform-origin:50% 50%;animation:ringfill 1.4s cubic-bezier(.2,.8,.2,1) .5s both;filter:drop-shadow(0 0 6px rgba(229,72,77,.7))}
+.saved{width:8px;height:8px;border-radius:50%;background:#FF7A7F;box-shadow:0 0 10px #E5484D;animation:pulse 2.4s ease-in-out infinite}
+.drop{border:1.5px dashed rgba(255,255,255,.2);border-radius:12px;padding:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;color:#A1A1AA;font-size:14px;transition:border-color .3s,background .3s}
+.drop:hover{border-color:#FF5A5F;background:rgba(229,72,77,.04)}
+:focus-visible{outline:2px solid #FF5A5F;outline-offset:3px}
+@keyframes drift{to{transform:translate(140px,90px) scale(1.12)}}
+@keyframes ping{0%{width:0;height:0;margin:0;opacity:.8}100%{width:1600px;height:1600px;margin:-800px 0 0 -800px;opacity:0}}
+@keyframes arc{0%,100%{opacity:.3}35%{opacity:1}}
+@keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes pop{from{opacity:0;transform:translateY(-10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes ringfill{from{stroke-dashoffset:163.36}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #070708">
+  <div class="bg" aria-hidden="true"><div class="glow1"></div><div class="glow2"></div><div class="grid"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="cols"></div></div>
+  <div class="app">
+    <header class="top">
+      <a class="mark" href="Main.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+        <a class="nav" href="Main.dc.html">New scan</a>
+        <a class="nav" href="LiveRun.dc.html">Live run</a>
+        <a class="nav on" href="Targets.dc.html">Targets</a>
+        <a class="nav" href="Batch.dc.html">Host lists</a>
+        <a class="nav" href="System.dc.html">System</a>
+      </nav>
+      <div class="scope"><span class="sdot"></span>Scope locked to 4 lab networks</div>
+    </header>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; box-sizing: border-box; padding: 36px clamp(16px, 4vw, 48px) 80px; max-width: 1296px; margin: 0 auto; align-items: flex-start">
+      <form style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+        <nav aria-label="Breadcrumb" class="reveal" style="font-size: 14px; color: #8E8E96; display: flex; gap: 8px; flex-wrap: wrap">
+          <a href="Targets.dc.html" style="text-decoration: none">Targets</a><span aria-hidden="true">/</span><a href="Targets.dc.html" style="text-decoration: none">10.10.1.20</a><span aria-hidden="true">/</span><span>Your report</span>
+        </nav>
+
+        <section id="s-details" class="glass sec reveal" style="animation-delay: .04s">
+          <div class="sh"><span class="sn">01</span><h2>Report details</h2></div>
+          <label for="r-title" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Report title</label>
+          <textarea id="r-title" class="ink tt" rows="1" defaultValue="Metasploitable 2 vulnerability assessment" style="font-size: clamp(26px, 3.4vw, 40px)"></textarea>
+          <div class="g3">
+            <div class="f"><label class="lbl" for="r-id">Report ID</label><input id="r-id" class="ink" defaultValue="RM-2026-014" style="font-family: 'IBM Plex Mono', monospace"></div>
+            <div class="f"><label class="lbl" for="r-ver">Version</label><input id="r-ver" class="ink" defaultValue="1.0"></div>
+            <div class="f"><label class="lbl" for="r-status">Status</label><select id="r-status" class="ink" defaultValue="Draft"><option>Draft</option><option>In review</option><option>Final</option></select></div>
+            <div class="f"><label class="lbl" for="r-class">Classification</label><select id="r-class" class="ink" defaultValue="Confidential"><option>Confidential</option><option>Internal</option><option>Public</option></select></div>
+            <div class="f"><label class="lbl" for="r-client">Client or organization</label><input id="r-client" class="ink" placeholder="Who the report is for"></div>
+            <div class="f"><label class="lbl" for="r-date">Report date</label><input id="r-date" class="ink" type="date" defaultValue="2026-11-12" style="color-scheme: dark"></div>
+            <div class="f"><label class="lbl" for="r-by">Prepared by</label><input id="r-by" class="ink" placeholder="Analyst name"></div>
+            <div class="f"><label class="lbl" for="r-rev">Reviewed by</label><input id="r-rev" class="ink" placeholder="Reviewer name"></div>
+            <div class="f"><label class="lbl" for="r-contact">Contact</label><input id="r-contact" class="ink" placeholder="Email for questions"></div>
+          </div>
+        </section>
+
+        <section id="s-engagement" class="glass sec reveal" style="animation-delay: .08s">
+          <div class="sh"><span class="sn">02</span><h2>Scope and method</h2></div>
+          <div class="g3">
+            <div class="f"><label class="lbl" for="e-type">Assessment type</label><select id="e-type" class="ink" defaultValue="Vulnerability assessment"><option>Vulnerability assessment</option><option>Penetration test</option><option>Source code review</option></select></div>
+            <div class="f"><label class="lbl" for="e-start">Testing started</label><input id="e-start" class="ink" type="date" defaultValue="2026-11-10" style="color-scheme: dark"></div>
+            <div class="f"><label class="lbl" for="e-end">Testing ended</label><input id="e-end" class="ink" type="date" defaultValue="2026-11-12" style="color-scheme: dark"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label class="lbl" for="e-in">In scope</label><textarea id="e-in" class="ink" rows="3" defaultValue="10.10.1.20 (Metasploitable 2) on lab network 10.10.1.0/24. TCP ports only."></textarea></div>
+            <div class="f"><label class="lbl" for="e-out">Out of scope</label><textarea id="e-out" class="ink" rows="3" defaultValue="Every network outside the lab allowlist. Denial of service, password guessing and social engineering."></textarea></div>
+          </div>
+          <div class="f">
+            <span class="lbl">Tools used</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px">
+              <sc-for list="{{tools}}" as="t" hint-placeholder-count="9">
+                <label class="{{t.cls}}"><input type="checkbox" checked="{{t.on}}" onChange="{{t.toggle}}">{{t.name}}</label>
+              </sc-for>
+            </div>
+            <p class="hint">Filled in from the tools that ran in the scan. Untick any you did not use.</p>
+          </div>
+          <div class="g2">
+            <div class="f"><label class="lbl" for="e-method">Methodology</label><textarea id="e-method" class="ink" rows="3" defaultValue="Unauthenticated network discovery, service version checks against Exploit-DB and NVD, safe web template checks, and anonymous SMB enumeration."></textarea></div>
+            <div class="f"><label class="lbl" for="e-limits">Limitations</label><textarea id="e-limits" class="ink" rows="3" defaultValue="Top 1000 TCP ports only. No UDP. No authenticated testing. Results reflect the host on the test dates."></textarea></div>
+          </div>
+          <div class="g2" style="align-items: end">
+            <div class="f"><label class="lbl" for="e-auth">Authorization reference</label><input id="e-auth" class="ink" placeholder="Approval email, ticket or document ID"></div>
+            <label class="check" style="padding: 0 0 10px"><input type="checkbox" defaultChecked="{{ true }}">Testing was authorized for every target in scope</label>
+          </div>
+        </section>
+
+        <section id="s-summary" class="glass sec reveal" style="animation-delay: .12s">
+          <div class="sh"><span class="sn">03</span><h2>Executive summary</h2></div>
+          <div class="f">
+            <span class="lbl">Overall risk</span>
+            <div style="display: flex; align-items: center; gap: 12px">
+              <div class="lv" role="group" aria-label="Overall risk">
+                <sc-for list="{{riskLevels}}" as="l" hint-placeholder-count="4">
+                  <button type="button" onClick="{{l.pick}}" aria-label="{{l.name}}" aria-pressed="{{l.on}}"><i style="background: {{l.bg}}; box-shadow: {{l.glow}}"></i></button>
+                </sc-for>
+              </div>
+              <span style="font-size: 15px; font-weight: 800; color: {{riskColor}}">{{riskName}}</span>
+            </div>
+          </div>
+          <div class="f"><label class="lbl" for="x-sum">Summary</label><textarea id="x-sum" class="ink" rows="4" placeholder="For a non technical reader: what was tested, what was found, and how serious it is."></textarea></div>
+          <div class="f"><label class="lbl" for="x-key">Top recommendations</label><textarea id="x-key" class="ink" rows="3" placeholder="The three things to fix first, one per line."></textarea></div>
+        </section>
+
+        <section id="s-findings" class="glass sec reveal" style="animation-delay: .16s">
+          <div class="sh" style="justify-content: space-between">
+            <div style="display: flex; align-items: baseline; gap: 14px"><span class="sn">04</span><h2>Findings</h2></div>
+            <span class="hint">{{countText}}</span>
+          </div>
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="2">
+            <div class="find" style="--sc: {{r.color}}">
+              <button type="button" class="fhead" onClick="{{r.toggle}}" aria-expanded="{{r.open}}">
+                <svg class="{{r.chevCls}}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8E8E96" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span style="font: 700 13px 'IBM Plex Mono', monospace; color: #8E8E96">{{r.fid}}</span>
+                <span style="flex: 1; min-width: 0; font-weight: 700; font-size: 16px; color: #F4F4F5">{{r.headTitle}}</span>
+                <span class="heat" aria-hidden="true"><sc-for list="{{r.cells}}" as="c" hint-placeholder-count="4"><i style="background: {{c.bg}}"></i></sc-for></span>
+                <span class="pill">{{r.status}}</span>
+              </button>
+              <div class="{{r.bodyCls}}"><div>
+                <div class="fbody">
+                  <div class="f"><span class="lbl">Title</span><input class="ink" value="{{r.title}}" onChange="{{r.setTitle}}" placeholder="Name the problem in a few words" aria-label="Finding title" style="font-weight: 700; font-size: 17px"></div>
+                  <div style="display: flex; gap: 16px 24px; flex-wrap: wrap; align-items: flex-end">
+                    <div class="f"><span class="lbl">Severity</span>
+                      <div style="display: flex; align-items: center; gap: 10px">
+                        <div class="lv" role="group" aria-label="Severity">
+                          <sc-for list="{{r.levels}}" as="l" hint-placeholder-count="4"><button type="button" onClick="{{l.pick}}" aria-label="{{l.name}}" aria-pressed="{{l.on}}"><i style="background: {{l.bg}}; box-shadow: {{l.glow}}"></i></button></sc-for>
+                        </div>
+                        <span style="min-width: 64px; font-size: 13px; font-weight: 800; color: {{r.color}}">{{r.sev}}</span>
+                      </div>
+                    </div>
+                    <div class="f" style="flex: 0 0 110px"><span class="lbl">CVSS score</span><input class="ink" defaultValue="{{r.cvss}}" placeholder="0.0" aria-label="CVSS score"></div>
+                    <div class="f" style="flex: 1 1 260px"><span class="lbl">CVSS vector</span><input class="ink mono" defaultValue="{{r.vector}}" placeholder="CVSS:3.1/AV:N/AC:L/..." aria-label="CVSS vector"></div>
+                    <div class="f" style="flex: 0 0 170px"><span class="lbl">Status</span><select class="ink" value="{{r.status}}" onChange="{{r.setStatus}}" aria-label="Status"><option>Open</option><option>Fixed</option><option>Risk accepted</option><option>False positive</option></select></div>
+                  </div>
+                  <div class="g3">
+                    <div class="f"><span class="lbl">Affected host</span><input class="ink" defaultValue="{{r.host}}" aria-label="Affected host"></div>
+                    <div class="f"><span class="lbl">Port and service</span><input class="ink" defaultValue="{{r.port}}" aria-label="Port and service"></div>
+                    <div class="f"><span class="lbl">CVE IDs</span><input class="ink mono" defaultValue="{{r.cve}}" placeholder="CVE-0000-0000" aria-label="CVE IDs"></div>
+                    <div class="f"><span class="lbl">ATT&amp;CK technique</span><input class="ink mono" defaultValue="{{r.attack}}" placeholder="T1190" aria-label="ATT&amp;CK technique"></div>
+                  </div>
+                  <div class="f"><span class="lbl">Description</span><textarea class="ink" rows="2" defaultValue="{{r.desc}}" placeholder="What the weakness is" aria-label="Description"></textarea></div>
+                  <div class="f"><span class="lbl">Impact</span><textarea class="ink" rows="2" defaultValue="{{r.impact}}" placeholder="What an attacker could do with it" aria-label="Impact"></textarea></div>
+                  <div class="f"><span class="lbl">Evidence</span><textarea class="ink mono" rows="3" defaultValue="{{r.evidence}}" placeholder="Tool output, request and response, or a screenshot reference" aria-label="Evidence"></textarea></div>
+                  <div class="f"><span class="lbl">Steps to reproduce</span><textarea class="ink" rows="3" defaultValue="{{r.steps}}" placeholder="Numbered steps someone else can follow" aria-label="Steps to reproduce"></textarea></div>
+                  <div class="f"><span class="lbl">Recommendation</span><textarea class="ink" rows="2" defaultValue="{{r.fix}}" placeholder="How to fix it" aria-label="Recommendation"></textarea></div>
+                  <div class="f"><span class="lbl">References</span><textarea class="ink mono" rows="2" defaultValue="{{r.refs}}" placeholder="Vendor advisories, NVD and Exploit-DB links" aria-label="References"></textarea></div>
+                </div>
+              </div></div>
+            </div>
+          </sc-for>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <button type="button" class="btn quiet" onClick="{{addRow}}">Add a finding</button>
+            <button type="button" class="btn quiet">Pull in a finding from the scan</button>
+          </div>
+        </section>
+
+        <section id="s-path" class="glass sec reveal" style="animation-delay: .2s">
+          <div class="sh"><span class="sn">05</span><h2>Attack path</h2></div>
+          <div class="f"><label class="lbl" for="p-path">How the findings chain together</label><textarea id="p-path" class="ink" rows="4" defaultValue="1. FTP on port 21 runs vsftpd 2.3.4, a release with a known backdoor.&#10;2. Triggering the backdoor opens a shell on the host without a password (T1190).&#10;3. From that shell an attacker has full control of the host."></textarea></div>
+        </section>
+
+        <section id="s-remediation" class="glass sec reveal" style="animation-delay: .24s">
+          <div class="sh"><span class="sn">06</span><h2>Remediation plan</h2></div>
+          <p class="hint">Built from your findings. The fix by date follows severity.</p>
+          <div style="overflow-x: auto">
+            <table class="rtab">
+              <thead><tr><th>ID</th><th>Finding</th><th>Severity</th><th>Fix by</th><th>Owner</th></tr></thead>
+              <tbody>
+                <sc-for list="{{rows}}" as="r" hint-placeholder-count="2">
+                  <tr>
+                    <td style="font: 700 13px 'IBM Plex Mono', monospace; color: #8E8E96">{{r.fid}}</td>
+                    <td style="color: #F4F4F5; font-weight: 600">{{r.headTitle}}</td>
+                    <td style="color: {{r.color}}; font-weight: 700">{{r.sev}}</td>
+                    <td>{{r.fixBy}}</td>
+                    <td style="min-width: 150px"><input class="ink" placeholder="Team or person" aria-label="Owner" style="min-height: 38px; padding: 6px 10px"></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="s-conclusion" class="glass sec reveal" style="animation-delay: .28s">
+          <div class="sh"><span class="sn">07</span><h2>Conclusion</h2></div>
+          <div class="f"><label class="lbl" for="c-text">Overall assessment and next steps</label><textarea id="c-text" class="ink" rows="3" placeholder="Where the host stands now, and when it should be tested again."></textarea></div>
+        </section>
+
+        <section id="s-appendix" class="glass sec reveal" style="animation-delay: .32s">
+          <div class="sh"><span class="sn">08</span><h2>Appendix</h2></div>
+          <span class="lbl">Attach tool evidence</span>
+          <div>
+            <label class="check" style="border-bottom: 1px solid rgba(255,255,255,.07)"><input type="checkbox" defaultChecked="{{ true }}"><span>Tool report, Standard scan 12 Nov 21:36<br><span class="hint">The original ReconMind report, unchanged</span></span></label>
+            <label class="check" style="border-bottom: 1px solid rgba(255,255,255,.07)"><input type="checkbox"><span>Tool report, Full scan 11 Nov 19:02</span></label>
+            <label class="check"><input type="checkbox"><span>Raw nmap XML and tool output</span></label>
+          </div>
+          <div class="drop">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"></path></svg>
+            <span style="flex: 1">Drop screenshots here to attach them as evidence</span>
+            <button type="button" class="btn quiet" style="min-height: 40px">Browse</button>
+          </div>
+        </section>
+
+        <section id="s-signoff" class="glass sec reveal" style="animation-delay: .36s">
+          <div class="sh"><span class="sn">09</span><h2>Sign off</h2></div>
+          <div class="g2">
+            <div class="f"><label class="lbl" for="so-a">Analyst</label><input id="so-a" class="ink" placeholder="Name"></div>
+            <div class="f"><label class="lbl" for="so-ad">Date</label><input id="so-ad" class="ink" type="date" style="color-scheme: dark"></div>
+            <div class="f"><label class="lbl" for="so-r">Reviewer</label><input id="so-r" class="ink" placeholder="Name"></div>
+            <div class="f"><label class="lbl" for="so-rd">Date</label><input id="so-rd" class="ink" type="date" style="color-scheme: dark"></div>
+          </div>
+          <label class="check"><input type="checkbox">I confirm these findings are accurate and were found within the authorized scope</label>
+        </section>
+      </form>
+
+      <aside style="flex: 1 1 270px; min-width: 0; display: flex; flex-direction: column; gap: 20px; padding-top: 36px">
+        <section class="glass reveal" style="padding: 24px; display: flex; flex-direction: column; gap: 18px; animation-delay: .1s">
+          <div style="display: flex; align-items: center; gap: 16px">
+            <svg class="prog" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="{{progLabel}}">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"></circle>
+              <circle class="v" cx="32" cy="32" r="26" fill="none" stroke="#E5484D" stroke-width="5" stroke-linecap="round" style="stroke-dashoffset: {{progOffset}}"></circle>
+            </svg>
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <span style="font: 800 20px Archivo, sans-serif; font-stretch: 115%; color: #F4F4F5">{{progLabel}}</span>
+              <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #A1A1AA"><span class="saved"></span>Draft saved at 21:52</span>
+            </div>
+          </div>
+          <nav class="toc" aria-label="Report sections" style="display: flex; flex-direction: column; gap: 2px">
+            <sc-for list="{{toc}}" as="s" hint-placeholder-count="9">
+              <a href="{{s.href}}"><span class="{{s.dot}}"><sc-if value="{{s.done}}" hint-placeholder-val="{{ false }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if></span>{{s.name}}</a>
+            </sc-for>
+          </nav>
+          <button type="button" class="btn primary">Save report</button>
+          <button type="button" class="btn quiet">Export .md</button>
+            <a class="btn quiet" href="PdfReport.dc.html">Export PDF</a>
+        </section>
+        <section class="glass reveal" style="padding: 24px; display: flex; flex-direction: column; gap: 10px; animation-delay: .18s">
+          <span style="font-weight: 700; color: #F4F4F5">Started from</span>
+          <a href="Report.dc.html" style="text-decoration: none">Standard scan, 12 Nov at 21:36</a>
+          <p style="margin: 0; font-size: 14px; color: #8E8E96">That report is never changed. Yours is saved next to it, so the original evidence stays as the tools wrote it.</p>
+        </section>
+      </aside>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":3900}}'>
+const LEVELS = [
+  { name: 'Low', c: '#BDBDC2', fixBy: 'Within 90 days' },
+  { name: 'Medium', c: '#E9D267', fixBy: 'Within 30 days' },
+  { name: 'High', c: '#F79A4B', fixBy: 'Within 7 days' },
+  { name: 'Critical', c: '#FF6B5E', fixBy: 'Immediately' }
+];
+const TOOLS = ['nmap', 'searchsploit', 'NVD', 'httpx', 'ffuf', 'nuclei', 'testssl.sh', 'enum4linux-ng', 'Semgrep', 'Bandit'];
+const USED = ['nmap', 'searchsploit', 'NVD', 'httpx', 'ffuf', 'nuclei', 'enum4linux-ng'];
+const START = [
+  { title: 'vsftpd 2.3.4 backdoor gives a remote shell', lvl: 4, status: 'Open', cvss: '9.8', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
+    host: '10.10.1.20', port: '21/tcp ftp, vsftpd 2.3.4', cve: 'CVE-2011-2523', attack: 'T1190',
+    desc: 'The FTP service runs vsftpd 2.3.4, a release that was shipped with a malicious backdoor.',
+    impact: 'Anyone who can reach port 21 can open a command shell on the host without a password.',
+    evidence: '21/tcp open ftp vsftpd 2.3.4 (syn-ack)\nsearchsploit: vsftpd 2.3.4 - Backdoor Command Execution [exact_version]\nNVD: CVE-2011-2523, CVSS 9.8',
+    steps: '', fix: 'Remove vsftpd 2.3.4 and install a current release from a trusted source, or turn FTP off.',
+    refs: 'https://nvd.nist.gov/vuln/detail/CVE-2011-2523' },
+  { title: 'UnrealIRCd 3.2.8.1 backdoor', lvl: 4, status: 'Open', cvss: '', vector: '',
+    host: '10.10.1.20', port: '6667/tcp irc, UnrealIRCd 3.2.8.1', cve: 'CVE-2010-2075', attack: 'T1190',
+    desc: 'The IRC service runs UnrealIRCd 3.2.8.1, a download that was replaced with a backdoored copy.',
+    impact: 'A remote attacker can run commands on the host through the IRC port.',
+    evidence: '6667/tcp open irc UnrealIRCd\nirc-info: version Unreal3.2.8.1\nNVD: CVE-2010-2075',
+    steps: '', fix: 'Take the IRC service offline or replace it with a verified build.',
+    refs: 'https://nvd.nist.gov/vuln/detail/CVE-2010-2075' }
+];
+const SECTIONS = [
+  ['s-details', 'Report details'], ['s-engagement', 'Scope and method'], ['s-summary', 'Executive summary'],
+  ['s-findings', 'Findings'], ['s-path', 'Attack path'], ['s-remediation', 'Remediation plan'],
+  ['s-conclusion', 'Conclusion'], ['s-appendix', 'Appendix'], ['s-signoff', 'Sign off']
+];
+const DONE = { 's-details': true, 's-engagement': true, 's-path': true, 's-appendix': true };
+const CIRC = 163.36;
+
+function levelButtons(cur, pick) {
+  const c = LEVELS[cur - 1].c;
+  return LEVELS.map(function (l, k) {
+    const filled = k < cur;
+    return {
+      name: 'Set to ' + l.name, on: k === cur - 1,
+      bg: filled ? c : '#2A2A2F', glow: filled ? '0 0 8px ' + c : 'none',
+      pick: function () { pick(k + 1); }
+    };
+  });
+}
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { rows: START.map(function (r) { return Object.assign({}, r); }), open: 0, risk: 4, used: USED.slice() };
+  }
+  patch(i, obj) {
+    const rows = this.state.rows.slice();
+    rows[i] = Object.assign({}, rows[i], obj);
+    this.setState({ rows: rows });
+  }
+  renderVals() {
+    const self = this;
+    const s = this.state;
+    const rows = s.rows.map(function (r, i) {
+      const lv = LEVELS[r.lvl - 1];
+      const isOpen = s.open === i;
+      return Object.assign({}, r, {
+        fid: 'F-' + String(i + 1).padStart(2, '0'),
+        headTitle: r.title || 'Untitled finding',
+        color: lv.c, sev: lv.name, fixBy: lv.fixBy,
+        cells: [0, 1, 2, 3].map(function (k) { return { bg: k < r.lvl ? lv.c : '#2A2A2F' }; }),
+        levels: levelButtons(r.lvl, function (n) { self.patch(i, { lvl: n }); }),
+        open: isOpen,
+        chevCls: 'chev' + (isOpen ? ' open' : ''),
+        bodyCls: 'fbw' + (isOpen ? ' open' : ''),
+        toggle: function () { self.setState({ open: isOpen ? -1 : i }); },
+        setTitle: function (e) { self.patch(i, { title: e.target.value }); },
+        setStatus: function (e) { self.patch(i, { status: e.target.value }); }
+      });
+    });
+    const counts = [0, 0, 0, 0];
+    s.rows.forEach(function (r) { counts[r.lvl - 1] += 1; });
+    const countText = s.rows.length + (s.rows.length === 1 ? ' finding' : ' findings') +
+      (counts[3] ? ', ' + counts[3] + ' critical' : '') + (counts[2] ? ', ' + counts[2] + ' high' : '');
+    const done = SECTIONS.map(function (x) { return x[0] === 's-findings' ? s.rows.length > 0 : (x[0] === 's-remediation' ? s.rows.length > 0 : !!DONE[x[0]]); });
+    const nDone = done.filter(Boolean).length;
+    const risk = LEVELS[s.risk - 1];
+    return {
+      rows: rows, countText: countText,
+      riskLevels: levelButtons(s.risk, function (n) { self.setState({ risk: n }); }),
+      riskName: risk.name, riskColor: risk.c,
+      tools: TOOLS.map(function (t) {
+        const on = s.used.indexOf(t) >= 0;
+        return {
+          name: t, on: on, cls: 'chip' + (on ? ' on' : ''),
+          toggle: function () {
+            const u = self.state.used;
+            self.setState({ used: on ? u.filter(function (x) { return x !== t; }) : u.concat(t) });
+          }
+        };
+      }),
+      toc: SECTIONS.map(function (x, k) {
+        return { href: '#' + x[0], name: x[1], done: done[k], dot: 'td ' + (done[k] ? 'done' : 'todo') };
+      }),
+      progLabel: nDone + ' of 9 sections',
+      progOffset: (CIRC * (1 - nDone / 9)).toFixed(2),
+      addRow: function () {
+        const n = self.state.rows.length;
+        self.setState({
+          rows: self.state.rows.concat({ title: '', lvl: 2, status: 'Open', cvss: '', vector: '', host: '10.10.1.20', port: '', cve: '', attack: '', desc: '', impact: '', evidence: '', steps: '', fix: '', refs: '' }),
+          open: n
+        });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

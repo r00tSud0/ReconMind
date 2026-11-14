@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind Report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@property --n{syntax:'<integer>';initial-value:0;inherits:false}
+body{margin:0;background:#070708;color:#D4D4D8;font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:#FF5A5F}a:hover{color:#FFB3B5}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.glow1{position:absolute;width:900px;height:900px;left:-300px;top:-420px;border-radius:50%;background:radial-gradient(circle,rgba(229,72,77,.15),transparent 62%);animation:drift 22s ease-in-out infinite alternate}
+.glow2{position:absolute;width:820px;height:820px;right:-320px;top:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,107,94,.08),transparent 62%);animation:drift 27s ease-in-out infinite alternate-reverse}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%);mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%)}
+.ring{position:absolute;left:clamp(27px,calc(4vw + 11px),59px);top:34px;border-radius:50%;border:1px solid rgba(255,255,255,.35);animation:ping 7.5s cubic-bezier(.15,.6,.3,1) infinite}
+.ring:nth-child(5){animation-delay:2.5s}.ring:nth-child(6){animation-delay:5s}
+.cols{position:absolute;top:0;bottom:0;left:50%;width:min(1200px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 50%,transparent);mask-image:linear-gradient(#000 0,#000 50%,transparent)}
+.app{position:relative;z-index:1;min-height:100vh}
+.top{display:flex;align-items:center;gap:12px 32px;flex-wrap:wrap;padding:0 clamp(16px,4vw,48px);min-height:68px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(10,10,11,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mark{display:flex;align-items:center;gap:10px;font-stretch:125%;font-weight:800;font-size:18px;color:#F4F4F5;text-decoration:none;letter-spacing:-0.01em}
+.mark:hover{color:#F4F4F5}
+.a1,.a2,.a3{animation:arc 2.4s ease-in-out infinite}.a2{animation-delay:.25s}.a3{animation-delay:.5s}
+.nav{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;color:#8E8E96;text-decoration:none;font-weight:500;font-size:14px;transition:color .25s}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
+.nav.on{color:#F4F4F5}.nav.on::after{transform:scaleX(1);box-shadow:0 0 12px rgba(229,72,77,.7)}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
+.glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
+.btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:10px;font:700 14px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.primary{color:#FFFFFF;background:linear-gradient(135deg,#E5484D,#B4232A);border:0;padding-right:6px;border-radius:8px;box-shadow:0 10px 34px -10px rgba(229,72,77,.85),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary::before{content:"\2197";order:2;display:flex;align-items:center;justify-content:center;width:34px;height:34px;margin-left:8px;border-radius:6px;background:rgba(0,0,0,.42);font-size:15px;line-height:1;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.btn.primary:hover::before{transform:translate(2px,-2px)}
+.btn.primary::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.6) 50%,transparent 70%);transform:translateX(-130%);transition:transform .8s ease}
+.btn.primary:hover{color:#FFFFFF;transform:translateY(-2px);box-shadow:0 16px 46px -10px rgba(229,72,77,1),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn.primary:hover::after{transform:translateX(130%)}
+.btn.quiet{background:rgba(255,255,255,.02);color:#D4D4D8;border:1px solid rgba(255,255,255,.2)}
+.btn.quiet:hover{border-color:rgba(255,255,255,.5);color:#F4F4F5;box-shadow:0 0 24px -8px rgba(229,72,77,.5)}
+.reveal{animation:reveal .8s cubic-bezier(.2,.8,.2,1) both}
+.title{background:linear-gradient(100deg,#F4F4F5 0%,#F4F4F5 42%,#FF7A7F 50%,#F4F4F5 58%,#F4F4F5 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.8s cubic-bezier(.3,.6,.3,1) .5s both}
+.spec{position:relative;height:140px;border-bottom:1px solid rgba(255,255,255,.3)}
+.spec::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:30px;background:linear-gradient(to top,rgba(255,255,255,.08),transparent);pointer-events:none}
+.tk{position:absolute;bottom:0;width:16px;margin-left:-8px;height:100%;display:flex;align-items:flex-end;justify-content:center;cursor:default}
+.tk i{display:block;width:4px;border-radius:2px 2px 0 0;transform-origin:bottom;animation:grow .7s cubic-bezier(.2,1.2,.3,1) both;transition:width .2s,filter .2s}
+.tk:hover i{width:7px;filter:brightness(1.35)}
+.tk::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translate(-50%,6px);white-space:nowrap;padding:6px 10px;border-radius:8px;background:rgba(16,16,18,.96);border:1px solid rgba(255,255,255,.25);font-size:12px;font-weight:600;color:#F4F4F5;opacity:0;pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.3,1.4,.5,1);z-index:3}
+.tk:hover::after{opacity:1;transform:translate(-50%,0)}
+.tlabel{position:absolute;transform:translateX(-50%);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;animation:fade .5s ease both;pointer-events:none}
+.heat{display:inline-flex;gap:2px;flex:none}
+.heat i{display:block;width:5px;height:16px;border-radius:1px}
+.num{font:800 46px/1 Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;font-variant-numeric:tabular-nums;animation:count 1.4s cubic-bezier(.2,.8,.2,1) .5s both;counter-reset:n var(--n)}
+.num::after{content:counter(n)}
+.count{flex:1 1 140px;display:flex;flex-direction:column;gap:10px;padding:22px 24px}
+.frow{position:relative;display:flex;align-items:center;gap:16px;width:100%;min-height:66px;padding:14px 18px;border:0;border-top:1px solid rgba(255,255,255,.07);background:transparent;color:#D4D4D8;font:inherit;text-align:left;cursor:pointer;transition:background .25s}
+.frow:hover{background:rgba(255,255,255,.04)}
+.frow::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:2px;background:var(--sc);transform:scaleY(0);transition:transform .3s cubic-bezier(.3,1.4,.5,1);box-shadow:0 0 12px var(--sc)}
+.frow.open::before,.frow:hover::before{transform:scaleY(1)}
+.chev{transition:transform .35s cubic-bezier(.3,1.4,.5,1);flex:none}
+.chev.open{transform:rotate(90deg)}
+.evw{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .45s cubic-bezier(.2,.8,.2,1),opacity .35s}
+.evw.open{grid-template-rows:1fr;opacity:1}
+.evw>div{overflow:hidden;min-height:0}
+.ev{margin:0 18px 18px 68px;padding:16px 18px;border-radius:12px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.1);font:13px/1.8 'IBM Plex Mono',monospace;color:#C8C8CE;white-space:pre-wrap;overflow-x:auto}
+.sub{font-size:14px;color:#8E8E96}
+.bar{height:4px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:2px;transform-origin:left;animation:fillin 1.2s cubic-bezier(.2,.8,.2,1) .8s both}
+.chip{padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);font-size:14px}
+.path-line{flex:0 0 26px;height:2px;background:linear-gradient(90deg,rgba(255,255,255,.15),rgba(255,255,255,.6),rgba(255,255,255,.15));background-size:200% 100%;animation:flow 1.6s linear infinite}
+:focus-visible{outline:2px solid #FF5A5F;outline-offset:3px}
+@keyframes drift{to{transform:translate(140px,90px) scale(1.12)}}
+@keyframes ping{0%{width:0;height:0;margin:0;opacity:.8}100%{width:1600px;height:1600px;margin:-800px 0 0 -800px;opacity:0}}
+@keyframes arc{0%,100%{opacity:.3}35%{opacity:1}}
+@keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes fade{from{opacity:0;transform:translate(-50%,6px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes count{from{--n:0}}
+@keyframes fillin{from{transform:scaleX(0)}}
+@keyframes flow{from{background-position:200% 0}to{background-position:0 0}}
+@media (max-width:700px){.ev{margin-left:18px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.title{color:#F4F4F5}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #070708">
+  <div class="bg" aria-hidden="true"><div class="glow1"></div><div class="glow2"></div><div class="grid"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="cols"></div></div>
+  <div class="app">
+    <header class="top">
+      <a class="mark" href="Main.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+        <a class="nav" href="Main.dc.html">New scan</a>
+        <a class="nav" href="LiveRun.dc.html">Live run</a>
+        <a class="nav on" href="Targets.dc.html">Targets</a>
+        <a class="nav" href="Batch.dc.html">Host lists</a>
+        <a class="nav" href="System.dc.html">System</a>
+      </nav>
+      <div class="scope"><span class="sdot"></span>Scope locked to 4 lab networks</div>
+    </header>
+
+    <main style="box-sizing: border-box; padding: 40px clamp(16px, 4vw, 48px) 80px">
+      <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px">
+        <nav aria-label="Breadcrumb" class="reveal" style="font-size: 14px; color: #8E8E96; display: flex; gap: 8px; flex-wrap: wrap">
+          <a href="Targets.dc.html" style="text-decoration: none">Targets</a><span aria-hidden="true">/</span><a href="Targets.dc.html" style="text-decoration: none">10.10.1.20</a><span aria-hidden="true">/</span><span>Standard scan, 12 Nov</span>
+        </nav>
+
+        <section class="glass reveal" style="padding: 34px 34px 26px; display: flex; flex-direction: column; gap: 30px; animation-delay: .05s">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 20px">
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <h1 class="title" style="font-size: clamp(38px, 6vw, 66px); font-weight: 800; line-height: .95; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">10.10.1.20</h1>
+              <p style="margin: 0; font-size: 16px; color: #A1A1AA">Standard scan on 12 Nov 2026 at 21:36. Took 13 min 4 s.</p>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap">
+              <button type="button" class="btn quiet">Raw evidence</button>
+              <button type="button" class="btn quiet">Export .md</button>
+            <a class="btn quiet" href="PdfReport.dc.html">Export PDF</a>
+              <a class="btn primary" href="AnalystReport.dc.html">Write my own report</a>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div class="spec" role="img" aria-label="23 open ports. Critical findings on ports 21 and 6667, high on 23, 139 and 445.">
+              <sc-for list="{{ticks}}" as="t" hint-placeholder-count="23">
+                <span class="tk" style="left: {{t.x}}%" data-tip="{{t.tip}}"><i style="height: {{t.h}}px; background: {{t.c}}; box-shadow: 0 0 {{t.glow}}px {{t.c}}; animation-delay: {{t.d}}s"></i></span>
+              </sc-for>
+              <sc-for list="{{labels}}" as="l" hint-placeholder-count="2">
+                <span class="tlabel" style="left: {{l.x}}%; bottom: {{l.b}}px; color: {{l.c}}; animation-delay: {{l.d}}s; text-shadow: 0 0 12px {{l.c}}">{{l.port}}</span>
+              </sc-for>
+            </div>
+            <div style="position: relative; height: 18px; font-size: 12px; color: #8E8E96; font-variant-numeric: tabular-nums">
+              <span style="position: absolute; left: 0">1</span>
+              <span style="position: absolute; left: 20.8%; transform: translateX(-50%)">10</span>
+              <span style="position: absolute; left: 41.5%; transform: translateX(-50%)">100</span>
+              <span style="position: absolute; left: 62.3%; transform: translateX(-50%)">1,000</span>
+              <span style="position: absolute; left: 83%; transform: translateX(-50%)">10,000</span>
+              <span style="position: absolute; right: 0">65,535</span>
+            </div>
+            <p class="sub" style="margin: 0; font-size: 13px">Every open port, from 1 to 65535. Taller and hotter means worse. Hover a line to see the port.</p>
+          </div>
+        </section>
+
+        <section class="glass reveal" style="display: flex; flex-wrap: wrap; padding: 0; animation-delay: .12s">
+          <div class="count"><span class="heat" aria-hidden="true"><i style="background: #FF6B5E; box-shadow: 0 0 8px #FF6B5E"></i><i style="background: #FF6B5E; box-shadow: 0 0 8px #FF6B5E"></i><i style="background: #FF6B5E; box-shadow: 0 0 8px #FF6B5E"></i><i style="background: #FF6B5E; box-shadow: 0 0 8px #FF6B5E"></i></span><span class="num" style="--n: 2" aria-label="2"></span><span class="sub">critical</span></div>
+          <div class="count"><span class="heat" aria-hidden="true"><i style="background: #F79A4B"></i><i style="background: #F79A4B"></i><i style="background: #F79A4B"></i><i style="background: #2A2A2F"></i></span><span class="num" style="--n: 2; animation-delay: .6s" aria-label="2"></span><span class="sub">high</span></div>
+          <div class="count"><span class="heat" aria-hidden="true"><i style="background: #E9D267"></i><i style="background: #E9D267"></i><i style="background: #2A2A2F"></i><i style="background: #2A2A2F"></i></span><span class="num" style="--n: 3; animation-delay: .7s" aria-label="3"></span><span class="sub">medium</span></div>
+          <div class="count"><span class="heat" aria-hidden="true"><i style="background: #BDBDC2"></i><i style="background: #2A2A2F"></i><i style="background: #2A2A2F"></i><i style="background: #2A2A2F"></i></span><span class="num" style="--n: 2; animation-delay: .8s" aria-label="2"></span><span class="sub">low</span></div>
+          <div class="count" style="border-left: 1px solid rgba(255,255,255,.1)"><span style="height: 16px"></span><span class="num" style="--n: 23; animation-delay: .9s" aria-label="23"></span><span class="sub">open ports</span></div>
+        </section>
+
+        <section class="glass reveal" style="padding: 32px 34px; display: flex; flex-wrap: wrap; gap: 24px 56px; animation-delay: .19s">
+          <div style="flex: 1 1 220px; max-width: 280px; display: flex; flex-direction: column; gap: 8px">
+            <h2 style="font-size: 18px; font-weight: 750">What it means</h2>
+            <p class="sub" style="margin: 0">Written by the AI from the tool results below. It does not add or remove findings.</p>
+          </div>
+          <div style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 22px">
+            <p style="margin: 0; font-size: 19px; line-height: 1.65; color: #E4E4E7; max-width: 64ch">This host runs two services with known backdoors. Either one gives an attacker a remote shell with no password: vsftpd 2.3.4 on port 21 and UnrealIRCd on port 6667. Samba 3.0.20 is a third way in. Take FTP and IRC offline first, then patch Samba, close Telnet, and keep MySQL on localhost.</p>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <span class="sub" style="margin-right: 6px">Attack path</span>
+              <span class="chip">Exposed FTP and IRC</span>
+              <span class="path-line" aria-hidden="true"></span>
+              <span class="chip">Backdoor triggered, T1190</span>
+              <span class="path-line" aria-hidden="true"></span>
+              <span class="chip" style="border-color: rgba(255,107,94,.5); color: #FFB3AB; background: rgba(255,107,94,.08); box-shadow: 0 0 20px -6px rgba(255,107,94,.6)">Remote shell on the host</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass reveal" style="padding: 26px 16px 8px; animation-delay: .26s">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 0 18px 16px">
+            <h2 style="font-size: 22px; font-weight: 750">Findings</h2>
+            <span class="sub">Open a finding to see the exact tool output behind it</span>
+          </div>
+          <sc-for list="{{findings}}" as="f" hint-placeholder-count="9">
+            <div>
+              <button type="button" class="{{f.rowCls}}" style="--sc: {{f.color}}" onClick="{{f.toggle}}" aria-expanded="{{f.open}}">
+                <svg class="{{f.chevCls}}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8E8E96" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                <span class="heat" role="img" aria-label="{{f.sev}}">
+                  <sc-for list="{{f.cells}}" as="c" hint-placeholder-count="4"><i style="background: {{c.bg}}"></i></sc-for>
+                </span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-weight: 650; font-size: 16px; color: #F4F4F5">{{f.title}}</span>
+                  <span class="sub">{{f.where}}</span>
+                </span>
+                <span class="sub" style="text-align: right">{{f.source}}</span>
+                <span style="font-size: 14px; font-weight: 700; color: #FF5A5F; min-width: 54px; text-align: right">{{f.attack}}</span>
+              </button>
+              <div class="{{f.evCls}}"><div><div class="ev">{{f.evidence}}</div></div></div>
+            </div>
+          </sc-for>
+        </section>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+          <section class="glass reveal" style="flex: 1 1 440px; min-width: 0; padding: 28px 30px; display: flex; flex-direction: column; gap: 20px; animation-delay: .32s">
+            <h2 style="font-size: 18px; font-weight: 750">MITRE ATT&amp;CK</h2>
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap"><span style="font-weight: 800; color: #FF5A5F; font-stretch: 125%">T1190</span><span style="font-weight: 650; color: #F4F4F5; flex: 1">Exploit Public-Facing Application</span><span style="font-size: 13px; color: #FF7A7F">Verified</span></div>
+              <div class="bar"><i style="width: 100%; background: linear-gradient(90deg, #FF7A7F, #C2252D); box-shadow: 0 0 10px rgba(229,72,77,.7)"></i></div>
+              <span class="sub">Ports 21, 139, 445 and 6667. The rules and the model agree.</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap"><span style="font-weight: 800; color: #FF5A5F; font-stretch: 125%">T1078</span><span style="font-weight: 650; color: #F4F4F5; flex: 1">Valid Accounts</span><span style="font-size: 13px; color: #E9D267">Lower confidence, 0.78</span></div>
+              <div class="bar"><i style="width: 78%; background: #E9D267; animation-delay: 1s"></i></div>
+              <span class="sub">Port 21, from the model alone</span>
+            </div>
+            <p class="sub" style="margin: 0; font-size: 13px">Mapped by your run 3 SciBERT model plus rules. Every ID is checked against ATT&amp;CK v20.</p>
+          </section>
+
+          <section class="glass reveal" style="flex: 1 1 340px; min-width: 0; padding: 28px 30px; animation-delay: .38s">
+            <h2 style="font-size: 18px; font-weight: 750; padding-bottom: 12px">Tool coverage</h2>
+            <sc-for list="{{coverage}}" as="c" hint-placeholder-count="8">
+              <div style="display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.07)">
+                <span style="display: flex; align-items: center; gap: 10px"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{c.dot}}; box-shadow: 0 0 8px {{c.dot}}"></span>{{c.name}}</span>
+                <span style="color: {{c.tone}}">{{c.result}}</span>
+              </div>
+            </sc-for>
+            <p class="sub" style="margin: 10px 0 0; font-size: 13px">No unconfirmed ports.</p>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2150}}'>
+const OPEN = [21, 22, 23, 25, 53, 80, 111, 139, 445, 512, 513, 514, 1099, 1524, 2049, 2121, 3306, 5432, 5900, 6000, 6667, 8009, 8180];
+const NAMES = { 21: 'ftp', 22: 'ssh', 23: 'telnet', 25: 'smtp', 53: 'dns', 80: 'http', 111: 'rpcbind', 139: 'smb', 445: 'smb', 512: 'exec', 513: 'login', 514: 'shell', 1099: 'rmi', 1524: 'bindshell', 2049: 'nfs', 2121: 'ftp', 3306: 'mysql', 5432: 'postgres', 5900: 'vnc', 6000: 'x11', 6667: 'irc', 8009: 'ajp', 8180: 'http' };
+const PORT_SEV = { 21: 'crit', 6667: 'crit', 23: 'high', 139: 'high', 445: 'high', 80: 'med', 3306: 'med', 22: 'low' };
+const SEV = {
+  crit: { c: '#FF6B5E', h: 112, n: 4, word: 'Critical', glow: 14 },
+  high: { c: '#F79A4B', h: 82, n: 3, word: 'High', glow: 10 },
+  med: { c: '#E9D267', h: 58, n: 2, word: 'Medium', glow: 6 },
+  low: { c: '#BDBDC2', h: 38, n: 1, word: 'Low', glow: 4 },
+  none: { c: '#3A3A40', h: 22, n: 0, word: 'No finding', glow: 0 }
+};
+const MAX = Math.log10(65536);
+function xOf(p) { return (Math.log10(p) / MAX * 100).toFixed(2); }
+
+const FINDINGS = [
+  { id: 1, s: 'crit', title: 'vsftpd 2.3.4 backdoor, CVE-2011-2523', where: 'Port 21, FTP', source: 'NVD and Exploit-DB', attack: 'T1190',
+    evidence: 'nmap          21/tcp open ftp vsftpd 2.3.4 (syn-ack)\nsearchsploit  vsftpd 2.3.4 - Backdoor Command Execution  [exact_version]\nNVD           CVE-2011-2523  CVSS 9.8 CRITICAL' },
+  { id: 2, s: 'crit', title: 'UnrealIRCd 3.2.8.1 backdoor, CVE-2010-2075', where: 'Port 6667, IRC', source: 'NVD and Exploit-DB', attack: 'T1190',
+    evidence: 'nmap      6667/tcp open irc UnrealIRCd (syn-ack)\nirc-info  version: Unreal3.2.8.1\nNVD       CVE-2010-2075' },
+  { id: 3, s: 'high', title: 'Samba usermap script command execution, CVE-2007-2447', where: 'Ports 139 and 445, Samba smbd 3.0.20', source: 'NVD and Exploit-DB', attack: 'T1190',
+    evidence: 'smb-os-discovery  OS: Unix (Samba 3.0.20-Debian)\nNVD               CVE-2007-2447\nmapper            T1190 at 0.82, lower confidence band' },
+  { id: 4, s: 'high', title: 'Telnet login sent in cleartext', where: 'Port 23, Telnet', source: 'Risk rule', attack: '',
+    evidence: 'nmap  23/tcp open telnet Linux telnetd (syn-ack)\nrule  Cleartext remote login reachable from the network' },
+  { id: 5, s: 'med', title: 'phpMyAdmin login page reachable', where: 'Port 80, /phpMyAdmin/', source: 'ffuf', attack: '',
+    evidence: 'ffuf  /phpMyAdmin/  [Status: 200, Size: 4145]' },
+  { id: 6, s: 'med', title: 'MySQL reachable from the network', where: 'Port 3306, MySQL 5.0.51a', source: 'Risk rule', attack: '',
+    evidence: 'nmap  3306/tcp open mysql MySQL 5.0.51a-3ubuntu5 (syn-ack)' },
+  { id: 7, s: 'med', title: 'Anonymous SMB share listing allowed', where: 'Port 445', source: 'enum4linux-ng', attack: '',
+    evidence: 'enum4linux-ng  null session: allowed\n               shares: print$, tmp, opt, IPC$, ADMIN$' },
+  { id: 8, s: 'low', title: 'Security headers missing', where: 'Port 80, Apache httpd 2.2.8', source: 'httpx', attack: '',
+    evidence: 'httpx  missing: Content-Security-Policy, X-Frame-Options, Strict-Transport-Security' },
+  { id: 9, s: 'low', title: 'Outdated OpenSSH 4.7p1', where: 'Port 22, SSH', source: 'NVD', attack: '',
+    evidence: 'nmap  22/tcp open ssh OpenSSH 4.7p1 Debian 8ubuntu1 (syn-ack)\nNVD   CVEs listed for OpenSSH 4.7p1, none on the KEV list' }
+];
+const COVERAGE = [
+  ['Surface Map', '23 ports', true], ['Exploit Hunt', '9 services', true], ['CVE Intel', '11 checked', true],
+  ['Web Fingerprint', '2 sites', true], ['Hidden Paths', '14 paths', true], ['Vuln Probe', '3 matches', true],
+  ['Crypto Check', 'Skipped, no TLS', false], ['SMB Recon', '5 shares', true]
+];
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { open: 1 };
+  }
+  renderVals() {
+    const self = this;
+    const open = this.state.open;
+    const ticks = OPEN.map(function (p, i) {
+      const key = PORT_SEV[p] || 'none';
+      const s = SEV[key];
+      return { x: xOf(p), h: s.h, c: s.c, glow: s.glow, d: (0.35 + i * 0.045).toFixed(2), tip: p + ' ' + NAMES[p] + ', ' + s.word.toLowerCase() };
+    });
+    const labels = [21, 6667].map(function (p, i) {
+      return { port: p, x: xOf(p), b: SEV.crit.h + 8, c: SEV.crit.c, d: (1.5 + i * 0.12).toFixed(2) };
+    });
+    const findings = FINDINGS.map(function (f) {
+      const s = SEV[f.s];
+      const isOpen = open === f.id;
+      return {
+        title: f.title, where: f.where, source: f.source, attack: f.attack, evidence: f.evidence,
+        sev: s.word, color: s.c, open: isOpen,
+        cells: [0, 1, 2, 3].map(function (k) { return { bg: k < s.n ? s.c : '#2A2A2F' }; }),
+        rowCls: 'frow' + (isOpen ? ' open' : ''),
+        chevCls: 'chev' + (isOpen ? ' open' : ''),
+        evCls: 'evw' + (isOpen ? ' open' : ''),
+        toggle: function () { self.setState({ open: isOpen ? 0 : f.id }); }
+      };
+    });
+    const coverage = COVERAGE.map(function (c) {
+      return { name: c[0], result: c[1], dot: c[2] ? '#FF7A7F' : '#66666E', tone: c[2] ? '#C8C8CE' : '#8E8E96' };
+    });
+    return { ticks: ticks, labels: labels, findings: findings, coverage: coverage };
+  }
+}
+</script>
+</body>
+</html>

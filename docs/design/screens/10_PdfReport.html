@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind PDF report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:#FFFFFF}
+body{color:#1A1A1D;font-family:Archivo,system-ui,sans-serif;font-size:16px;line-height:1.6}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:118%;color:#0E0E10;text-wrap:balance;margin:0}
+p{margin:0;text-wrap:pretty}
+.doc a{color:#B4232A}
+.lbl{font-size:12px;font-weight:700;color:#52525B}
+.sec{display:flex;flex-direction:column;gap:14px;padding-top:40px}
+.sec h2{font-size:22px;font-weight:800;padding-bottom:10px;border-bottom:2px solid #0E0E10}
+.sn{font:600 13px 'IBM Plex Mono',monospace;color:#B4232A}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;font-weight:700;color:#3F3F46;padding:8px 10px 8px 0;border-bottom:1.5px solid #3F3F46}
+td{padding:9px 10px 9px 0;border-bottom:1px solid #D4D4D8;vertical-align:top}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:13px}
+.ev{padding:12px 14px;border-radius:6px;background:#F4F4F5;border:1px solid #D4D4D8;font:12.5px/1.7 'IBM Plex Mono',monospace;color:#1A1A1D;white-space:pre-wrap}
+.heat{display:inline-flex;gap:2px;vertical-align:-2px}
+.heat i{display:block;width:5px;height:14px;border-radius:1px}
+.sev{font-weight:800}
+.fd{display:flex;flex-direction:column;gap:10px;padding:22px 0 4px;border-top:1px solid #D4D4D8}
+.meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;font-size:13px}
+.meta span{display:block}
+</style>
+</helmet>
+<div class="doc" style="width: 816px; box-sizing: border-box; padding: 72px; background: #FFFFFF">
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 28px">
+    <span style="display: flex; align-items: center; gap: 8px; font-stretch: 125%; font-weight: 800; font-size: 15px; color: #0E0E10"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B4232A" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#B4232A" stroke="none"></circle><path d="M5 13a6 6 0 0 1 6 6M5 8a11 11 0 0 1 11 11M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</span>
+    <span style="font: 700 12px Archivo, sans-serif; color: #B4232A; padding: 3px 8px; border: 1.5px solid #B4232A; border-radius: 4px">CONFIDENTIAL</span>
+  </div>
+
+  <h1 style="font-size: 36px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em">Vulnerability assessment of 10.10.1.20</h1>
+  <p style="margin-top: 10px; font-size: 15px; color: #3F3F46">Report RM-2026-014, version 1.0. Prepared with ReconMind from a Standard scan.</p>
+
+  <table style="margin-top: 26px">
+    <tbody>
+      <tr><td class="lbl" style="width: 150px">Target</td><td class="mono">10.10.1.20 (Metasploitable 2), lab network 10.10.1.0/24</td></tr>
+      <tr><td class="lbl">Assessment type</td><td>Vulnerability assessment, unauthenticated</td></tr>
+      <tr><td class="lbl">Scan</td><td>Standard, top 1000 TCP ports, 8 actions. 12 Nov 2026, 21:36, 13 min 4 s.</td></tr>
+      <tr><td class="lbl">Prepared by</td><td>[Analyst name]</td></tr>
+      <tr><td class="lbl">Reviewed by</td><td>[Reviewer name]</td></tr>
+      <tr><td class="lbl">Report date</td><td>12 Nov 2026</td></tr>
+    </tbody>
+  </table>
+
+  <section class="sec">
+    <span class="sn">1</span>
+    <h2>Executive summary</h2>
+    <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1.5px solid #B4232A; border-radius: 6px">
+      <span class="heat" aria-hidden="true"><i style="background: #B4232A"></i><i style="background: #B4232A"></i><i style="background: #B4232A"></i><i style="background: #B4232A"></i></span>
+      <span style="font-weight: 800; font-size: 17px; color: #B4232A">Overall risk: Critical</span>
+      <span style="font-size: 14px; color: #3F3F46">Remote code execution is possible without a password.</span>
+    </div>
+    <p>The host runs two services with known backdoors, vsftpd 2.3.4 on port 21 and UnrealIRCd 3.2.8.1 on port 6667. Either one lets an attacker open a command shell on the host with no password. Samba 3.0.20 offers a third way in. FTP and IRC should be taken offline first, then Samba patched, Telnet closed and MySQL limited to localhost.</p>
+    <p style="font-size: 13px; color: #52525B">This summary was written by AI from the tool results and checked against the findings below. Every finding comes from tool output.</p>
+    <table>
+      <thead><tr><th>Severity</th><th class="num">Findings</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sev" style="color: #B4232A">Critical</span></td><td class="num">2</td></tr>
+        <tr><td><span class="sev" style="color: #B45309">High</span></td><td class="num">2</td></tr>
+        <tr><td><span class="sev" style="color: #8A6500">Medium</span></td><td class="num">3</td></tr>
+        <tr><td><span class="sev" style="color: #52525B">Low</span></td><td class="num">2</td></tr>
+        <tr><td style="font-weight: 700">Total</td><td class="num" style="font-weight: 700">9</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="sec">
+    <span class="sn">2</span>
+    <h2>Scope and method</h2>
+    <table>
+      <tbody>
+        <tr><td class="lbl" style="width: 150px">In scope</td><td>10.10.1.20 on lab network 10.10.1.0/24. TCP ports only.</td></tr>
+        <tr><td class="lbl">Out of scope</td><td>Every network outside the lab allowlist. Denial of service, password guessing and social engineering.</td></tr>
+        <tr><td class="lbl">Tools</td><td>nmap, searchsploit (Exploit-DB), NVD API 2.0, httpx, ffuf, nuclei, enum4linux-ng. testssl.sh was skipped because no TLS port was open.</td></tr>
+        <tr><td class="lbl">ATT&amp;CK mapping</td><td>Rule mappings plus a fine-tuned SciBERT model (run 3), checked against MITRE ATT&amp;CK v20.</td></tr>
+        <tr><td class="lbl">Limitations</td><td>Top 1000 TCP ports only. No UDP. No authenticated testing. Results reflect the host on the scan date.</td></tr>
+        <tr><td class="lbl">Authorization</td><td>Every target was checked against the lab allowlist before any packet was sent.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="sec">
+    <span class="sn">3</span>
+    <h2>Open ports</h2>
+    <p style="font-size: 13px; color: #3F3F46">Figure 1. The 23 open TCP ports on 10.10.1.20, placed from port 1 to 65535. Taller marks carry more severe findings.</p>
+    <svg width="672" height="150" viewBox="0 0 672 150" role="img" aria-label="Port spectrum. Critical findings on ports 21 and 6667, high on 23, 139 and 445.">
+      <line x1="0" y1="120" x2="672" y2="120" stroke="#3F3F46" stroke-width="1"></line>
+      <path d="{{pNone}}" fill="#A1A1AA"></path>
+      <path d="{{pLow}}" fill="#52525B"></path>
+      <path d="{{pMed}}" fill="#8A6500"></path>
+      <path d="{{pHigh}}" fill="#B45309"></path>
+      <path d="{{pCrit}}" fill="#B4232A"></path>
+      <text x="{{l21}}" y="20" font-size="12" font-weight="700" fill="#B4232A" text-anchor="middle" font-family="Archivo">21</text>
+      <text x="{{l6667}}" y="20" font-size="12" font-weight="700" fill="#B4232A" text-anchor="middle" font-family="Archivo">6667</text>
+      <text x="0" y="140" font-size="12" fill="#52525B" font-family="Archivo">1</text>
+      <text x="139.5" y="140" font-size="12" fill="#52525B" text-anchor="middle" font-family="Archivo">10</text>
+      <text x="279" y="140" font-size="12" fill="#52525B" text-anchor="middle" font-family="Archivo">100</text>
+      <text x="418.5" y="140" font-size="12" fill="#52525B" text-anchor="middle" font-family="Archivo">1,000</text>
+      <text x="558" y="140" font-size="12" fill="#52525B" text-anchor="middle" font-family="Archivo">10,000</text>
+      <text x="672" y="140" font-size="12" fill="#52525B" text-anchor="end" font-family="Archivo">65,535</text>
+    </svg>
+  </section>
+
+  <section class="sec">
+    <span class="sn">4</span>
+    <h2>Findings summary</h2>
+    <table>
+      <thead><tr><th style="width: 52px">ID</th><th>Finding</th><th>Severity</th><th>Port</th><th>ATT&amp;CK</th></tr></thead>
+      <tbody>
+        <sc-for list="{{findings}}" as="f" hint-placeholder-count="9">
+          <tr><td class="mono">{{f.fid}}</td><td>{{f.title}}</td><td><span class="sev" style="color: {{f.ink}}">{{f.sev}}</span></td><td class="mono">{{f.port}}</td><td class="mono">{{f.attack}}</td></tr>
+        </sc-for>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="sec" style="gap: 0">
+    <span class="sn">5</span>
+    <h2 style="margin: 14px 0 6px">Detailed findings</h2>
+    <sc-for list="{{findings}}" as="f" hint-placeholder-count="9">
+      <div class="fd">
+        <h3 style="font-size: 18px; font-weight: 800"><span class="mono" style="font-size: 14px; color: #52525B; margin-right: 8px">{{f.fid}}</span>{{f.title}}</h3>
+        <div class="meta">
+          <div><span class="lbl">Severity</span><span class="sev" style="color: {{f.ink}}">{{f.sev}}</span></div>
+          <div><span class="lbl">CVSS</span><span>{{f.cvss}}</span></div>
+          <div><span class="lbl">Status</span><span>Open</span></div>
+          <div><span class="lbl">Affected</span><span class="mono">{{f.affected}}</span></div>
+          <div><span class="lbl">CVE</span><span class="mono">{{f.cve}}</span></div>
+          <div><span class="lbl">ATT&amp;CK</span><span class="mono">{{f.attack}}</span></div>
+        </div>
+        <p><b>What it is.</b> {{f.desc}}</p>
+        <div><span class="lbl">Evidence</span><div class="ev" style="margin-top: 6px">{{f.evidence}}</div></div>
+        <p><b>Fix.</b> {{f.fix}}</p>
+      </div>
+    </sc-for>
+  </section>
+
+  <section class="sec">
+    <span class="sn">6</span>
+    <h2>MITRE ATT&amp;CK mapping</h2>
+    <table>
+      <thead><tr><th>Technique</th><th>Name</th><th>Ports</th><th>Source</th><th class="num">Confidence</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">T1190</td><td>Exploit Public-Facing Application</td><td class="mono">21, 139, 445, 6667</td><td>Rules and model</td><td class="num">Verified</td></tr>
+        <tr><td class="mono">T1078</td><td>Valid Accounts</td><td class="mono">21</td><td>Model only</td><td class="num">0.78, lower</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="sec">
+    <span class="sn">7</span>
+    <h2>Remediation plan</h2>
+    <table>
+      <thead><tr><th style="width: 52px">ID</th><th>Action</th><th>Fix by</th><th>Owner</th></tr></thead>
+      <tbody>
+        <sc-for list="{{findings}}" as="f" hint-placeholder-count="9">
+          <tr><td class="mono">{{f.fid}}</td><td>{{f.action}}</td><td style="white-space: nowrap">{{f.fixBy}}</td><td style="color: #52525B">[Owner]</td></tr>
+        </sc-for>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="sec">
+    <span class="sn">8</span>
+    <h2>Appendix: commands run</h2>
+    <p style="font-size: 13px; color: #3F3F46">Every command ReconMind ran against the target, word for word.</p>
+    <div class="ev">nmap -Pn -sV --script smb-os-discovery,irc-info -T4 --reason -oX scan.xml 10.10.1.20
+searchsploit lookups for 21 products
+NVD API 2.0 lookups for 11 products (the target address is never sent to NVD)
+httpx on ports 80 and 8180
+ffuf with dirb common.txt at 50 requests per second
+nuclei with automatic template selection
+enum4linux-ng -A 10.10.1.20</div>
+    <p style="margin-top: 18px; font-size: 13px; color: #52525B">Generated by ReconMind on 12 Nov 2026. The original tool report and raw evidence are kept in reports/20261112_213602_10.10.1.20.</p>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":816,"height":6000}}'>
+const OPEN = [21, 22, 23, 25, 53, 80, 111, 139, 445, 512, 513, 514, 1099, 1524, 2049, 2121, 3306, 5432, 5900, 6000, 6667, 8009, 8180];
+const PORT_SEV = { 21: 'crit', 6667: 'crit', 23: 'high', 139: 'high', 445: 'high', 80: 'med', 3306: 'med', 22: 'low' };
+const INK = { crit: '#B4232A', high: '#B45309', med: '#8A6500', low: '#52525B', none: '#A1A1AA' };
+const H = { crit: 92, high: 70, med: 50, low: 34, none: 18 };
+const WORD = { crit: 'Critical', high: 'High', med: 'Medium', low: 'Low' };
+const FIX_BY = { crit: 'Immediately', high: 'Within 7 days', med: 'Within 30 days', low: 'Within 90 days' };
+const W = 672;
+const MAX = Math.log10(65536);
+function xOf(p) { return Math.log10(p) / MAX * W; }
+
+const FINDINGS = [
+  { s: 'crit', title: 'vsftpd 2.3.4 backdoor', port: '21', cvss: '9.8', affected: '10.10.1.20:21 ftp', cve: 'CVE-2011-2523', attack: 'T1190',
+    desc: 'The FTP service runs vsftpd 2.3.4, a release that shipped with a malicious backdoor. Anyone who can reach port 21 can open a command shell without a password.',
+    evidence: 'nmap          21/tcp open ftp vsftpd 2.3.4 (syn-ack)\nsearchsploit  vsftpd 2.3.4 - Backdoor Command Execution [exact_version]\nNVD           CVE-2011-2523, CVSS 9.8',
+    fix: 'Remove vsftpd 2.3.4 and install a current release from a trusted source, or turn FTP off.', action: 'Remove vsftpd 2.3.4 or turn FTP off' },
+  { s: 'crit', title: 'UnrealIRCd 3.2.8.1 backdoor', port: '6667', cvss: 'See NVD', affected: '10.10.1.20:6667 irc', cve: 'CVE-2010-2075', attack: 'T1190',
+    desc: 'The IRC service runs UnrealIRCd 3.2.8.1, a download that was replaced with a backdoored copy. A remote attacker can run commands through the IRC port.',
+    evidence: 'nmap      6667/tcp open irc UnrealIRCd (syn-ack)\nirc-info  version: Unreal3.2.8.1\nNVD       CVE-2010-2075',
+    fix: 'Take the IRC service offline or replace it with a verified build.', action: 'Take IRC offline or reinstall a verified build' },
+  { s: 'high', title: 'Samba usermap script command execution', port: '139, 445', cvss: 'See NVD', affected: '10.10.1.20:445 smb', cve: 'CVE-2007-2447', attack: 'T1190',
+    desc: 'Samba 3.0.20 passes user names to a shell when the username map script option is set, which allows remote command execution.',
+    evidence: 'smb-os-discovery  OS: Unix (Samba 3.0.20-Debian)\nNVD               CVE-2007-2447\nmapper            T1190 at 0.82, lower confidence band',
+    fix: 'Upgrade Samba to a supported release and remove the username map script option.', action: 'Upgrade Samba' },
+  { s: 'high', title: 'Telnet login sent in cleartext', port: '23', cvss: 'Not scored', affected: '10.10.1.20:23 telnet', cve: 'None', attack: 'None',
+    desc: 'Telnet sends user names and passwords without encryption, so anyone on the network path can read them.',
+    evidence: 'nmap  23/tcp open telnet Linux telnetd (syn-ack)\nrule  Cleartext remote login reachable from the network',
+    fix: 'Turn Telnet off and use SSH instead.', action: 'Turn Telnet off, use SSH' },
+  { s: 'med', title: 'phpMyAdmin login page reachable', port: '80', cvss: 'Not scored', affected: '10.10.1.20:80 /phpMyAdmin/', cve: 'None', attack: 'None',
+    desc: 'A database admin page is reachable from the network, which gives attackers a login form to target.',
+    evidence: 'ffuf  /phpMyAdmin/  [Status: 200, Size: 4145]',
+    fix: 'Remove phpMyAdmin or limit it to localhost or an admin network.', action: 'Remove or restrict phpMyAdmin' },
+  { s: 'med', title: 'MySQL reachable from the network', port: '3306', cvss: 'Not scored', affected: '10.10.1.20:3306 mysql', cve: 'None', attack: 'None',
+    desc: 'The MySQL server accepts connections from the network instead of only from the host itself.',
+    evidence: 'nmap  3306/tcp open mysql MySQL 5.0.51a-3ubuntu5 (syn-ack)',
+    fix: 'Bind MySQL to 127.0.0.1 or firewall port 3306.', action: 'Bind MySQL to localhost' },
+  { s: 'med', title: 'Anonymous SMB share listing allowed', port: '445', cvss: 'Not scored', affected: '10.10.1.20:445 smb', cve: 'None', attack: 'None',
+    desc: 'Anyone can list the SMB shares without a password, which shows what data the host offers.',
+    evidence: 'enum4linux-ng  null session: allowed\n               shares: print$, tmp, opt, IPC$, ADMIN$',
+    fix: 'Turn off null sessions and guest access in the Samba configuration.', action: 'Turn off SMB null sessions' },
+  { s: 'low', title: 'Security headers missing', port: '80', cvss: 'Not scored', affected: '10.10.1.20:80 http', cve: 'None', attack: 'None',
+    desc: 'The web server does not send common security headers that help browsers block some attacks.',
+    evidence: 'httpx  missing: Content-Security-Policy, X-Frame-Options, Strict-Transport-Security',
+    fix: 'Add the missing headers in the Apache configuration.', action: 'Add security headers' },
+  { s: 'low', title: 'Outdated OpenSSH 4.7p1', port: '22', cvss: 'See NVD', affected: '10.10.1.20:22 ssh', cve: 'Listed by NVD', attack: 'None',
+    desc: 'OpenSSH 4.7p1 is many years out of date and has known CVEs, none of them on the CISA known exploited list.',
+    evidence: 'nmap  22/tcp open ssh OpenSSH 4.7p1 Debian 8ubuntu1 (syn-ack)\nNVD   CVEs listed for OpenSSH 4.7p1, none on the KEV list',
+    fix: 'Update OpenSSH to a current release.', action: 'Update OpenSSH' }
+];
+
+class Component extends DCLogic {
+  renderVals() {
+    const paths = { crit: '', high: '', med: '', low: '', none: '' };
+    OPEN.forEach(function (p) {
+      const s = PORT_SEV[p] || 'none';
+      paths[s] += 'M' + (xOf(p) - 2).toFixed(1) + ' ' + (120 - H[s]) + 'h4v' + H[s] + 'h-4z';
+    });
+    return {
+      pCrit: paths.crit || 'M0 0', pHigh: paths.high || 'M0 0', pMed: paths.med || 'M0 0', pLow: paths.low || 'M0 0', pNone: paths.none || 'M0 0',
+      l21: xOf(21).toFixed(1),
+      l6667: xOf(6667).toFixed(1),
+      findings: FINDINGS.map(function (f, i) {
+        return Object.assign({}, f, {
+          fid: 'F-' + String(i + 1).padStart(2, '0'),
+          sev: WORD[f.s], ink: INK[f.s], fixBy: FIX_BY[f.s]
+        });
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

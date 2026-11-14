@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind Targets</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070708;color:#D4D4D8;font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:#FF5A5F}a:hover{color:#FFB3B5}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.glow1{position:absolute;width:900px;height:900px;left:-300px;top:-420px;border-radius:50%;background:radial-gradient(circle,rgba(229,72,77,.15),transparent 62%);animation:drift 22s ease-in-out infinite alternate}
+.glow2{position:absolute;width:820px;height:820px;right:-320px;bottom:-380px;border-radius:50%;background:radial-gradient(circle,rgba(180,35,42,.12),transparent 62%);animation:drift 27s ease-in-out infinite alternate-reverse}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%);mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%)}
+.ring{position:absolute;left:clamp(27px,calc(4vw + 11px),59px);top:34px;border-radius:50%;border:1px solid rgba(255,255,255,.35);animation:ping 7.5s cubic-bezier(.15,.6,.3,1) infinite}
+.ring:nth-child(5){animation-delay:2.5s}.ring:nth-child(6){animation-delay:5s}
+.cols{position:absolute;top:0;bottom:0;left:50%;width:min(1200px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 50%,transparent);mask-image:linear-gradient(#000 0,#000 50%,transparent)}
+.app{position:relative;z-index:1;min-height:100vh}
+.top{display:flex;align-items:center;gap:12px 32px;flex-wrap:wrap;padding:0 clamp(16px,4vw,48px);min-height:68px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(10,10,11,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mark{display:flex;align-items:center;gap:10px;font-stretch:125%;font-weight:800;font-size:18px;color:#F4F4F5;text-decoration:none;letter-spacing:-0.01em}
+.mark:hover{color:#F4F4F5}
+.a1,.a2,.a3{animation:arc 2.4s ease-in-out infinite}.a2{animation-delay:.25s}.a3{animation-delay:.5s}
+.nav{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;color:#8E8E96;text-decoration:none;font-weight:500;font-size:14px;transition:color .25s}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
+.nav.on{color:#F4F4F5}.nav.on::after{transform:scaleX(1);box-shadow:0 0 12px rgba(229,72,77,.7)}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
+.glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
+.btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:10px;font:700 14px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.primary{color:#FFFFFF;background:linear-gradient(135deg,#E5484D,#B4232A);border:0;padding-right:6px;border-radius:8px;box-shadow:0 10px 34px -10px rgba(229,72,77,.85),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.primary::before{content:"\2197";order:2;display:flex;align-items:center;justify-content:center;width:34px;height:34px;margin-left:8px;border-radius:6px;background:rgba(0,0,0,.42);font-size:15px;line-height:1;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.btn.primary:hover::before{transform:translate(2px,-2px)}
+.btn.primary::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.6) 50%,transparent 70%);transform:translateX(-130%);transition:transform .8s ease}
+.btn.primary:hover{color:#FFFFFF;transform:translateY(-2px);box-shadow:0 16px 46px -10px rgba(229,72,77,1),inset 0 1px 0 rgba(255,255,255,.3)}
+.btn.primary:hover::after{transform:translateX(130%)}
+.btn.quiet{background:rgba(255,255,255,.02);color:#D4D4D8;border:1px solid rgba(255,255,255,.2)}
+.btn.quiet:hover{border-color:rgba(255,255,255,.5);color:#F4F4F5;box-shadow:0 0 24px -8px rgba(229,72,77,.5)}
+.reveal{animation:reveal .8s cubic-bezier(.2,.8,.2,1) both}
+.title{background:linear-gradient(100deg,#F4F4F5 0%,#F4F4F5 42%,#FF7A7F 50%,#F4F4F5 58%,#F4F4F5 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.8s cubic-bezier(.3,.6,.3,1) .5s both}
+.folder{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:10px 14px;border:1px solid transparent;border-radius:12px;background:transparent;color:#D4D4D8;text-align:left;font:inherit;cursor:pointer;box-sizing:border-box;transition:background .25s,border-color .25s,transform .25s cubic-bezier(.3,1.4,.5,1)}
+.folder:hover{background:rgba(255,255,255,.05);transform:translateX(3px)}
+.folder.on{background:linear-gradient(90deg,rgba(255,107,107,.12),rgba(180,35,42,.04));border-color:rgba(255,107,107,.3);box-shadow:0 0 30px -12px rgba(229,72,77,.6)}
+.tabs{position:relative;display:grid;grid-template-columns:repeat(3,150px);border-bottom:1px solid rgba(255,255,255,.1);max-width:100%}
+.tab{min-height:46px;border:0;background:transparent;color:#8E8E96;font:650 15px Archivo,sans-serif;cursor:pointer;transition:color .3s}
+.tab:hover{color:#F4F4F5}
+.tab.on{color:#F4F4F5}
+.tabind{position:absolute;left:0;bottom:-1px;width:150px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF7A7F,#C2252D);box-shadow:0 0 12px rgba(229,72,77,.8);transition:transform .5s cubic-bezier(.3,1.35,.5,1)}
+.scan{position:relative;display:flex;align-items:center;gap:24px;flex-wrap:wrap;padding:20px 22px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(10,10,11,.35);text-decoration:none;color:#D4D4D8;transition:transform .3s cubic-bezier(.3,1.4,.5,1),border-color .3s,box-shadow .3s,background .3s;animation:reveal .6s cubic-bezier(.2,.8,.2,1) both}
+.scan:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.3);box-shadow:0 18px 40px -20px rgba(229,72,77,.5);background:rgba(30,30,33,.5);color:#D4D4D8}
+.mini{position:relative;width:200px;height:38px;border-bottom:1px solid rgba(255,255,255,.25);flex:none}
+.mini span{position:absolute;bottom:0;width:2px;margin-left:-1px;border-radius:1px 1px 0 0;transform-origin:bottom;animation:grow .6s cubic-bezier(.2,1.2,.3,1) both}
+.scan:hover .mini span{filter:brightness(1.3)}
+.field{width:100%;box-sizing:border-box;min-height:46px;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(10,10,11,.6);color:#F4F4F5;font:15px/1.6 Archivo,sans-serif;transition:border-color .25s,box-shadow .3s}
+.field:focus{outline:none;border-color:#FF5A5F;box-shadow:0 0 0 4px rgba(229,72,77,.14),0 0 34px -8px rgba(229,72,77,.6)}
+.note{padding:18px 20px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(10,10,11,.35);animation:slidein .5s cubic-bezier(.2,.8,.2,1) both}
+.sub{font-size:14px;color:#8E8E96}
+.panel{animation:panelin .45s cubic-bezier(.2,.8,.2,1) both}
+:focus-visible{outline:2px solid #FF5A5F;outline-offset:3px}
+@keyframes drift{to{transform:translate(140px,90px) scale(1.12)}}
+@keyframes ping{0%{width:0;height:0;margin:0;opacity:.8}100%{width:1600px;height:1600px;margin:-800px 0 0 -800px;opacity:0}}
+@keyframes arc{0%,100%{opacity:.3}35%{opacity:1}}
+@keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes slidein{from{opacity:0;transform:translateY(-12px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes panelin{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.title{color:#F4F4F5}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #070708">
+  <div class="bg" aria-hidden="true"><div class="glow1"></div><div class="glow2"></div><div class="grid"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="cols"></div></div>
+  <div class="app">
+    <header class="top">
+      <a class="mark" href="Main.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+        <a class="nav" href="Main.dc.html">New scan</a>
+        <a class="nav" href="LiveRun.dc.html">Live run</a>
+        <a class="nav on" href="Targets.dc.html">Targets</a>
+        <a class="nav" href="Batch.dc.html">Host lists</a>
+        <a class="nav" href="System.dc.html">System</a>
+      </nav>
+      <div class="scope"><span class="sdot"></span>Scope locked to 4 lab networks</div>
+    </header>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; box-sizing: border-box; padding: 40px clamp(16px, 4vw, 48px) 80px; max-width: 1296px; margin: 0 auto; align-items: flex-start">
+      <section class="glass reveal" aria-label="Target folders" style="flex: 1 1 270px; min-width: 0; padding: 22px 14px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 8px">
+          <h1 style="font-size: 20px; font-weight: 750">Targets</h1>
+          <button type="button" class="btn quiet" style="min-height: 38px; padding: 0 12px; font-size: 13px">New folder</button>
+        </div>
+        <div style="padding: 0 4px">
+          <label for="filter" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Filter targets</label>
+          <input id="filter" class="field" placeholder="Filter by IP or name" style="min-height: 42px; padding: 8px 12px; font-size: 14px">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <button type="button" class="folder on">
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 700; color: #F4F4F5; font-variant-numeric: tabular-nums">10.10.1.20</span><span class="sub" style="font-size: 13px">Metasploitable 2</span></span>
+            <span style="font-size: 13px; color: #FF8A7F; font-weight: 700; text-shadow: 0 0 12px rgba(255,107,94,.6)">2 critical</span>
+          </button>
+          <button type="button" class="folder">
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 700; color: #F4F4F5; font-variant-numeric: tabular-nums">10.10.2.15</span><span class="sub" style="font-size: 13px">Lab B</span></span>
+            <span style="font-size: 13px; color: #E9D267; font-weight: 700">1 medium</span>
+          </button>
+          <a class="folder" href="CodeReport.dc.html" style="text-decoration: none">
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 700; color: #F4F4F5">app.py</span><span class="sub" style="font-size: 13px">Source code</span></span>
+            <span style="font-size: 13px; color: #F79A4B; font-weight: 700">5 high</span>
+          </a>
+        </div>
+      </section>
+
+      <main class="glass reveal" style="flex: 999 1 560px; min-width: 0; padding: 34px clamp(18px, 3vw, 38px) 38px; display: flex; flex-direction: column; gap: 28px; animation-delay: .1s">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap">
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <h2 class="title" style="font-size: clamp(32px, 4.5vw, 52px); font-weight: 800; line-height: .98; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">10.10.1.20</h2>
+            <p class="sub" style="margin: 0; font-size: 15px">Metasploitable 2 in lab A. First scanned 10 Nov 2026.</p>
+          </div>
+          <a class="btn primary" href="Main.dc.html">Scan this target</a>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Folder sections">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+            <button type="button" role="tab" class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}}</button>
+          </sc-for>
+          <span class="tabind" style="transform: translateX({{tabX}}px)"></span>
+        </div>
+
+        <sc-if value="{{showScans}}" hint-placeholder-val="{{ true }}">
+          <div class="panel" style="display: flex; flex-direction: column; gap: 12px">
+            <sc-for list="{{scans}}" as="s" hint-placeholder-count="3">
+              <a class="scan" href="Report.dc.html" style="animation-delay: {{s.delay}}s">
+                <span class="mini" role="img" aria-label="{{s.alt}}">
+                  <sc-for list="{{s.ticks}}" as="t" hint-placeholder-count="20"><span style="left: {{t.x}}%; height: {{t.h}}px; background: {{t.c}}; box-shadow: 0 0 {{t.g}}px {{t.c}}; animation-delay: {{t.d}}s"></span></sc-for>
+                </span>
+                <span style="flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-weight: 700; color: #F4F4F5; font-size: 16px">{{s.name}}</span>
+                  <span class="sub">{{s.meta}}</span>
+                </span>
+                <span style="font-size: 14px; font-weight: 700; color: {{s.tagColor}}">{{s.tag}}</span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showNotes}}" hint-placeholder-val="{{ false }}">
+          <div class="panel" style="display: flex; flex-direction: column; gap: 12px">
+            <label for="note" style="font-weight: 650; color: #F4F4F5">New note</label>
+            <textarea id="note" class="field" rows="3" placeholder="What did you notice on this target?" value="{{draft}}" onChange="{{onDraft}}" style="resize: vertical"></textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 8px">
+              <span class="sub" style="font-size: 13px">Saved as you add it. Shown as plain text, so pasted HTML never runs.</span>
+              <button type="button" class="btn primary" onClick="{{addNote}}">Add note</button>
+            </div>
+            <sc-for list="{{notes}}" as="n" hint-placeholder-count="2">
+              <div class="note">
+                <div class="sub" style="font-size: 13px; padding-bottom: 4px">{{n.when}}</div>
+                <div style="color: #E4E4E7; line-height: 1.65; white-space: pre-wrap; max-width: 70ch">{{n.text}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showReports}}" hint-placeholder-val="{{ false }}">
+          <div class="panel" style="display: flex; flex-direction: column; gap: 18px">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap">
+              <a class="btn primary" href="AnalystReport.dc.html">Start from the latest scan</a>
+              <a class="btn quiet" href="AnalystReport.dc.html">Start blank</a>
+            </div>
+            <a class="scan" href="AnalystReport.dc.html">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v4h4M9 12h6M9 16h6"></path></svg>
+              <span style="flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-weight: 700; color: #F4F4F5; font-size: 16px">Metasploitable 2 assessment</span>
+                <span class="sub">Started from the 12 Nov standard scan. Last edited 21:52.</span>
+              </span>
+              <span style="font-size: 14px; color: #8E8E96">Draft</span>
+            </a>
+          </div>
+        </sc-if>
+      </main>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+const MAX = Math.log10(65536);
+const COLORS = { crit: '#FF6B5E', high: '#F79A4B', med: '#E9D267', low: '#BDBDC2', none: '#3A3A40' };
+const HEIGHTS = { crit: 34, high: 25, med: 18, low: 12, none: 7 };
+const GLOW = { crit: 8, high: 6, med: 3, low: 2, none: 0 };
+const TOP = [21, 22, 23, 25, 53, 80, 111, 139, 445, 512, 513, 514, 1099, 1524, 2049, 2121, 3306, 5432, 5900, 6000, 6667, 8009, 8180];
+const SEVS = { 21: 'crit', 6667: 'crit', 23: 'high', 139: 'high', 445: 'high', 80: 'med', 3306: 'med', 22: 'low' };
+const FULL_EXTRA = [3632, 6697, 8787, 36412, 48201, 51744, 55211];
+const FULL_SEVS = { 3632: 'crit', 6697: 'high', 8787: 'high' };
+const TABS = [['scans', 'Scans'], ['notes', 'Notes'], ['reports', 'Your reports']];
+
+function ticks(ports, sevs, dim, base) {
+  return ports.map(function (p, i) {
+    const s = dim ? 'none' : (sevs[p] || 'none');
+    return { x: (Math.log10(p) / MAX * 100).toFixed(2), h: HEIGHTS[s], c: COLORS[s], g: GLOW[s], d: (base + i * 0.025).toFixed(2) };
+  });
+}
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = {
+      tab: 'scans',
+      draft: '',
+      notes: [
+        { when: '12 Nov, 21:48', text: 'irc-info shows Unreal3.2.8.1, which is the backdoored release. That backs up the critical finding.' },
+        { when: '11 Nov, 19:20', text: 'The pfSense web page answers from lab A. Put this in my own report.' }
+      ]
+    };
+  }
+  renderVals() {
+    const self = this;
+    const s = this.state;
+    const fullSevs = Object.assign({}, SEVS, FULL_SEVS);
+    const scans = [
+      { name: 'Standard scan', meta: '12 Nov 2026 at 21:36. 23 open ports, 8 actions.', tag: '2 critical', tagColor: '#FF8A7F', alt: '23 open ports, 2 critical', delay: '0.15', ticks: ticks(TOP, SEVS, false, 0.3) },
+      { name: 'Full report', meta: '11 Nov 2026 at 19:02. All 65535 ports, 30 open.', tag: '3 critical', tagColor: '#FF8A7F', alt: '30 open ports, 3 critical', delay: '0.22', ticks: ticks(TOP.concat(FULL_EXTRA), fullSevs, false, 0.45) },
+      { name: 'Quick scan', meta: '10 Nov 2026 at 16:20. Stopped early because the app was closed.', tag: 'Interrupted', tagColor: '#8E8E96', alt: 'Partial results', delay: '0.29', ticks: ticks(TOP.slice(0, 9), {}, true, 0.6) }
+    ];
+    const idx = TABS.findIndex(function (t) { return t[0] === s.tab; });
+    const tabs = TABS.map(function (t) {
+      return { label: t[1], cls: 'tab' + (s.tab === t[0] ? ' on' : ''), pick: function () { self.setState({ tab: t[0] }); } };
+    });
+    return {
+      tabs: tabs, tabX: idx * 150, scans: scans,
+      showScans: s.tab === 'scans', showNotes: s.tab === 'notes', showReports: s.tab === 'reports',
+      notes: s.notes, draft: s.draft,
+      onDraft: function (e) { self.setState({ draft: e.target.value }); },
+      addNote: function () {
+        const text = self.state.draft.trim();
+        if (!text) return;
+        self.setState({ draft: '', notes: [{ when: 'Just now', text: text }].concat(self.state.notes) });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

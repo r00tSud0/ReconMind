@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReconMind System check</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070708;color:#D4D4D8;font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:#FF5A5F}a:hover{color:#FFB3B5}
+h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0}
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.glow1{position:absolute;width:900px;height:900px;left:-300px;top:-420px;border-radius:50%;background:radial-gradient(circle,rgba(229,72,77,.15),transparent 62%);animation:drift 22s ease-in-out infinite alternate}
+.glow2{position:absolute;width:820px;height:820px;right:-320px;bottom:-380px;border-radius:50%;background:radial-gradient(circle,rgba(180,35,42,.12),transparent 62%);animation:drift 27s ease-in-out infinite alternate-reverse}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:28px 28px;-webkit-mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%);mask-image:radial-gradient(ellipse at 25% 0%,#000 5%,transparent 65%)}
+.ring{position:absolute;left:clamp(27px,calc(4vw + 11px),59px);top:34px;border-radius:50%;border:1px solid rgba(255,255,255,.35);animation:ping 7.5s cubic-bezier(.15,.6,.3,1) infinite}
+.ring:nth-child(5){animation-delay:2.5s}.ring:nth-child(6){animation-delay:5s}
+.cols{position:absolute;top:0;bottom:0;left:50%;width:min(1200px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 50%,transparent);mask-image:linear-gradient(#000 0,#000 50%,transparent)}
+.app{position:relative;z-index:1;min-height:100vh}
+.top{display:flex;align-items:center;gap:12px 32px;flex-wrap:wrap;padding:0 clamp(16px,4vw,48px);min-height:68px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(10,10,11,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mark{display:flex;align-items:center;gap:10px;font-stretch:125%;font-weight:800;font-size:18px;color:#F4F4F5;text-decoration:none;letter-spacing:-0.01em}
+.mark:hover{color:#F4F4F5}
+.a1,.a2,.a3{animation:arc 2.4s ease-in-out infinite}.a2{animation-delay:.25s}.a3{animation-delay:.5s}
+.nav{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;color:#8E8E96;text-decoration:none;font-weight:500;font-size:14px;transition:color .25s}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
+.nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
+.nav.on{color:#F4F4F5}.nav.on::after{transform:scaleX(1);box-shadow:0 0 12px rgba(229,72,77,.7)}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
+.glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
+.btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:46px;padding:0 22px;border-radius:10px;font:700 14px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn.quiet{background:rgba(255,255,255,.02);color:#D4D4D8;border:1px solid rgba(255,255,255,.2)}
+.btn.quiet:hover{border-color:rgba(255,255,255,.5);color:#F4F4F5;box-shadow:0 0 24px -8px rgba(229,72,77,.5)}
+.reveal{animation:reveal .8s cubic-bezier(.2,.8,.2,1) both}
+.title{background:linear-gradient(100deg,#F4F4F5 0%,#F4F4F5 42%,#FF7A7F 50%,#F4F4F5 58%,#F4F4F5 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.8s cubic-bezier(.3,.6,.3,1) .5s both}
+.sp{transition:transform .2s}
+.sp.spin{animation:spin .8s linear infinite}
+.trow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 0;border-top:1px solid rgba(255,255,255,.07)}
+.trow.checking{opacity:.45}
+.st{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;white-space:nowrap}
+.st i{width:8px;height:8px;border-radius:50%}
+.ok{color:#E4E4E7}.ok i{background:#E4E4E7;box-shadow:0 0 8px rgba(228,228,231,.6)}
+.warn{color:#E9D267}.warn i{background:#E9D267;box-shadow:0 0 8px rgba(233,210,103,.6)}
+.bad{color:#FF6B5E}.bad i{background:#FF6B5E;box-shadow:0 0 8px rgba(255,107,94,.7)}
+.kv{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:12px 20px;font-size:14px}
+.kv dt{color:#8E8E96}.kv dd{margin:0;color:#E4E4E7;min-width:0;overflow-wrap:anywhere}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:13px}
+.net{padding:6px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(10,10,11,.5);font:12.5px 'IBM Plex Mono',monospace;color:#E4E4E7}
+.net.block{border-color:rgba(255,107,94,.5);color:#FF9A90;background:rgba(255,107,94,.06)}
+.sub{font-size:14px;color:#8E8E96}
+:focus-visible{outline:2px solid #FF5A5F;outline-offset:3px}
+@keyframes drift{to{transform:translate(140px,90px) scale(1.12)}}
+@keyframes ping{0%{width:0;height:0;margin:0;opacity:.8}100%{width:1600px;height:1600px;margin:-800px 0 0 -800px;opacity:0}}
+@keyframes arc{0%,100%{opacity:.3}35%{opacity:1}}
+@keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.title{color:#F4F4F5}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #070708">
+  <div class="bg" aria-hidden="true"><div class="glow1"></div><div class="glow2"></div><div class="grid"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="cols"></div></div>
+  <div class="app">
+    <header class="top">
+      <a class="mark" href="Main.dc.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>ReconMind</a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+        <a class="nav" href="Main.dc.html">New scan</a>
+        <a class="nav" href="LiveRun.dc.html">Live run</a>
+        <a class="nav" href="Targets.dc.html">Targets</a>
+        <a class="nav" href="Batch.dc.html">Host lists</a>
+        <a class="nav on" href="System.dc.html">System</a>
+      </nav>
+      <div class="scope"><span class="sdot"></span>Scope locked to 4 lab networks</div>
+    </header>
+
+    <main style="box-sizing: border-box; padding: 48px clamp(16px, 4vw, 48px) 80px">
+      <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px">
+        <div class="reveal" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 20px; padding-bottom: 6px">
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <h1 class="title" style="font-size: clamp(36px, 5vw, 56px); font-weight: 800; line-height: 1; letter-spacing: -0.03em">System check</h1>
+            <p style="margin: 0; font-size: 16px; color: #A1A1AA">{{summary}}</p>
+          </div>
+          <button type="button" class="btn quiet" onClick="{{recheck}}"><svg class="{{spinCls}}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path><path d="M20 4v5h-5"></path></svg>{{recheckLabel}}</button>
+        </div>
+
+        <section class="glass reveal" style="padding: 26px 30px; animation-delay: .06s">
+          <h2 style="font-size: 18px; font-weight: 800; padding-bottom: 10px">Security tools</h2>
+          <sc-for list="{{tools}}" as="t" hint-placeholder-count="9">
+            <div class="{{t.rowCls}}">
+              <div style="flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-weight: 700; color: #F4F4F5">{{t.name}} <span class="sub" style="font-weight: 500">used by {{t.action}}</span></span>
+                <span class="sub">{{t.detail}}</span>
+              </div>
+              <span class="mono" style="flex: 0 1 220px; color: #A1A1AA">{{t.version}}</span>
+              <span class="{{t.stCls}}" style="flex: 0 0 120px"><i></i>{{t.status}}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+          <section class="glass reveal" style="flex: 1 1 460px; min-width: 0; padding: 26px 30px; display: flex; flex-direction: column; gap: 22px; animation-delay: .12s">
+            <h2 style="font-size: 18px; font-weight: 800">AI</h2>
+            <div style="display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; justify-content: space-between; gap: 12px"><span style="font-weight: 700; color: #F4F4F5">LLM brain</span><span class="st ok"><i></i>Reachable</span></div>
+              <dl class="kv">
+                <dt>Provider</dt><dd>OpenRouter</dd>
+                <dt>Model</dt><dd class="mono">nvidia/nemotron-3-ultra-550b-a55b:free</dd>
+                <dt>API key</dt><dd>Set in .env, never shown</dd>
+                <dt>Used for</dt><dd>Choosing tools, the report summary and the code explanation</dd>
+              </dl>
+            </div>
+            <div style="height: 1px; background: rgba(255,255,255,.08)"></div>
+            <div style="display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; justify-content: space-between; gap: 12px"><span style="font-weight: 700; color: #F4F4F5">ATT&amp;CK mapper</span><span class="st ok"><i></i>Loaded</span></div>
+              <dl class="kv">
+                <dt>Model</dt><dd>Fine-tuned SciBERT, run 3</dd>
+                <dt>Folder</dt><dd class="mono">models/attack_mapper_run3</dd>
+                <dt>Confidence</dt><dd>0.85 and up is confirmed. 0.50 to 0.85 is shown as lower confidence.</dd>
+                <dt>Checked against</dt><dd>MITRE ATT&amp;CK v20</dd>
+              </dl>
+            </div>
+          </section>
+
+          <div style="flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+            <section class="glass reveal" style="padding: 26px 30px; display: flex; flex-direction: column; gap: 16px; animation-delay: .18s">
+              <div style="display: flex; justify-content: space-between; gap: 12px"><h2 style="font-size: 18px; font-weight: 800">Safety</h2><span class="st ok"><i></i>Gate on</span></div>
+              <span class="sub">Allowed networks</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="net">10.10.1.0/24</span><span class="net">10.10.2.0/24</span><span class="net">192.168.100.0/24</span><span class="net">192.168.56.0/24</span></div>
+              <span class="sub">Always blocked</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="net block">10.0.3.0/24 home network</span></div>
+              <p class="sub" style="margin: 0; padding-left: 14px; border-left: 2px solid rgba(255,255,255,.2)">These lists live in config.py. The app reads them but can never change them, and every scan checks them before sending a packet.</p>
+            </section>
+
+            <section class="glass reveal" style="padding: 26px 30px; display: flex; flex-direction: column; gap: 14px; animation-delay: .24s">
+              <div style="display: flex; justify-content: space-between; gap: 12px"><h2 style="font-size: 18px; font-weight: 800">NVD</h2><span class="st warn"><i></i>No API key</span></div>
+              <p style="margin: 0; font-size: 14px; color: #C8C8CE">CVE Intel still works, but NVD only allows one request every 6 seconds without a key. Answers are cached for 24 hours.</p>
+              <dl class="kv">
+                <dt>Cache</dt><dd class="mono">~/.cache/reconmind/nvd</dd>
+                <dt>Add a key</dt><dd>Put NVD_API_KEY in .env</dd>
+              </dl>
+            </section>
+
+            <section class="glass reveal" style="padding: 26px 30px; display: flex; flex-direction: column; gap: 14px; animation-delay: .3s">
+              <h2 style="font-size: 18px; font-weight: 800">Storage</h2>
+              <dl class="kv">
+                <dt>Reports</dt><dd class="mono">reports/</dd>
+                <dt>Index</dt><dd class="mono">reports/index.json</dd>
+                <dt>Each run</dt><dd>report.md, scan.json and evidence.json</dd>
+              </dl>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+const TOOLS = [
+  ['nmap', 'Surface Map', 'Port and service scanning', '/usr/bin/nmap', 'ok'],
+  ['searchsploit', 'Exploit Hunt', 'Local copy of Exploit-DB', '/usr/bin/searchsploit', 'ok'],
+  ['httpx', 'Web Fingerprint', 'Kali package httpx-toolkit', '/usr/bin/httpx-toolkit', 'ok'],
+  ['ffuf', 'Hidden Paths', 'Wordlist: dirb common.txt', '/usr/bin/ffuf', 'ok'],
+  ['nuclei', 'Vuln Probe', 'Safe templates only', 'templates v10.5.2', 'ok'],
+  ['testssl.sh', 'Crypto Check', 'TLS and STARTTLS testing', '/usr/bin/testssl', 'ok'],
+  ['enum4linux-ng', 'SMB Recon', 'Anonymous SMB enumeration', '/usr/bin/enum4linux-ng', 'ok'],
+  ['Semgrep', 'Code scan', 'Pinned rules, commit 311ca4e9, metrics off', '1.185.0', 'ok'],
+  ['Bandit', 'Code scan', 'Python security checks', '1.9.4', 'ok']
+];
+const LABEL = { ok: 'Ready', warn: 'Warning', bad: 'Missing' };
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { checking: false };
+  }
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const self = this;
+    const c = this.state.checking;
+    return {
+      tools: TOOLS.map(function (t) {
+        return {
+          name: t[0], action: t[1], detail: t[2], version: t[3],
+          status: c ? 'Checking' : LABEL[t[4]],
+          stCls: 'st ' + (c ? 'warn' : t[4]),
+          rowCls: 'trow' + (c ? ' checking' : '')
+        };
+      }),
+      summary: c ? 'Checking every tool and connection...' : '12 of 13 checks ready. 1 warning: NVD has no API key, so CVE lookups are slower.',
+      spinCls: 'sp' + (c ? ' spin' : ''),
+      recheckLabel: c ? 'Checking' : 'Check again',
+      recheck: function () {
+        if (self.state.checking) return;
+        self.setState({ checking: true });
+        clearTimeout(self.t);
+        self.t = setTimeout(function () { self.setState({ checking: false }); }, 1500);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

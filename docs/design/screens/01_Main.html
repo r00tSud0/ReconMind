@@ -30,7 +30,7 @@ h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0
 .nav::after{content:"";position:absolute;left:14px;right:14px;bottom:6px;height:2px;border-radius:2px;background:linear-gradient(90deg,#FF5A5F,#C2252D);transform:scaleX(0);transition:transform .35s cubic-bezier(.3,1.4,.5,1)}
 .nav:hover{color:#F4F4F5}.nav:hover::after{transform:scaleX(.35)}
 .nav.on{color:#F4F4F5}.nav.on::after{transform:scaleX(1);box-shadow:0 0 12px rgba(229,72,77,.7)}
-.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96}
+.scope{display:flex;align-items:center;gap:8px;font-size:13px;color:#8E8E96;white-space:nowrap;flex:none}
 .sdot{width:7px;height:7px;border-radius:2px;background:#FF5A5F;box-shadow:0 0 10px #E5484D}
 .glass{background:linear-gradient(180deg,rgba(30,30,33,.62),rgba(15,15,17,.58));border:1px solid rgba(255,255,255,.11);border-radius:18px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 60px -24px rgba(0,0,0,.7)}
 .btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 24px;border-radius:10px;font:700 15px Archivo,sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,box-shadow .3s ease,border-color .25s,background .25s}
@@ -90,6 +90,21 @@ h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0
 @keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
 @keyframes reveal{from{opacity:0;transform:translateY(18px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
 @keyframes rot{to{--a:360deg}}
+.panel .body{transition:opacity .4s ease,filter .4s ease}
+.panel.locked .body{opacity:.6;filter:saturate(.5)}
+.panel.locked .seg button:disabled{opacity:1;cursor:not-allowed}
+.panel.locked .seg button.never{opacity:.3}
+.panel.locked .act{cursor:not-allowed}
+.panel.locked .act:hover{background:transparent}
+.panel.locked .ck:disabled{cursor:not-allowed}
+.lockchip{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(10,10,11,.55);font-size:12px;font-weight:650;color:#C8C8CE;animation:pop .4s cubic-bezier(.3,1.6,.5,1) both}
+.lockchip.open{border-color:rgba(229,72,77,.55);color:#FF9A9A;background:rgba(229,72,77,.08)}
+.preset.custom .dot{border-style:dashed}
+.preset.custom.on .dot{border-style:solid}
+.airow{display:flex;align-items:center;justify-content:space-between;gap:20px;cursor:pointer}
+.airow.disabled{opacity:.5;cursor:not-allowed}
+.airow.disabled .switch{cursor:not-allowed}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:none;opacity:1}}
 .cols{position:absolute;top:0;bottom:0;left:50%;width:min(1180px,100%);transform:translateX(-50%);background-image:linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:25% 100%;border-right:1px solid rgba(255,255,255,.05);-webkit-mask-image:linear-gradient(#000 0,#000 55%,transparent);mask-image:linear-gradient(#000 0,#000 55%,transparent)}
 .slabs{position:absolute;top:70px;width:min(340px,24vw);height:560px;pointer-events:none;z-index:0;opacity:.85}
 .slabs.l{left:0;-webkit-mask-image:linear-gradient(90deg,#000 30%,transparent);mask-image:linear-gradient(90deg,#000 30%,transparent)}
@@ -244,7 +259,28 @@ h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0
         <sc-if value="{{showPlan}}" hint-placeholder-val="{{ true }}">
           <section class="glass panel reveal" style="animation-delay: .16s">
             <div class="head">
+              <h2 style="font-size: 18px; font-weight: 750">What to run</h2>
+              <p class="help">Pick a preset to run it exactly as set, or Custom to choose the ports and actions yourself.</p>
+            </div>
+            <div class="body">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px">
+                <sc-for list="{{presets}}" as="p" hint-placeholder-count="4">
+                  <button type="button" class="{{p.cls}}" disabled="{{p.disabled}}" onClick="{{p.pick}}" aria-pressed="{{p.on}}">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font-stretch: 125%; font-weight: 750; color: #F4F4F5">{{p.name}}</span>
+                      <span style="font-size: 13px; line-height: 1.45; color: #8E8E96">{{p.desc}}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </section>
+
+          <section class="{{portsCls}}" style="animation-delay: .22s">
+            <div class="head">
               <h2 style="font-size: 18px; font-weight: 750">Ports</h2>
+              <span class="{{lockCls}}"><sc-if value="{{locked}}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></sc-if><sc-if value="{{unlocked}}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 7.5-2"></path></svg></sc-if>{{lockText}}</span>
               <p class="help">{{portsHelp}}</p>
             </div>
             <div class="body">
@@ -261,27 +297,17 @@ h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0
             </div>
           </section>
 
-          <section class="glass panel reveal" style="animation-delay: .24s">
+          <section class="{{actionsCls}}" style="animation-delay: .28s">
             <div class="head">
-              <h2 style="font-size: 18px; font-weight: 750">What to run</h2>
-              <p class="help">Start from a preset, then tick or untick anything.</p>
+              <h2 style="font-size: 18px; font-weight: 750">Actions</h2>
+              <span class="{{lockCls}}"><sc-if value="{{locked}}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></sc-if><sc-if value="{{unlocked}}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 7.5-2"></path></svg></sc-if>{{lockText}}</span>
+              <p class="help">{{actionsHelp}}</p>
             </div>
-            <div class="body" style="gap: 24px">
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px">
-                <sc-for list="{{presets}}" as="p" hint-placeholder-count="3">
-                  <button type="button" class="{{p.cls}}" disabled="{{p.disabled}}" onClick="{{p.pick}}">
-                    <span class="dot" aria-hidden="true"></span>
-                    <span style="display: flex; flex-direction: column; gap: 4px">
-                      <span style="font-stretch: 125%; font-weight: 750; color: #F4F4F5">{{p.name}}</span>
-                      <span style="font-size: 13px; line-height: 1.45; color: #8E8E96">{{p.desc}}</span>
-                    </span>
-                  </button>
-                </sc-for>
-              </div>
+            <div class="body">
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); column-gap: 36px; row-gap: 2px">
                 <sc-for list="{{actions}}" as="a" hint-placeholder-count="8">
                   <label class="{{a.cls}}">
-                    <input type="checkbox" class="ck" checked="{{a.checked}}" disabled="{{a.locked}}" onChange="{{a.toggle}}">
+                    <input type="checkbox" class="ck" checked="{{a.checked}}" disabled="{{a.disabled}}" onChange="{{a.toggle}}">
                     <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
                       <span><span class="nm">{{a.name}}</span><span class="tag" style="margin-left: 8px">{{a.tool}}</span></span>
                       <span style="font-size: 14px; color: #8E8E96">{{a.desc}}</span>
@@ -289,6 +315,28 @@ h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0
                   </label>
                 </sc-for>
               </div>
+            </div>
+          </section>
+
+          <section class="glass panel reveal" style="animation-delay: .34s">
+            <div class="head">
+              <h2 style="font-size: 18px; font-weight: 750">AI analysis</h2>
+              <p class="help">The tools run exactly the same either way. This only adds the written part of the report.</p>
+            </div>
+            <div class="body">
+              <label class="{{aiRowCls}}">
+                <span style="display: flex; flex-direction: column; gap: 4px">
+                  <span style="font-weight: 650; color: #F4F4F5">Write an AI analysis</span>
+                  <span class="tag">A summary of what the findings mean, the attack path, and what to fix first. Every claim is checked against the tool results.</span>
+                </span>
+                <input type="checkbox" class="switch" checked="{{aiOn}}" disabled="{{aiOff}}" onChange="{{toggleAi}}" aria-label="Write an AI analysis">
+              </label>
+              <sc-if value="{{aiAvailable}}" hint-placeholder-val="{{ true }}">
+                <p class="help" style="font-size: 13px">Uses OpenRouter, nvidia/nemotron-3-ultra-550b-a55b:free. The finished scan results are sent to the model. It reads them only and never runs a tool.</p>
+              </sc-if>
+              <sc-if value="{{aiMissing}}" hint-placeholder-val="{{ false }}">
+                <p class="help" style="font-size: 13px">No API key is set, so scans make a Standard report. <a href="System.dc.html">Add a key in System</a> to turn this on.</p>
+              </sc-if>
             </div>
           </section>
         </sc-if>
@@ -305,10 +353,10 @@ h1,h2,h3{font-family:Archivo,sans-serif;font-stretch:125%;color:#F4F4F5;margin:0
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+<script type="text/x-dc" data-dc-script data-props='{"aiAvailable":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":2100}}'>
 const ACTIONS = [
   { id: 'surface', name: 'Surface Map', tool: 'nmap', desc: 'Scans the target with nmap to find which TCP ports are open and which service and version runs on each. Always runs.' },
-  { id: 'exploits', name: 'Exploit Hunt', tool: 'searchsploit', desc: 'Searches Exploit-DB for public exploits that match each service and version nmap found, and marks whether the version match is exact.' },
+  { id: 'exploits', name: 'Exploit Hunt', tool: 'searchsploit', desc: 'Searches Exploit-DB for public exploits that match each service and version nmap found, marks whether the version match is exact, and flags services that are risky just by being exposed.' },
   { id: 'cves', name: 'CVE Intel', tool: 'NVD', desc: 'Looks up each service version in the NVD database and lists its known CVEs with CVSS scores. Flags any that CISA lists as actively exploited.' },
   { id: 'web', name: 'Web Fingerprint', tool: 'httpx', desc: 'Connects to each web port and identifies the web server, frameworks and technologies in use, plus which security headers are missing.' },
   { id: 'paths', name: 'Hidden Paths', tool: 'ffuf', desc: 'Requests a list of common file and folder names on each web port to find pages that exist but are not linked, such as admin panels.' },
@@ -318,11 +366,14 @@ const ACTIONS = [
 ];
 const ALL = ACTIONS.map(function (a) { return a.id; });
 const PRESETS = { quick: ['surface', 'exploits', 'cves'], standard: ALL, full: ALL };
+const PRESET_PORTS = { quick: 'top', standard: 'top', full: 'all' };
 const PRESET_INFO = [
   { id: 'quick', name: 'Quick', desc: 'Scans the top 1000 ports, then checks each service for public exploits and known CVEs.' },
   { id: 'standard', name: 'Standard', desc: 'Scans the top 1000 ports and runs all 8 actions. Nuclei only runs templates that match the technology it detects.' },
-  { id: 'full', name: 'Full report', desc: 'Scans all 65535 ports and runs all 8 actions with the larger nuclei template set. One host at a time.' }
+  { id: 'full', name: 'Full report', desc: 'Scans all 65535 ports and runs all 8 actions with every safe nuclei template. One host at a time.' },
+  { id: 'custom', name: 'Custom', desc: 'You choose the ports and the actions. Starts from what the last preset had.' }
 ];
+const NAMES = { quick: 'Quick', standard: 'Standard', full: 'Full report', custom: 'Custom' };
 const MODES = [['host', 'One host'], ['list', 'Host list'], ['code', 'Source code']];
 const PORT_OPTS = [['top', 'Top 1000'], ['all', 'All 65535'], ['custom', 'Custom list']];
 const PORT_WORDS = { top: 'the top 1000 TCP ports', all: 'all 65535 TCP ports', custom: 'ports 22, 80, 443 and 8000 to 8100' };
@@ -330,42 +381,43 @@ const PORT_WORDS = { top: 'the top 1000 TCP ports', all: 'all 65535 TCP ports', 
 class Component extends DCLogic {
   constructor(...args) {
     super(...args);
-    this.state = { mode: 'host', preset: 'standard', sel: ALL.slice(), ports: 'top', explain: false };
+    this.state = { mode: 'host', preset: 'standard', sel: ALL.slice(), ports: 'top', explain: false, ai: null };
   }
   setMode(m) {
     const s = this.state;
     const next = { mode: m };
     if (m === 'list') {
-      if (s.preset === 'full') { next.preset = 'standard'; next.sel = ALL.slice(); }
+      if (s.preset === 'full') { next.preset = 'standard'; next.sel = ALL.slice(); next.ports = 'top'; }
       if (s.ports === 'all') next.ports = 'top';
     }
     this.setState(next);
   }
   pickPreset(id) {
-    if (this.state.mode === 'list' && id === 'full') return;
-    const ports = id === 'full' ? 'all' : (this.state.ports === 'all' ? 'top' : this.state.ports);
-    this.setState({ preset: id, sel: PRESETS[id].slice(), ports: ports });
+    const s = this.state;
+    if (s.mode === 'list' && id === 'full') return;
+    if (id === 'custom') { this.setState({ preset: 'custom' }); return; }
+    this.setState({ preset: id, sel: PRESETS[id].slice(), ports: PRESET_PORTS[id] });
   }
   toggle(id) {
-    if (id === 'surface') return;
+    if (this.state.preset !== 'custom' || id === 'surface') return;
     const cur = this.state.sel;
     const sel = cur.indexOf(id) >= 0 ? cur.filter(function (x) { return x !== id; }) : cur.concat(id);
-    const match = ['quick', 'standard'].find(function (k) {
-      return PRESETS[k].length === sel.length && PRESETS[k].every(function (x) { return sel.indexOf(x) >= 0; });
-    });
-    this.setState({ sel: sel, preset: match || 'custom' });
+    this.setState({ sel: sel });
   }
   pickPorts(id) {
-    if (this.state.mode === 'list' && id === 'all') return;
-    const next = { ports: id };
-    if (this.state.preset === 'full' && id !== 'all') next.preset = 'custom';
-    this.setState(next);
+    const s = this.state;
+    if (s.preset !== 'custom') return;
+    if (s.mode === 'list' && id === 'all') return;
+    this.setState({ ports: id });
   }
   renderVals() {
     const s = this.state;
     const self = this;
+    const aiAvailable = this.props.aiAvailable ?? true;
+    const aiOn = aiAvailable && (s.ai === null ? true : s.ai);
     const isList = s.mode === 'list';
     const isCode = s.mode === 'code';
+    const locked = s.preset !== 'custom';
     const modeIdx = MODES.findIndex(function (m) { return m[0] === s.mode; });
     const portIdx = PORT_OPTS.findIndex(function (p) { return p[0] === s.ports; });
     const modes = MODES.map(function (m) {
@@ -373,9 +425,9 @@ class Component extends DCLogic {
     });
     const presets = PRESET_INFO.map(function (p) {
       return {
-        name: p.name, desc: p.desc,
+        name: p.name, desc: p.desc, on: s.preset === p.id,
         disabled: isList && p.id === 'full',
-        cls: 'preset' + (s.preset === p.id ? ' on' : ''),
+        cls: 'preset' + (s.preset === p.id ? ' on' : '') + (p.id === 'custom' ? ' custom' : ''),
         pick: function () { self.pickPreset(p.id); }
       };
     });
@@ -383,7 +435,7 @@ class Component extends DCLogic {
       const on = s.sel.indexOf(a.id) >= 0;
       return {
         name: a.name, tool: a.tool, desc: a.desc,
-        checked: on, locked: a.id === 'surface',
+        checked: on, disabled: locked || a.id === 'surface',
         cls: 'act' + (on ? '' : ' off'),
         toggle: function () { self.toggle(a.id); }
       };
@@ -391,26 +443,38 @@ class Component extends DCLogic {
     const portOpts = PORT_OPTS.map(function (p) {
       return {
         label: p[1],
-        disabled: isList && p[0] === 'all',
-        cls: s.ports === p[0] ? 'on' : '',
+        disabled: locked || (isList && p[0] === 'all'),
+        cls: (s.ports === p[0] ? 'on' : '') + (isList && p[0] === 'all' ? ' never' : ''),
         pick: function () { self.pickPorts(p[0]); }
       };
     });
     const n = s.sel.length;
-    const nuclei = s.sel.indexOf('vulns') < 0 ? 'nuclei off' : (s.preset === 'full' ? 'nuclei on deep' : 'nuclei on auto');
+    const nuclei = s.sel.indexOf('vulns') < 0 ? 'no nuclei' : (s.preset === 'full' ? 'every safe nuclei template' : 'nuclei on auto');
     const who = isList ? '3 hosts, one at a time,' : '10.10.1.20';
+    const report = aiOn ? 'You get an AI enhanced report.' : 'You get a Standard report.';
     const planSentence = isCode
       ? 'Read app.py with Semgrep and Bandit' + (s.explain ? ', then explain each finding with AI.' : '. No AI explanation.')
-      : 'Scan ' + who + ' on ' + PORT_WORDS[s.ports] + ' with ' + n + (n === 1 ? ' action' : ' actions') + ', ' + nuclei + '.';
+      : 'Scan ' + who + ' on ' + PORT_WORDS[s.ports] + ' with ' + n + (n === 1 ? ' action' : ' actions') + ' and ' + nuclei + '. ' + report;
+    const lockedPanel = 'glass panel reveal locked';
+    const openPanel = 'glass panel reveal';
     return {
       modes: modes, presets: presets, actions: actions, portOpts: portOpts,
       modeInd: modeIdx * 100, portInd: portIdx * 100,
       isHost: s.mode === 'host', isList: isList, isCode: isCode, showPlan: !isCode,
-      isCustomPorts: s.ports === 'custom',
+      isCustomPorts: s.ports === 'custom' && !locked,
+      locked: locked, unlocked: !locked,
+      lockCls: 'lockchip' + (locked ? '' : ' open'),
+      lockText: locked ? 'Set by ' + NAMES[s.preset] : 'Yours to choose',
+      portsCls: locked ? lockedPanel : openPanel,
+      actionsCls: locked ? lockedPanel : openPanel,
       hostsText: '10.10.1.20\n10.10.2.15\n192.168.56.101',
       targetHead: isCode ? 'Source code' : (isList ? 'Hosts' : 'Target'),
       targetHelp: isCode ? 'The code is read, never run.' : (isList ? 'One IP per line, up to 8. Each one is checked against the allowlist on its own.' : 'One IP address from your lab.'),
-      portsHelp: isList ? 'All 65535 is for one host only, so a list stays quick.' : 'All 65535 finds open ports fast first, then looks closely at those.',
+      portsHelp: locked ? 'Pick Custom above to change the ports.' : (isList ? 'All 65535 is for one host only, so a list stays quick.' : 'All 65535 finds open ports fast first, then looks closely at those.'),
+      actionsHelp: locked ? 'This is exactly what will run. Pick Custom above to change it.' : 'Tick what to look for. Each action only runs on the ports it fits.',
+      aiAvailable: aiAvailable, aiMissing: !aiAvailable, aiOn: aiOn, aiOff: !aiAvailable,
+      aiRowCls: 'airow' + (aiAvailable ? '' : ' disabled'),
+      toggleAi: function () { self.setState({ ai: !aiOn }); },
       explain: s.explain,
       toggleExplain: function () { self.setState({ explain: !self.state.explain }); },
       planSentence: planSentence,

@@ -22,6 +22,10 @@
 </div>
 
 <div class="app">
+  <!-- Red light bars, New scan only (shown by body[data-view="new"]). -->
+  <div class="slabs l" aria-hidden="true"><span class="slab"></span><span class="slab thin"></span><span class="slab"></span><span class="slab"></span><span class="slab thin"></span><span class="slab"></span><span class="slab"></span></div>
+  <div class="slabs r" aria-hidden="true"><span class="slab"></span><span class="slab"></span><span class="slab thin"></span><span class="slab"></span><span class="slab"></span><span class="slab thin"></span><span class="slab"></span></div>
+
   <header class="top">
     <a class="mark" href="#/new" aria-label="ReconMind, new scan">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="19" r="1.9" fill="#FF7A7F" stroke="none"></circle><path class="a1" d="M5 13a6 6 0 0 1 6 6"></path><path class="a2" d="M5 8a11 11 0 0 1 11 11"></path><path class="a3" d="M5 3a16 16 0 0 1 16 16"></path></svg>
@@ -97,13 +101,28 @@
       </div>
     </section>
 
-    <section class="glass panel reveal d2" data-ref="portsPanel">
+    <section class="glass panel stack reveal d2" data-ref="runPanel">
       <div class="head">
-        <h2 class="h2">Ports</h2>
-        <p class="help" data-ref="portsHelp">All 65535 finds open ports fast first, then looks closely at those.</p>
+        <h2 class="h2">What to run</h2>
+        <p class="help">Pick a preset to run it exactly as set, or Custom to choose the ports and actions yourself.</p>
       </div>
       <div class="body">
-        <div class="seg seg-ports" role="group" aria-label="Ports">
+        <div class="presets" data-ref="presets" role="group" aria-label="What to run"></div>
+      </div>
+    </section>
+
+    <section class="glass panel reveal d3" data-ref="portsPanel">
+      <div class="head">
+        <h2 class="h2" id="ports-title">Ports</h2>
+        <span class="lockbadge pop" data-ref="portsBadge" hidden>
+          <svg class="lk lk-shut" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+          <svg class="lk lk-open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 7.5-2"></path></svg>
+          <span data-ref="portsBadgeText"></span>
+        </span>
+        <p class="help" data-ref="portsHelp"></p>
+      </div>
+      <div class="body">
+        <div class="seg seg-ports" role="group" aria-labelledby="ports-title">
           <span class="ind" aria-hidden="true"></span>
           <button type="button" data-ports="top">Top 1000</button>
           <button type="button" data-ports="all">All 65535</button>
@@ -117,22 +136,42 @@
       </div>
     </section>
 
-    <section class="glass panel reveal d3" data-ref="runPanel">
+    <section class="glass panel reveal d4" data-ref="actionsPanel">
       <div class="head">
-        <h2 class="h2">What to run</h2>
-        <p class="help">Start from a preset, then tick or untick anything.</p>
+        <h2 class="h2" id="actions-title">Actions</h2>
+        <span class="lockbadge pop" data-ref="actionsBadge" hidden>
+          <svg class="lk lk-shut" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+          <svg class="lk lk-open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 7.5-2"></path></svg>
+          <span data-ref="actionsBadgeText"></span>
+        </span>
+        <p class="help" data-ref="actionsHelp"></p>
       </div>
-      <div class="body body-run">
-        <div class="presets" data-ref="presets" role="group" aria-label="Presets"></div>
-        <p class="tag custom-note" data-ref="customNote" hidden></p>
-        <div class="actions" data-ref="actions" role="group" aria-label="Actions"></div>
+      <div class="body">
+        <div class="actions" data-ref="actions" role="group" aria-labelledby="actions-title"></div>
         <p class="field-error" data-error="actions" hidden></p>
+      </div>
+    </section>
+
+    <section class="glass panel reveal d5" data-ref="aiPanel">
+      <div class="head">
+        <h2 class="h2">AI analysis</h2>
+        <p class="help">The tools run exactly the same either way. This only adds the written part of the report.</p>
+      </div>
+      <div class="body">
+        <label class="toggle-row plain" data-ref="aiRow">
+          <span class="toggle-text">
+            <span class="toggle-name">Write an AI analysis</span>
+            <span class="tag" id="ai-note">A summary of what the findings mean, the attack path, and what to fix first. Every claim is checked against the tool results.</span>
+          </span>
+          <input type="checkbox" class="switch" id="ai" aria-describedby="ai-note ai-info">
+        </label>
+        <p class="help small" id="ai-info" data-ref="aiInfo">Checking whether an AI model is set up.</p>
       </div>
     </section>
 
     <div class="alert-slot" data-ref="alert" aria-live="polite"></div>
 
-    <section class="glass launch reveal d4">
+    <section class="glass launch reveal d6">
       <div class="launch-text">
         <p class="plan" data-ref="plan"></p>
         <p class="help small">The authorization gate checks every target before a single packet is sent. No brute force, no DoS, no outside callbacks.</p>
@@ -204,6 +243,17 @@
       </div>
       <pre class="out" data-ref="out" tabindex="0" aria-label="Scan output"></pre>
       <p class="help small">This page is temporary. The Live run screen arrives in a later step.</p>
+    </section>
+  </div>
+</template>
+
+<!-- Live run (#/live) when there is no scan at all. -->
+<template id="tpl-live-empty">
+  <div class="page">
+    <section class="glass later reveal">
+      <h1 class="h2 later-title">Live run</h1>
+      <p class="help" data-ref="text">No scan is running. Start one on New scan.</p>
+      <div><a class="btn quiet" href="#/new">Go to New scan</a></div>
     </section>
   </div>
 </template>

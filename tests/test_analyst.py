@@ -295,6 +295,17 @@ class AnalystPromptTests(unittest.TestCase):
         self.assertIn("most urgent first", prompt)
         self.assertIn("Match labels", prompt)
 
+    def test_technique_ids_carry_their_official_name_and_stay_in_the_attack_section(self):
+        # attack_check flags an ID whose name does not match MITRE's, so the
+        # prompt asks for the exact name every time and no bare IDs elsewhere.
+        for plan in (None, build_plan(TARGET, "standard"), build_plan(TARGET, actions="web")):
+            prompt = build_analyst_system_prompt(plan)
+            self.assertIn("Every time you write a technique ID, follow it right away with its "
+                          "exact official name as attack_map gave it, e.g. T1190 Exploit "
+                          "Public-Facing Application.", prompt)
+            self.assertIn("Technique IDs appear only in the MITRE ATT&CK section. Never write "
+                          "a technique ID in any other section", prompt)
+
     def test_exploit_rules_only_with_exploit_hunt(self):
         prompt = build_analyst_system_prompt(build_plan(TARGET, actions="web"))
         self.assertNotIn("Match labels", prompt)

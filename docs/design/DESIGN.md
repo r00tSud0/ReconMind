@@ -88,7 +88,8 @@ Rules:
 
 * Top bar, 68px tall, frosted: logo on the left, nav (New scan, Live run,
   Targets, Host lists, System), and a scope pill on the right
-  ("Scope locked to 4 lab networks", count read from the server).
+  ("Scope locked to 4 lab networks", count read from the server). The scope
+  pill never wraps onto a second line (`white-space: nowrap`).
 * Content max width 1080 to 1200px, centered, side padding
   `clamp(16px, 4vw, 48px)`.
 * Panels are glass cards (section 5.1) with 18px radius, 24 to 34px padding,
@@ -116,6 +117,12 @@ box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 24px 60px -24px rgba(0,0,0,.7
    2.5s apart, fading to nothing.
 4. Four faint vertical column lines across the content width, fading out
    toward the bottom.
+5. New scan only: two groups of glowing red light bars at the left and right
+   edges behind the content (see `.slabs` and `.slab` in 01_Main.html). Each
+   bar is a red gradient turned in 3D (`perspective` plus `rotateY`), with a
+   soft red glow, slowly brightening and drifting (5.5s alternate, staggered).
+   They fade toward the center with a mask, never cover text, are
+   `aria-hidden`, and stop moving under reduced motion.
 
 ### 5.3 Logo
 A dot with three arcs (a sonar ping) in red, then "ReconMind" in Archivo 800,
@@ -177,6 +184,15 @@ Each open port found so far is a dot placed clockwise from the top by the same
 log scale. A dot flashes exactly when the beam passes over it
 (animation delay = its angle fraction times 4s).
 
+### 5.13a Locked panel and lock badge
+Used for Ports and Actions on New scan while a preset other than Custom is
+picked. The panel body drops to 60% opacity and half saturation (0.4s
+transition), every control in it is disabled, and the selected values stay
+readable so the user sees exactly what will run. A small lock badge sits under
+the panel title: a padlock icon and "Set by Standard" (the preset's name).
+When Custom is picked the badge pops to an open padlock, turns red, and says
+"Yours to choose", and the panel brightens back.
+
 ### 5.13 Feed (Last scan on New scan)
 Timestamped event pills along a dashed vertical line, the newest is a
 highlighted card with a red border and glow, the top findings with severity
@@ -222,6 +238,34 @@ Presets (the actions, ports and nuclei mode come from
 | quick | Quick | Scans the top 1000 ports, then checks each service for public exploits and known CVEs. |
 | standard | Standard | Scans the top 1000 ports and runs all 8 actions. Nuclei only runs templates that match the technology it detects. |
 | full | Full report | Scans all 65535 ports and runs all 8 actions with every safe nuclei template. One host at a time. |
+| custom | Custom | You choose the ports and the actions. Starts from what the last preset had. |
+
+Custom is not a preset in `scan_plan.py`. The app sends it as the standard
+preset (nuclei auto) with the user's ports and actions.
+
+### New scan order and rules
+
+1. Target (or Hosts, or Source code).
+2. What to run: the four cards Quick, Standard, Full report, Custom. Help:
+   "Pick a preset to run it exactly as set, or Custom to choose the ports and
+   actions yourself."
+3. Ports: locked unless Custom. Locked help: "Pick Custom above to change the
+   ports."
+4. Actions: locked unless Custom. Locked help: "This is exactly what will run.
+   Pick Custom above to change it." Custom help: "Tick what to look for. Each
+   action only runs on the ports it fits." Surface Map is always on.
+5. AI analysis: a switch "Write an AI analysis" with the note "A summary of
+   what the findings mean, the attack path, and what to fix first. Every claim
+   is checked against the tool results." Panel help: "The tools run exactly
+   the same either way. This only adds the written part of the report." On by
+   default when an LLM is configured. Under it: "Uses <provider>, <model>. The
+   finished scan results are sent to the model. It reads them only and never
+   runs a tool." With no key the switch is disabled and the note says "No API
+   key is set, so scans make a Standard report. Add a key in System to turn
+   this on."
+6. The plan sentence above Start ends with "You get an AI enhanced report."
+   or "You get a Standard report."
+7. Host list mode: Full report and All 65535 are disabled.
 
 ## 8. Safety rules for the frontend (required)
 

@@ -9,10 +9,10 @@
  */
 
 import * as api from '../api.js';
-import { clone, formatElapsed, parseTime, setLive } from '../ui.js';
+import { checkLive, markRunning } from '../live.js';
+import { clone, formatElapsed, parseTime } from '../ui.js';
 
 const POLL_MS = 1000;
-const LIVE_CHECK_MS = 5000;
 
 const STATUS_WORDS = {
   running: 'Running',
@@ -50,26 +50,7 @@ function endNote(job) {
   }
 }
 
-/* After leaving a running job's page, keep the Live run dot honest until it ends. */
-let liveWatch = null;
-
-function watchLive(jobId) {
-  clearTimeout(liveWatch);
-  const check = async () => {
-    const res = await api.get('/api/scans/' + jobId);
-    if (res.ok && res.data && res.data.status === 'running') {
-      liveWatch = setTimeout(check, LIVE_CHECK_MS);
-    } else if (res.status !== 0) {
-      setLive(false);
-    } else {
-      liveWatch = setTimeout(check, LIVE_CHECK_MS);
-    }
-  };
-  liveWatch = setTimeout(check, LIVE_CHECK_MS);
-}
-
 export function mountJob(view, jobId) {
-  clearTimeout(liveWatch);
   const { root, refs } = clone('tpl-job');
   view.append(root);
 
@@ -79,6 +60,7 @@ export function mountJob(view, jobId) {
   let job = null;
   let shownOutput = null;
   let shownEnd = null;
+  let wasRunning = false;
 
   function renderElapsed() {
     if (!job) return;
@@ -117,7 +99,11 @@ export function mountJob(view, jobId) {
     refs.stop.hidden = !running;
     refs.runid.hidden = !job.run_id;
     refs.runidValue.textContent = job.run_id || '';
-    setLive(running);
+    // This page may show an older job while another one runs, so a job that
+    // is not running asks the server instead of turning the dot off.
+    if (running) markRunning();
+    else if (wasRunning) checkLive();
+    wasRunning = running;
     renderElapsed();
 
     const text = Array.isArray(job.lines) ? job.lines.map(String).join('\n') : '';
@@ -179,7 +165,5 @@ export function mountJob(view, jobId) {
     alive = false;
     clearTimeout(pollTimer);
     clearInterval(tickTimer);
-    if (job && job.status === 'running') watchLive(jobId);
-    else setLive(false);
   };
 }

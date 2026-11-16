@@ -3,7 +3,8 @@ Offline tests for the web app (reconmind/web): /api/options against
 scan_plan and config, /api/check for recon and code requests, /api/scans
 starting a job through a fake runner (argument list, no shell, one job at a
 time), the request guards (Host header, X-ReconMind header, JSON body, CSP),
-/api/history, job ids, and saved running jobs becoming interrupted.
+/api/history, job ids, /api/scans/latest, and saved running jobs becoming
+interrupted.
 
 No real process is started and no network is used: every JobManager gets a
 fake runner, and report_dir and logs/ live in a temp folder. The whole module
@@ -495,6 +496,64 @@ class HistoryTests(WebTestCase):
         for job_id in ("nothex", "ABCDEF123456", "0123456789abc", "0123456789a"):
             self.assertEqual(self.client.get("/api/scans/" + job_id).status_code, 404, job_id)
         self.assertEqual(self.client.get("/api/scans/0123456789ab").status_code, 404)
+
+
+# ---- /api/scans/latest -----------------------------------------------------
+
+def save_job(report_dir, job_id, started, status="done"):
+    """A job saved by an earlier server."""
+    jobs_dir = os.path.join(report_dir, jobmod.JOBS_FOLDER)
+    os.makedirs(jobs_dir, exist_ok=True)
+    jobmod.write_json(os.path.join(jobs_dir, job_id + ".json"),
+                      {"id": job_id, "kind": "recon", "label": "Standard scan, 10.10.1.20",
+                       "status": status, "exit_code": 0, "started": started,
+                       "finished": started, "run_id": None, "warning": None})
+
+
+class LatestEmptyTests(WebTestCase):
+
+    def test_no_job_is_null(self):
+        response = self.client.get("/api/scans/latest")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"job": None})
+
+
+class LatestRunningTests(WebTestCase):
+
+    runner_kwargs = {"hold": True, "lines": ["ReconMind agent  target=10.10.1.20"]}
+
+    def test_running_job_comes_first(self):
+        # A saved job that claims a later start still loses to the running one.
+        save_job(self.report_dir, "fedcba987654", "2099-01-01T00:00:00")
+        job_id = self.post("/api/scans", self.recon(mode="standard")).json()["job_id"]
+        data = self.client.get("/api/scans/latest").json()
+        self.assertEqual(data["job"]["id"], job_id)
+        self.assertEqual(data["job"]["status"], "running")
+        # Same fields as /api/scans/<id>; the lines may grow between the two calls.
+        single = self.client.get("/api/scans/" + job_id).json()
+        self.assertEqual(set(data["job"]), set(single))
+        self.assertEqual({k: v for k, v in data["job"].items() if k != "lines"},
+                         {k: v for k, v in single.items() if k != "lines"})
+
+
+class LatestNewestTests(WebTestCase):
+
+    def test_newest_job_when_none_runs(self):
+        first = self.post("/api/scans", self.recon(mode="standard")).json()["job_id"]
+        self.wait_finished(first)
+        second = self.post("/api/scans", self.recon(mode="standard")).json()["job_id"]
+        self.wait_finished(second)
+        data = self.client.get("/api/scans/latest").json()
+        self.assertEqual(data["job"]["id"], second)
+        self.assertEqual(data["job"]["status"], "done")
+        self.assertEqual(data["job"], self.client.get("/api/scans/" + second).json())
+
+    def test_newest_saved_job_from_an_earlier_server(self):
+        save_job(self.report_dir, "0123456789ab", "2026-11-14T10:00:00")
+        save_job(self.report_dir, "ba9876543210", "2026-11-15T09:00:00")
+        save_job(self.report_dir, "aaaaaaaaaaaa", "2026-11-13T23:00:00")
+        manager = jobmod.JobManager(self.report_dir, cwd=self._tmp.name, runner=FakeRunner())
+        self.assertEqual(manager.latest()["id"], "ba9876543210")
 
 
 # ---- saved jobs ------------------------------------------------------------

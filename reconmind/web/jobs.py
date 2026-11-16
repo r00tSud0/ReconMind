@@ -338,6 +338,34 @@ class JobManager:
             meta["lines"] = []
         return meta
 
+    def latest(self, max_lines=400):
+        """
+        The running job, otherwise the most recently started one (this
+        server's or a saved one from an earlier server), with its last
+        max_lines lines. None when there is no job at all.
+        """
+        with self._lock:
+            running = self._running_id
+            # Jobs of this server rank above saved ones with the same start
+            # second, and among themselves by start order.
+            ranked = [((job.meta.get("started") or "", 1, order), job_id)
+                      for order, (job_id, job) in enumerate(self._jobs.items())]
+            known = set(self._jobs)
+        if running is not None:
+            return self.get(running, max_lines)
+        if os.path.isdir(self.jobs_dir):
+            for name in os.listdir(self.jobs_dir):
+                job_id = name[:-5]
+                if not name.endswith(".json") or not JOB_ID.fullmatch(job_id) or job_id in known:
+                    continue
+                meta = self._load_meta(job_id)
+                started = meta.get("started") if meta else None
+                if isinstance(started, str):
+                    ranked.append(((started, 0, 0), job_id))
+        if not ranked:
+            return None
+        return self.get(max(ranked)[1], max_lines)
+
     # ---- stopping ----------------------------------------------------------
 
     def _signal(self, proc, sig):

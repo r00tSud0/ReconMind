@@ -230,6 +230,11 @@ already be patched by the distribution. Say so when you rely on one.
 _ANALYST_ATTACK_RULE = """- In the MITRE ATT&CK section, use only the technique IDs attack_map \
 confirmed (source attack_map in list_findings, or get_section attack_map). Never use its \
 lower confidence suggestions or any other technique ID.
+- Every time you write a technique ID, follow it right away with its exact official \
+name as attack_map gave it, e.g. T1190 Exploit Public-Facing Application. Copy the name \
+word for word; never shorten, reword or translate it.
+- Technique IDs appear only in the MITRE ATT&CK section. Never write a technique ID in \
+any other section, not even with its name.
 """
 
 _ANALYST_OUTRO = """

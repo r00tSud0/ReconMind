@@ -12,6 +12,8 @@ that python3 -m reconmind.web serves on 127.0.0.1.
     POST /api/check               check a scan request; nothing is launched
     POST /api/scans               the same checks, then start a job; a recon
                                   request may carry "mode": "standard" or "ai"
+    GET  /api/scans/latest        {"job": ...}: the running job, otherwise the
+                                  most recently started one, otherwise null
     GET  /api/scans/<job id>      a job's status and its last output lines
     POST /api/scans/<job id>/stop stop that job
     GET  /api/history             report history entries, newest first
@@ -308,6 +310,11 @@ def create_app(report_dir=None, runner=None, port=None):
         except Busy as exc:
             return _failure(409, "busy", str(exc), job_id=exc.running_id)
         return JSONResponse({"ok": True, "job_id": job_id}, status_code=201)
+
+    # Before /api/scans/{job_id}, so "latest" is never read as a job id.
+    @app.get("/api/scans/latest")
+    def latest_scan():
+        return {"job": jobs.latest()}
 
     @app.get("/api/scans/{job_id}")
     def get_scan(job_id: str):

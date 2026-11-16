@@ -2,20 +2,26 @@
  * ReconMind web app entry: a hash router.
  *
  *   #/new          New scan (the default)
+ *   #/live         the latest scan: the running job, otherwise the most
+ *                  recently started one (the URL becomes #/job/<id>), or a
+ *                  calm empty state when there is no scan at all
  *   #/job/<id>     the job page for one scan (temporary; Live run replaces it)
- *   #/live, #/targets, #/hosts, #/system
+ *   #/targets, #/hosts, #/system
  *                  a calm panel: these arrive in later steps
  *
  * Each view's mount function returns a cleanup function, called before the
- * next view mounts, so a view's timers never outlive it.
+ * next view mounts, so a view's timers never outlive it. The body carries
+ * data-view with the current view, so page only decoration (the New scan
+ * light bars) can be shown from CSS.
  */
 
 import * as api from './api.js';
+import { checkLive } from './live.js';
 import { clone, JOB_ID } from './ui.js';
 import { mountNewScan } from './views/newscan.js';
 import { mountJob } from './views/job.js';
 
-const LATER = { live: 'Live run', targets: 'Targets', hosts: 'Host lists', system: 'System' };
+const LATER = { targets: 'Targets', hosts: 'Host lists', system: 'System' };
 
 let cleanup = null;
 
@@ -24,6 +30,27 @@ function mountLater(view, name) {
   refs.title.textContent = name;
   view.append(root);
   return null;
+}
+
+/* #/live: open the latest job's page, or say there is none. */
+function mountLive(view) {
+  let alive = true;
+  checkLive().then(({ res, job }) => {
+    if (!alive) return;
+    if (job && JOB_ID.test(String(job.id))) {
+      location.replace('#/job/' + job.id);
+      return;
+    }
+    const { root, refs } = clone('tpl-live-empty');
+    if (res.status === 0) {
+      refs.text.textContent = 'The latest scan could not be loaded.';
+    } else if (!res.ok) {
+      refs.text.textContent = 'The latest scan could not be loaded. The server answered with status '
+        + res.status + '.';
+    }
+    view.replaceChildren(root);
+  });
+  return () => { alive = false; };
 }
 
 function setNav(key) {
@@ -46,6 +73,10 @@ function route() {
     mount = () => mountNewScan(view);
     navKey = 'new';
     title = 'New scan';
+  } else if (parts.length === 1 && parts[0] === 'live') {
+    mount = () => mountLive(view);
+    navKey = 'live';
+    title = 'Live run';
   } else if (parts.length === 2 && parts[0] === 'job' && JOB_ID.test(parts[1])) {
     mount = () => mountJob(view, parts[1]);
     navKey = 'live';
@@ -63,6 +94,7 @@ function route() {
   cleanup = null;
   view.replaceChildren();
   setNav(navKey);
+  document.body.dataset.view = navKey;
   document.title = title + ' | ReconMind';
   cleanup = mount() || null;
   window.scrollTo(0, 0);
@@ -76,6 +108,9 @@ async function loadScope() {
     'Scope locked to ' + n + (n === 1 ? ' lab network' : ' lab networks');
 }
 
+const openedOnLive = /^#\/live$/.test(location.hash);
 window.addEventListener('hashchange', route);
 route();
 loadScope();
+// #/live asks on its own; every other first page checks once for the Live run dot.
+if (!openedOnLive) checkLive();

@@ -27,12 +27,15 @@ config.json before torch is imported, and against the loaded model.
 torch and transformers are optional. They are imported only inside the
 loader, so ReconMind and its tests run without them; then only rule mappings
 are made. Inference runs on the CPU, files are only read from the folder and
-never downloaded, and each folder is loaded once per run and cached.
+never downloaded, and each folder is loaded once per run and cached. Loading
+turns off the transformers and Hugging Face Hub progress bars so they never
+end up in the scan output; warnings and errors still print.
 """
 
 import hashlib
 import json
 import os
+import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DIR_ENV = "RECONMIND_MAPPER_DIR"
@@ -55,7 +58,9 @@ STATUS_LABEL_MISMATCH = "label-mismatch"
 SUGGESTION_FLOOR = 0.50
 BATCH_SIZE = 16
 
-LABEL_MISMATCH_CONFIG = "labels.json order does not match id2label in config.json"
+HF_PROGRESS_ENV = "HF_HUB_DISABLE_PROGRESS_BARS"
+
+LABEL_MISMATCH_CONFIG ="labels.json order does not match id2label in config.json"
 LABEL_MISMATCH_MODEL = "labels.json order does not match the loaded model's id2label"
 
 _CACHE = {}
@@ -108,9 +113,31 @@ class Predictor:
 
 def _import_backend():
     """torch and transformers, imported only here. Raises ImportError."""
+    # Set before the import too: huggingface_hub reads it when it is first loaded.
+    os.environ[HF_PROGRESS_ENV] = "1"
     import torch
     import transformers
     return torch, transformers
+
+
+def _quiet_progress(transformers):
+    """
+    Turn off the transformers and Hugging Face Hub progress bars, which would
+    print "Loading weights" bars into the scan output. Only the bars: log
+    levels are not touched, so real warnings and errors still show. A
+    transformers without these helpers is left as it is.
+    """
+    os.environ[HF_PROGRESS_ENV] = "1"
+    try:
+        transformers.utils.logging.disable_progress_bar()
+    except AttributeError:
+        pass
+    hub = sys.modules.get("huggingface_hub")
+    if hub is not None:
+        try:
+            hub.utils.disable_progress_bars()
+        except AttributeError:
+            pass
 
 
 def _sha256(path):
@@ -182,6 +209,7 @@ def _load(directory):
                          error="torch or transformers is not installed: {e}".format(e=exc),
                          **info)
 
+    _quiet_progress(transformers)
     try:
         tokenizer = transformers.AutoTokenizer.from_pretrained(directory, local_files_only=True)
         model = transformers.AutoModelForSequenceClassification.from_pretrained(

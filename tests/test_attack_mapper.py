@@ -238,6 +238,36 @@ class LoaderTests(unittest.TestCase):
         self.assertEqual(len(predictor.predict(["x"] * 20)), 20)
         self.assertEqual([c["count"] for c in tokenizer.calls], [16, 4])
 
+    def test_loading_turns_off_progress_bars_and_keeps_the_result(self):
+        write_model_dir(self.dir)
+        probs = {"a": [0.6, 0.9, 0.3], "b": [0.2, 0.1, 0.49]}
+
+        # Without the progress bar helpers (the plain fake), for comparison.
+        plain, _ = self.load_with(FakeModel(LABELS, probs))
+        expected = plain.predict(["a", "b"])
+        attack_mapper.clear_cache()
+
+        quieted = []
+        calls = []
+        backend = fake_backend(FakeModel(LABELS, probs), FakeTokenizer(), calls)
+        torch, transformers = backend()
+        transformers.utils = NS(logging=NS(
+            disable_progress_bar=lambda: quieted.append(("transformers", len(calls)))))
+        hub = NS(utils=NS(disable_progress_bars=lambda: quieted.append(("hub", len(calls)))))
+        with mock.patch.dict(os.environ), \
+                mock.patch.dict(sys.modules, {"huggingface_hub": hub}), \
+                mock.patch.object(attack_mapper, "_import_backend",
+                                  lambda: (torch, transformers)):
+            os.environ.pop(attack_mapper.HF_PROGRESS_ENV, None)
+            predictor = attack_mapper.load(self.dir)
+            self.assertEqual(os.environ.get(attack_mapper.HF_PROGRESS_ENV), "1")
+
+        # Both bars are off before the tokenizer or the model is loaded.
+        self.assertEqual(quieted, [("transformers", 0), ("hub", 0)])
+        self.assertEqual([c[0] for c in calls], ["tokenizer", "model"])
+        self.assertEqual(predictor.status, "ok")
+        self.assertEqual(predictor.predict(["a", "b"]), expected)
+
     def test_each_folder_is_loaded_once(self):
         with mock.patch.object(attack_mapper, "_load", wraps=attack_mapper._load) as load:
             first = attack_mapper.load(self.dir)

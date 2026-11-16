@@ -18,6 +18,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 
 try:
     import fastapi  # noqa: F401
@@ -28,6 +29,7 @@ except ImportError:
 
 from fastapi.testclient import TestClient
 
+from reconmind.agent import llm
 from reconmind.core import config
 from reconmind.core.scan_plan import ACTIONS, DEFAULT_PRESET, PRESETS, build_plan
 from reconmind.web import jobs as jobmod
@@ -38,6 +40,19 @@ BASE = "http://127.0.0.1:{p}".format(p=PORT)
 HEADERS = {"X-ReconMind": "1"}
 ALLOWED = "10.10.1.20"
 DENIED = "10.0.3.5"
+SECRET_KEY = "sk-or-test-0123456789-secret"
+AI_CONFIG = llm.ProviderConfig("anthropic", "anthropic", None, "ANTHROPIC_API_KEY", SECRET_KEY,
+                               "fake-model")
+
+
+def no_llm():
+    """llm.load_config as it behaves with no key set."""
+    return mock.patch.object(llm, "load_config",
+                             side_effect=llm.ConfigError("OPENROUTER_API_KEY is not set."))
+
+
+def with_llm():
+    return mock.patch.object(llm, "load_config", return_value=AI_CONFIG)
 
 
 class FakeProc:
@@ -92,6 +107,13 @@ class WebTestCase(unittest.TestCase):
         self._cwd = os.getcwd()
         self._tmp = tempfile.TemporaryDirectory()
         os.chdir(self._tmp.name)
+        # No LLM settings from the developer's shell or from a .env that an
+        # earlier test loaded into os.environ, and the temp cwd has no .env,
+        # so AI is unavailable unless a test patches it in.
+        self._env = mock.patch.dict(
+            os.environ, {k: os.environ[k] for k in ("PATH", "HOME") if k in os.environ},
+            clear=True)
+        self._env.start()
         self.report_dir = os.path.join(self._tmp.name, "reports")
         self.runner = FakeRunner(**self.runner_kwargs)
         self.app = create_app(report_dir=self.report_dir, runner=self.runner, port=PORT)
@@ -103,6 +125,7 @@ class WebTestCase(unittest.TestCase):
         for job in list(self.app.state.jobs._jobs.values()):
             if job.thread is not None:
                 job.thread.join(5)
+        self._env.stop()
         os.chdir(self._cwd)
         self._tmp.cleanup()
 
@@ -143,6 +166,25 @@ class OptionsTests(WebTestCase):
         self.assertEqual(data["allowlist"], list(config.ALLOWLIST))
         self.assertEqual(data["denylist"], list(config.DENYLIST))
         self.assertEqual(data["max_hosts"], 8)
+
+    def test_options_say_whether_ai_is_available_and_never_show_the_key(self):
+        with mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": SECRET_KEY,
+                                          "RECONMIND_PROVIDER": "openrouter",
+                                          "RECONMIND_MODEL": "some/model"}):
+            response = self.client.get("/api/options")
+        self.assertEqual(response.json()["ai"],
+                         {"available": True, "provider": "openrouter", "model": "some/model"})
+        self.assertNotIn(SECRET_KEY, response.text)
+
+        with with_llm():
+            response = self.client.get("/api/options")
+        self.assertEqual(response.json()["ai"],
+                         {"available": True, "provider": "anthropic", "model": "fake-model"})
+        self.assertNotIn(SECRET_KEY, response.text)
+
+        with no_llm():
+            data = self.client.get("/api/options").json()
+        self.assertEqual(data["ai"], {"available": False, "provider": None, "model": None})
 
     def test_no_route_changes_config(self):
         for method in ("post", "put", "patch", "delete"):
@@ -214,7 +256,8 @@ class ScanTests(WebTestCase):
         self.assertEqual(self.runner.calls, [])
 
     def test_valid_target_runs_the_cli_with_the_plan(self):
-        body = self.recon(preset="quick", ports="22,80,8000-8100", actions=["exploits"])
+        body = self.recon(preset="quick", ports="22,80,8000-8100", actions=["exploits"],
+                          mode="standard")
         response = self.post("/api/scans", body)
         self.assertEqual(response.status_code, 201)
         job_id = response.json()["job_id"]
@@ -225,20 +268,57 @@ class ScanTests(WebTestCase):
         plan = build_plan(ALLOWED, preset="quick", ports="22,80,8000-8100",
                           actions=["exploits"])
         self.assertIsInstance(argv, list)
-        self.assertEqual(argv, jobmod.recon_command(plan))
+        self.assertEqual(argv, jobmod.recon_command(plan, "standard"))
         self.assertEqual(argv[1:], ["-u", "-m", "reconmind", ALLOWED, "--preset", "quick",
                                     "--ports", "22,80,8000-8100",
-                                    "--actions", "surface,exploits"])
+                                    "--actions", "surface,exploits", "--mode", "standard"])
         self.assertFalse(kwargs.get("shell", False))
         self.assertTrue(kwargs["start_new_session"])
         self.assertEqual(kwargs["cwd"], os.getcwd())
         self.assertEqual(kwargs["env"]["PYTHONUNBUFFERED"], "1")
+        self.assertEqual(kwargs["env"]["RECONMIND_EVENTS"],
+                         os.path.join(self.report_dir, ".jobs", job_id + ".events.jsonl"))
 
         job = self.client.get("/api/scans/" + job_id).json()
         self.assertEqual(job["status"], "running")
         self.assertEqual(job["kind"], "recon")
         self.assertTrue(os.path.exists(os.path.join(self.report_dir, ".jobs",
                                                     job_id + ".json")))
+
+    def test_mode_is_passed_to_the_cli(self):
+        with with_llm():
+            self.assertEqual(self.post("/api/scans", self.recon(mode="ai")).status_code, 201)
+        self.assertEqual(self.runner.calls[0][0][-2:], ["--mode", "ai"])
+
+    def test_default_mode_is_ai_with_a_key(self):
+        with with_llm():
+            self.assertEqual(self.post("/api/scans", self.recon()).status_code, 201)
+        self.assertEqual(self.runner.calls[0][0][-2:], ["--mode", "ai"])
+        self.assertNotIn(SECRET_KEY, self.runner.calls[0][0])
+
+    def test_default_mode_is_standard_without_a_key(self):
+        with no_llm():
+            self.assertEqual(self.post("/api/scans", self.recon()).status_code, 201)
+        self.assertEqual(self.runner.calls[0][0][-2:], ["--mode", "standard"])
+
+    def assert_mode_refused(self, modes):
+        for mode in modes:
+            response = self.post("/api/scans", self.recon(mode=mode))
+            self.assertEqual(response.status_code, 400, mode)
+            self.assertEqual(response.json()["field"], "mode")
+        self.assertEqual(self.runner.calls, [])
+
+    def test_bad_mode_is_400_with_ai_available(self):
+        with with_llm():
+            self.assert_mode_refused(("turbo", 1, ["ai"], ""))
+
+    def test_bad_mode_is_400_without_ai(self):
+        with no_llm():
+            self.assert_mode_refused(("turbo", 1, ["ai"], ""))
+
+    def test_ai_mode_without_ai_is_400(self):
+        with no_llm():
+            self.assert_mode_refused(("ai",))
 
     def test_second_start_while_running_is_409(self):
         first = self.post("/api/scans", self.recon())
@@ -300,6 +380,53 @@ class RefusedExitTests(WebTestCase):
     def test_exit_2_is_refused(self):
         job_id = self.post("/api/scans", self.recon()).json()["job_id"]
         self.assertEqual(self.wait_finished(job_id)["status"], "refused")
+
+
+class ExitOneWithReportTests(WebTestCase):
+
+    runner_kwargs = {"exit_code": 1, "lines": ["Model busy (rate limited).",
+                                               "run id:      20261115_110000_10.10.1.20",
+                                               "report:      reports/x/report.md"]}
+
+    def test_exit_1_after_a_run_id_is_done_with_a_warning(self):
+        job_id = self.post("/api/scans", self.recon(mode="standard")).json()["job_id"]
+        job = self.wait_finished(job_id)
+        self.assertEqual(job["status"], "done")
+        self.assertEqual(job["exit_code"], 1)
+        self.assertEqual(job["run_id"], "20261115_110000_10.10.1.20")
+        self.assertEqual(job["warning"], jobmod.SUMMARY_WARNING)
+        # The warning is saved with the job, so it survives a server restart.
+        with open(os.path.join(self.report_dir, ".jobs", job_id + ".json")) as fh:
+            self.assertEqual(json.load(fh)["warning"], jobmod.SUMMARY_WARNING)
+
+
+class ExitOneWithoutReportTests(WebTestCase):
+
+    runner_kwargs = {"exit_code": 1, "lines": ["Bad scan plan: something"]}
+
+    def test_exit_1_without_a_run_id_is_failed(self):
+        job_id = self.post("/api/scans", self.recon(mode="standard")).json()["job_id"]
+        job = self.wait_finished(job_id)
+        self.assertEqual(job["status"], "failed")
+        self.assertIsNone(job["run_id"])
+        self.assertIsNone(job["warning"])
+
+
+class StoppedExitTests(WebTestCase):
+
+    runner_kwargs = {"exit_code": 4, "lines": ["status:      stopped",
+                                               "run id:      20261115_101500_10.10.1.20",
+                                               "report:      reports/x/report.md"]}
+
+    def test_exit_4_is_stopped_with_the_partial_run_id(self):
+        job_id = self.post("/api/scans", self.recon(mode="standard")).json()["job_id"]
+        job = self.wait_finished(job_id)
+        self.assertEqual(job["status"], "stopped")
+        self.assertEqual(job["exit_code"], 4)
+        self.assertEqual(job["run_id"], "20261115_101500_10.10.1.20")
+
+    def test_stop_waits_for_the_partial_report(self):
+        self.assertEqual(jobmod.STOP_GRACE, 20)
 
 
 # ---- request guards --------------------------------------------------------

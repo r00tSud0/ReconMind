@@ -18,6 +18,7 @@ from types import SimpleNamespace as NS
 from unittest import mock
 
 from reconmind.agent import brain, llm, tools as toolmod
+from reconmind.agent import __main__ as runner
 from reconmind.agent.__main__ import main
 from reconmind.ai import attack_mapper
 
@@ -58,6 +59,13 @@ class FakeOpenAI:
 
 def fake_scan():
     return dict(FAKE_SCAN, ports=[dict(p) for p in FAKE_SCAN["ports"]])
+
+
+def fake_pipeline(target, plan, **kwargs):
+    """Stands in for the standard pipeline that runs before the model: no tool runs."""
+    tb = toolmod.ToolBox(target, plan=plan)
+    tb.scan = fake_scan()
+    return tb
 
 
 class TmpDirTest(unittest.TestCase):
@@ -252,6 +260,7 @@ class RunnerFlagTests(TmpDirTest):
         fake_sdk = NS(OpenAI=mock.Mock(return_value=FakeOpenAI([])))
         with mock.patch.object(brain, "run_agent",
                                return_value=(toolmod.ToolBox(TARGET), "summary")) as agent, \
+             mock.patch.object(runner, "run_plan", side_effect=fake_pipeline), \
              mock.patch.dict(sys.modules, {"openai": fake_sdk}), \
              contextlib.redirect_stdout(out):
             code = main(["reconmind.agent"] + list(args))
@@ -273,18 +282,29 @@ class RunnerFlagTests(TmpDirTest):
         self.assertEqual(agent.call_args.kwargs["model"], "from-flag")
         self.assertNotIn("RECONMIND_PROVIDER", os.environ)  # flags never leak into env
 
+    # --provider without --mode counts as asking for AI mode, so a config
+    # error still stops the run.
     def test_provider_without_model_stops(self):
         os.environ["HF_TOKEN"] = "h"
         code, agent, out = self.run_main("--provider", "huggingface", TARGET)
         self.assertEqual(code, 1)
         agent.assert_not_called()
         self.assertIn("RECONMIND_MODEL", out)
+        self.assertNotIn("Standard report", out)
 
+    # Without --mode or a model flag, a missing key now means a Standard
+    # report, so this one asks for --mode ai, which still stops.
     def test_missing_key_stops(self):
-        code, agent, out = self.run_main(TARGET)
+        code, agent, out = self.run_main("--mode", "ai", TARGET)
         self.assertEqual(code, 1)
         agent.assert_not_called()
         self.assertIn("OPENROUTER_API_KEY", out)
+
+    def test_missing_key_without_mode_is_standard(self):
+        code, agent, out = self.run_main(TARGET)
+        self.assertEqual(code, 0)
+        agent.assert_not_called()
+        self.assertIn("No API key set, so this is a Standard report.", out)
 
     def test_gate_still_runs_first(self):
         code, agent, out = self.run_main("--provider", "nope", "10.0.3.15")
@@ -386,12 +406,15 @@ class RateLimitTests(TmpDirTest):
         self.assertIsInstance(exc, HTTPError)
         self.assertEqual(exc.status_code, 401)
 
-    def test_main_loop_rate_limit_exits_1_without_traceback_or_report(self):
+    def test_main_loop_rate_limit_exits_1_and_keeps_the_tool_report(self):
+        # The tools ran before the model, so a rate limited analyst no longer
+        # costs the scan: the report is saved with the "model was busy" notice.
         os.environ["OPENROUTER_API_KEY"] = "k"
         fake_sdk = NS(OpenAI=mock.Mock(return_value=FakeOpenAI([])))
         out = io.StringIO()
         with mock.patch.object(brain, "run_agent",
                                side_effect=llm.RateLimited(llm.RATE_LIMIT_MESSAGE)), \
+             mock.patch.object(runner, "run_plan", side_effect=fake_pipeline), \
              mock.patch.dict(sys.modules, {"openai": fake_sdk}), \
              contextlib.redirect_stdout(out):
             code = main(["reconmind.agent", TARGET])
@@ -399,7 +422,12 @@ class RateLimitTests(TmpDirTest):
         self.assertIn("Model busy (rate limited). Try again in a minute or use --model "
                       "with another model.", out.getvalue())
         self.assertNotIn("Traceback", out.getvalue())
-        self.assertFalse(os.path.isdir("reports") and os.listdir("reports"))
+        with open(os.path.join("reports", "index.json")) as fh:
+            run_id = json.load(fh)[-1]["run_id"]
+        with open(os.path.join("reports", run_id, "report.md")) as fh:
+            report = fh.read()
+        self.assertIn("Analyst summary unavailable: the model was busy (rate limited).", report)
+        self.assertIn("## Open ports", report)
 
 
 def empty_length(tokens, reasoning=None):
@@ -529,8 +557,11 @@ class LengthBudgetTests(TmpDirTest):
         ])
         fake_sdk = NS(OpenAI=mock.Mock(return_value=fake))
         out = io.StringIO()
+        # The pipeline is replaced so no tool runs; the analyst's nmap_scan
+        # request below is refused by its read only tools.
         with mock.patch.object(toolmod, "run_nmap", return_value=fake_scan()), \
              mock.patch.object(toolmod, "search_exploits", return_value=FAKE_EXPLOITS), \
+             mock.patch.object(runner, "run_plan", side_effect=fake_pipeline), \
              mock.patch.dict(sys.modules, {"openai": fake_sdk}), \
              contextlib.redirect_stdout(out):
             code = main(["reconmind.agent", TARGET])
@@ -550,7 +581,8 @@ class LengthBudgetTests(TmpDirTest):
         fake = FakeOpenAI([turn("no summary here"), turn("still none")])
         fake_sdk = NS(OpenAI=mock.Mock(return_value=fake))
         out = io.StringIO()
-        with mock.patch.dict(sys.modules, {"openai": fake_sdk}), contextlib.redirect_stdout(out):
+        with mock.patch.object(runner, "run_plan", side_effect=fake_pipeline), \
+             mock.patch.dict(sys.modules, {"openai": fake_sdk}), contextlib.redirect_stdout(out):
             main(["reconmind.agent", TARGET])
         self.assertNotIn("length budget", out.getvalue())
 

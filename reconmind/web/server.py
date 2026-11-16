@@ -6,9 +6,12 @@ that python3 -m reconmind.web serves on 127.0.0.1.
 
     GET  /                        the page (static/index.html)
     GET  /static/...              its stylesheet and JavaScript modules
-    GET  /api/options             presets, actions, allowlist and denylist (read only)
+    GET  /api/options             presets, actions, allowlist and denylist, and
+                                  whether AI analysis is available (read only;
+                                  provider and model, never the key)
     POST /api/check               check a scan request; nothing is launched
-    POST /api/scans               the same checks, then start a job
+    POST /api/scans               the same checks, then start a job; a recon
+                                  request may carry "mode": "standard" or "ai"
     GET  /api/scans/<job id>      a job's status and its last output lines
     POST /api/scans/<job id>/stop stop that job
     GET  /api/history             report history entries, newest first
@@ -40,6 +43,7 @@ from reconmind.code.inputs import InputError, validate_input
 from reconmind.core import config, history
 from reconmind.core import report as report_mod
 from reconmind.core.authorization import is_authorized
+from reconmind.core.report import MODE_AI, MODE_STANDARD, MODES
 from reconmind.core.scan_plan import (
     ACTIONS, DEFAULT_PRESET, PRESETS, PlanError, PortsSpecError, build_plan)
 from reconmind.web.jobs import JOB_ID, Busy, JobManager
@@ -144,6 +148,28 @@ def _check_code(body, cwd):
     return code_input, explain
 
 
+def ai_options():
+    """{"available", "provider", "model"} for the configured LLM. Never the key."""
+    from reconmind.agent.__main__ import ai_config
+    config, _ = ai_config()
+    if config is None:
+        return {"available": False, "provider": None, "model": None}
+    return {"available": True, "provider": config.name, "model": config.model}
+
+
+def _check_mode(body):
+    """The report mode for a recon request. Raises Invalid."""
+    mode = body.get("mode")
+    if mode is None:
+        return MODE_AI if ai_options()["available"] else MODE_STANDARD
+    if mode not in MODES:
+        raise Invalid("Mode must be \"standard\" or \"ai\".", "mode")
+    if mode == MODE_AI and not ai_options()["available"]:
+        raise Invalid("AI analysis needs an LLM. Set an API key in .env, or choose the "
+                      "Standard report.", "mode")
+    return mode
+
+
 def _check(body, cwd):
     """("recon", plan) or ("code", (CodeInput, explain)). Raises Refused or Invalid."""
     kind = body.get("kind")
@@ -241,6 +267,7 @@ def create_app(report_dir=None, runner=None, port=None):
             "allowlist": list(config.ALLOWLIST),
             "denylist": list(config.DENYLIST),
             "max_hosts": MAX_HOSTS,
+            "ai": ai_options(),
         }
 
     @app.post("/api/check")
@@ -267,13 +294,14 @@ def create_app(report_dir=None, runner=None, port=None):
             return _failure(403, "forbidden", "The request body must be a JSON object.")
         try:
             kind, result = _check(body, cwd)
+            mode = _check_mode(body) if kind == "recon" else None
         except Refused as exc:
             return _refused(exc)
         except Invalid as exc:
             return _invalid(exc)
         try:
             if kind == "recon":
-                job_id = jobs.start_recon(result)
+                job_id = jobs.start_recon(result, mode)
             else:
                 code_input, explain = result
                 job_id = jobs.start_code(code_input.root, explain)

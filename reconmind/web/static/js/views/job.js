@@ -26,10 +26,15 @@ const STATUS_WORDS = {
 /* What each ending means and what to do next. */
 function endNote(job) {
   switch (job.status) {
-    case 'done':
-      return job.run_id
-        ? ['The scan finished', 'The report is saved in reports/' + job.run_id + '/report.md. The report view arrives in a later step.']
-        : ['The scan finished', 'The output above shows where the report was saved.'];
+    case 'done': {
+      const where = job.run_id
+        ? 'The report is saved in reports/' + job.run_id + '/report.md. The report view arrives in a later step.'
+        : 'The output above shows where the report was saved.';
+      // A finished report without the AI summary: say so calmly, the tool results are all there.
+      return job.warning
+        ? ['The scan finished', job.warning + ' ' + where]
+        : ['The scan finished', where];
+    }
     case 'refused':
       return ['The authorization gate refused the target', 'Nothing was sent to that address. The refusal is saved in the report history.'];
     case 'failed':
@@ -85,7 +90,7 @@ export function mountJob(view, jobId) {
 
   function renderNote() {
     const note = endNote(job);
-    const key = note ? job.status + job.run_id : null;
+    const key = note ? job.status + job.run_id + (job.warning || '') : null;
     if (key === shownEnd) return;
     shownEnd = key;
     refs.alert.replaceChildren();

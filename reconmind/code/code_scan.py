@@ -24,6 +24,7 @@ import re
 from reconmind.code.bandit_scan import not_run_result, run_bandit
 from reconmind.code.inputs import resolve_reported, validate_input
 from reconmind.code.semgrep_scan import run_semgrep
+from reconmind.core.events import emit
 
 SEVERITIES = ("high", "medium", "low")
 SEMGREP_SEVERITY = {"ERROR": "high", "WARNING": "medium", "INFO": "low",
@@ -167,7 +168,23 @@ def severity_counts(findings):
     return counts
 
 
-def run_code_scan(path, explain=False, provider=None, model=None, client=None):
+def _progress(progress, step, status, **data):
+    """One "step" event (events.emit) plus the caller's progress(step, status)."""
+    emit("step", action="code", tool=step, port=None, status=status, **data)
+    if progress is not None:
+        progress(step, status)
+
+
+def _tool_progress(progress, step, result):
+    """done when the tool ran, error with its message otherwise."""
+    if result.get("status") == STATUS_OK:
+        _progress(progress, step, "done")
+    else:
+        message = " ".join(str(result.get("error") or result.get("status") or "").split())
+        _progress(progress, step, "error", message=message[:300])
+
+
+def run_code_scan(path, explain=False, provider=None, model=None, client=None, progress=None):
     """
     Scan the code at path and return the scan dict:
         {"kind": "code", "input", "input_type", "status", "files": {"count",
@@ -176,12 +193,24 @@ def run_code_scan(path, explain=False, provider=None, model=None, client=None):
     Raises inputs.InputError when the input cannot be scanned. explanation is
     None unless explain is True. provider, model and client are used only by
     the explanation.
+
+    progress is an optional callback, progress(step, status), called as
+    "semgrep", "bandit" and "explanation" start ("start") and end ("done",
+    "skipped" or "error"). Each of these also goes out as a "step" event.
     """
     code_input = validate_input(path)
     languages = dict(sorted(code_input.languages.items()))
 
+    _progress(progress, "semgrep", "start")
     semgrep = run_semgrep(code_input.root, list(languages))
-    bandit = run_bandit(code_input.root) if "python" in languages else not_run_result()
+    _tool_progress(progress, "semgrep", semgrep)
+    if "python" in languages:
+        _progress(progress, "bandit", "start")
+        bandit = run_bandit(code_input.root)
+        _tool_progress(progress, "bandit", bandit)
+    else:
+        bandit = not_run_result()
+        _progress(progress, "bandit", "skipped", reason="no Python files")
 
     findings = merge(semgrep["findings"] if semgrep["status"] == STATUS_OK else [],
                      bandit["findings"] if bandit["status"] == STATUS_OK else [],
@@ -202,6 +231,12 @@ def run_code_scan(path, explain=False, provider=None, model=None, client=None):
     if explain:
         # Imported here so a scan without --explain never loads the LLM code.
         from reconmind.code.explain import explain_findings
+        _progress(progress, "explanation", "start")
         scan["explanation"] = explain_findings(findings, provider=provider, model=model,
                                                client=client)
+        if scan["explanation"].get("status") == STATUS_OK:
+            _progress(progress, "explanation", "done")
+        else:
+            _progress(progress, "explanation", "skipped",
+                      reason=scan["explanation"].get("reason", ""))
     return scan

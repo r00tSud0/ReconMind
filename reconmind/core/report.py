@@ -35,6 +35,18 @@ MATCH_WORDING = {
 }
 
 
+MODE_STANDARD = "standard"
+MODE_AI = "ai"
+MODES = (MODE_STANDARD, MODE_AI)
+STANDARD_NOTE = "Standard report. Turn on AI analysis for a written summary and attack path."
+
+STATUS_STOPPED = "stopped"
+STOPPED_NOTICE = ("**Stopped.** This scan was stopped before it finished, so this is a "
+                  "partial report. It shows only the results of the steps that finished.")
+STOPPED_FINISHED = "- Finished: {s}"
+STOPPED_NOT_RUN = "- Did not run: {s}"
+STOPPED_BEFORE_NMAP = ("The scan was stopped before nmap finished, so no ports are listed.")
+
 PLAN_HEAD = "## Scan plan"
 PLAN_RAN = "Ran"
 PLAN_DID_NOT_RUN = "Selected, did not run"
@@ -55,7 +67,9 @@ def _selected(plan, action_id):
 
 def _action_ran(action_id, scan):
     if action_id == "surface":
-        return scan.get("status") == "ok"
+        # A stopped scan still ran nmap if nmap's details were stored.
+        return scan.get("status") == "ok" or (scan.get("status") == STATUS_STOPPED
+                                              and bool(scan.get("scan_info")))
     if action_id == "exploits":
         return any("exploit_status" in p or "exploits" in p for p in scan.get("ports") or [])
     return bool(scan.get(PLAN_RESULT_KEYS[action_id]))
@@ -959,8 +973,18 @@ def _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
     _attack_section(lines, attack_check)
 
 
+def _stopped_section(lines, stop):
+    """The Stopped notice at the top of a partial report."""
+    stop = stop or {}
+    lines.append(STOPPED_NOTICE)
+    lines.append("")
+    lines.append(STOPPED_FINISHED.format(s=", ".join(stop.get("finished") or []) or "none"))
+    lines.append(STOPPED_NOT_RUN.format(s=", ".join(stop.get("not_run") or []) or "none"))
+    lines.append("")
+
+
 def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=False,
-                 rate_limited=False, attack_check=None, plan=None, path=None):
+                 rate_limited=False, attack_check=None, plan=None, path=None, mode=None):
     """
     Write one Markdown report for a scan result. Return the file path.
 
@@ -978,6 +1002,11 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     the top and each tool section appears only if its action was selected.
     Without one, every section renders as before. path is where to write;
     without it the report goes to a new flat file in REPORT_DIR, as before.
+
+    mode is "standard", "ai" or None. A Standard report has no summary
+    section, only the one line STANDARD_NOTE; "ai" and None keep the summary
+    section exactly as before. A scan with status "stopped" starts with the
+    Stopped notice, listing scan["stop"]["finished"] and ["not_run"].
     """
     target = scan.get("target", "unknown")
     status = scan.get("status", "unknown")
@@ -994,18 +1023,23 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     elif os.path.dirname(path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    lines = [
-        "# ReconMind Report",
-        "",
+    lines = ["# ReconMind Report", ""]
+    if status == STATUS_STOPPED:
+        _stopped_section(lines, scan.get("stop"))
+    lines.extend([
         "**Target:** {t}".format(t=target),
         "**Scan status:** {s}".format(s=status),
         "**Generated:** {ts}".format(ts=stamp),
         "",
-    ]
+    ])
 
     _plan_section(lines, plan, scan)
-    _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
-                     rate_limited, attack_check)
+    if mode == MODE_STANDARD:
+        lines.append("_{n}_".format(n=STANDARD_NOTE))
+        lines.append("")
+    else:
+        _summary_section(lines, analyst_summary, unverified_refs, summary_failed,
+                         rate_limited, attack_check)
 
     if status not in ("refused", "nmap-not-found"):
         _scan_details_section(lines, scan.get("scan_info"))
@@ -1016,6 +1050,8 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     elif status == "nmap-not-found":
         lines.append("nmap is not installed on this machine, so no scan was run. "
                      "Run this on the Kali box where nmap is present.")
+    elif status == STATUS_STOPPED and not scan.get("scan_info") and not ports:
+        lines.append(STOPPED_BEFORE_NMAP)
     elif not ports:
         if unconfirmed:
             lines.append("The scan ran but no port was confirmed open. See the "

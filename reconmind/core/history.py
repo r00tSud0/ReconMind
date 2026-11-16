@@ -159,13 +159,16 @@ def _entries_for_append(index_path, run_id):
         return []
 
 
-def save_run(scan, plan=None, started=None, finished=None, report_dir=None, **report_kwargs):
+def save_run(scan, plan=None, started=None, finished=None, report_dir=None, mode=None,
+             **report_kwargs):
     """
     Save one run: its folder with report.md, scan.json and evidence.json, and
     one new entry in index.json. report_kwargs go to build_report
     (analyst_summary, unverified_refs, summary_failed, rate_limited,
     attack_check). started and finished are datetimes; they default to now.
-    Return a RunRecord.
+    mode is "standard" or "ai" and goes to build_report and the index entry;
+    None keeps the report as before and is recorded as "ai", the only kind
+    of run there was before modes. Return a RunRecord.
     """
     report_dir = report_dir or report_mod.REPORT_DIR
     started = started or datetime.now()
@@ -175,7 +178,7 @@ def save_run(scan, plan=None, started=None, finished=None, report_dir=None, **re
 
     report_path = report_mod.build_report(scan, plan=plan,
                                           path=os.path.join(folder, REPORT_NAME),
-                                          **report_kwargs)
+                                          mode=mode, **report_kwargs)
     clean, evidence = split_evidence(scan)
     plan_data = plan.to_dict() if plan is not None else None
     _write_json(os.path.join(folder, SCAN_NAME),
@@ -195,6 +198,8 @@ def save_run(scan, plan=None, started=None, finished=None, report_dir=None, **re
         "status": scan.get("status", "unknown"),
         "open_ports": len(scan.get("ports") or []),
         "findings": finding_counts(scan, plan),
+        "mode": mode if mode in report_mod.MODES else report_mod.MODE_AI,
+        "stopped": scan.get("status") == report_mod.STATUS_STOPPED,
     }
     index_path = os.path.join(report_dir, INDEX_NAME)
     entries = _entries_for_append(index_path, run_id)
@@ -206,6 +211,21 @@ def save_run(scan, plan=None, started=None, finished=None, report_dir=None, **re
 def entry_kind(entry):
     """"recon" or "code". An entry written before kinds existed is recon."""
     return entry.get("kind") or KIND_RECON
+
+
+def entry_mode(entry):
+    """
+    "standard" or "ai" for a recon entry. An entry written before modes
+    existed is "ai": every run used the model then. Code entries have none.
+    """
+    if entry_kind(entry) != KIND_RECON:
+        return None
+    return entry.get("mode") or report_mod.MODE_AI
+
+
+def entry_stopped(entry):
+    """True if the run was stopped. An entry written before stops existed was not."""
+    return bool(entry.get("stopped"))
 
 
 def code_finding_counts(scan):

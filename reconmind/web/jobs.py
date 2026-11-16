@@ -7,10 +7,18 @@ or runs the agent itself, so the CLI keeps doing everything it does on the
 command line: the authorization gate, the scan plan check, the report and the
 history entry.
 
-    JobManager.start_recon(plan)        [python, -u, -m, reconmind, target,
-                                         --preset, P, --ports, S, --actions, A]
+    JobManager.start_recon(plan, mode)  [python, -u, -m, reconmind, target,
+                                         --preset, P, --ports, S, --actions, A,
+                                         --mode, M]
     JobManager.start_code(path, explain) [python, -u, -m, reconmind, path]
                                          plus --explain when asked
+
+mode is "standard" or "ai". Left out, it is "ai" when an LLM is configured
+and "standard" otherwise, the same default the CLI uses.
+
+Each job gets RECONMIND_EVENTS=<report_dir>/.jobs/<job id>.events.jsonl in
+its environment, so the CLI writes its progress events there (see
+reconmind/core/events.py).
 
 Every value on the command line comes from a validated ScanPlan or a validated
 absolute path, never from request text, and the list is passed without a
@@ -26,8 +34,13 @@ is marked interrupted.
 
 Jobs belong to the server, not to the browser window: closing the page does
 not stop a scan. stop() sends SIGTERM to the job's whole process group (the
-CLI and any tool it started), waits up to STOP_WAIT seconds, then sends
-SIGKILL.
+CLI and any tool it started), waits up to STOP_GRACE seconds so the CLI can
+write its partial report, then sends SIGKILL. The CLI exits 4 after a stop,
+which is recorded as "stopped".
+
+Exit 1 after the CLI printed its "run id:" line means the report was saved
+without the AI summary (the model was busy or failed). That job is "done"
+with a "warning" saying so. Exit 1 with no run id is "failed".
 """
 
 import json
@@ -44,7 +57,11 @@ from datetime import datetime
 
 JOBS_FOLDER = ".jobs"
 MAX_LINES = 5000
-STOP_WAIT = 5
+STOP_GRACE = 20  # seconds after SIGTERM, so the CLI can save its partial report
+STOP_WAIT = 5    # seconds after SIGKILL
+EVENTS_ENV = "RECONMIND_EVENTS"
+EVENTS_SUFFIX = ".events.jsonl"
+MODES = ("standard", "ai")
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 JOB_ID = re.compile(r"[0-9a-f]{12}")
 RUN_ID_PREFIX = "run id:"
@@ -56,12 +73,19 @@ REFUSED = "refused"
 STOPPED = "stopped"
 INTERRUPTED = "interrupted"
 
-# Exit codes of python3 -m reconmind: 0 finished, 2 refused by the gate.
+# Exit codes of python3 -m reconmind: 0 finished, 2 refused by the gate,
+# 4 stopped (a partial report was saved).
 EXIT_OK = 0
 EXIT_REFUSED = 2
+EXIT_STOPPED = 4
+# Exit 1 after a "run id:" line means the report was saved but the AI summary
+# was not (the model was busy or failed), so the job counts as done.
+EXIT_ERROR = 1
+SUMMARY_WARNING = "The AI summary was unavailable, so the report has the tool results only."
 
 PRESET_LABELS = {"quick": "Quick scan", "standard": "Standard scan", "full": "Full report"}
-META_KEYS = ("id", "kind", "label", "status", "exit_code", "started", "finished", "run_id")
+META_KEYS = ("id", "kind", "label", "status", "exit_code", "started", "finished", "run_id",
+             "warning")
 
 
 class Busy(RuntimeError):
@@ -96,11 +120,20 @@ def _now():
     return datetime.now().strftime(TIME_FORMAT)
 
 
-def recon_command(plan):
-    """The CLI argument list for a validated ScanPlan."""
+def default_mode():
+    """"ai" when an LLM is configured (after reading .env), otherwise "standard"."""
+    # Imported here so the jobs module never loads the LLM code on its own.
+    from reconmind.agent.__main__ import default_mode as cli_default_mode
+    return cli_default_mode()
+
+
+def recon_command(plan, mode):
+    """The CLI argument list for a validated ScanPlan and report mode."""
+    if mode not in MODES:
+        raise ValueError("Unknown report mode {m!r}.".format(m=mode))
     return [sys.executable, "-u", "-m", "reconmind", plan.target,
             "--preset", plan.preset, "--ports", plan.ports,
-            "--actions", ",".join(plan.actions)]
+            "--actions", ",".join(plan.actions), "--mode", mode]
 
 
 def code_command(path, explain):
@@ -126,7 +159,7 @@ class _Job:
     def __init__(self, job_id, kind, label):
         self.meta = {"id": job_id, "kind": kind, "label": label, "status": RUNNING,
                      "exit_code": None, "started": _now(), "finished": None,
-                     "run_id": None}
+                     "run_id": None, "warning": None}
         self.lines = deque(maxlen=MAX_LINES)
         self.proc = None
         self.thread = None
@@ -155,6 +188,10 @@ class JobManager:
 
     def _log_path(self, job_id):
         return os.path.join(self.jobs_dir, job_id + ".log")
+
+    def events_path(self, job_id):
+        """Where the job's CLI writes its progress events."""
+        return os.path.join(self.jobs_dir, job_id + EVENTS_SUFFIX)
 
     def _mark_interrupted(self):
         """A job saved as running was cut off when its server stopped."""
@@ -191,8 +228,9 @@ class JobManager:
 
     # ---- starting ----------------------------------------------------------
 
-    def start_recon(self, plan):
-        return self._start("recon", recon_label(plan), recon_command(plan))
+    def start_recon(self, plan, mode=None):
+        mode = mode or default_mode()
+        return self._start("recon", recon_label(plan), recon_command(plan, mode))
 
     def start_code(self, path, explain=False):
         return self._start("code", code_label(path), code_command(path, explain))
@@ -207,6 +245,7 @@ class JobManager:
             os.makedirs(self.jobs_dir, exist_ok=True)
             job = _Job(job_id, kind, label)
             env = dict(os.environ, PYTHONUNBUFFERED="1")
+            env[EVENTS_ENV] = self.events_path(job_id)
             try:
                 # An argument list and no shell: nothing in it is ever parsed by a shell.
                 # A new session gives the job its own process group, so stop() reaches
@@ -257,6 +296,12 @@ class JobManager:
                         job.meta["status"] = DONE
                     elif code == EXIT_REFUSED:
                         job.meta["status"] = REFUSED
+                    elif code == EXIT_STOPPED:
+                        job.meta["status"] = STOPPED
+                    elif code == EXIT_ERROR and job.meta["run_id"]:
+                        # The report exists; only the AI summary is missing.
+                        job.meta["status"] = DONE
+                        job.meta["warning"] = SUMMARY_WARNING
                     else:
                         job.meta["status"] = FAILED
                 if self._running_id == job_id:
@@ -308,7 +353,8 @@ class JobManager:
 
     def stop(self, job_id):
         """
-        Stop a running job: SIGTERM, up to STOP_WAIT seconds, then SIGKILL.
+        Stop a running job: SIGTERM, up to STOP_GRACE seconds (the CLI saves
+        its partial report and exits 4), then SIGKILL.
         Return the job's data, or None when there is no such job. A job that
         is not running is returned unchanged.
         """
@@ -325,7 +371,7 @@ class JobManager:
         if stopping:
             self._signal(job.proc, signal.SIGTERM)
             try:
-                job.proc.wait(timeout=STOP_WAIT)
+                job.proc.wait(timeout=STOP_GRACE)
             except subprocess.TimeoutExpired:
                 self._signal(job.proc, signal.SIGKILL)
                 try:

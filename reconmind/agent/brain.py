@@ -32,7 +32,7 @@ def _short(text, limit=300):
 
 
 def run_agent(target, client=None, model=None, trace=True, tool_specs=None,
-              system_prompt=None, plan=None):
+              system_prompt=None, plan=None, toolbox=None, first_message=None):
     """
     Run one ReAct session against target.
 
@@ -43,6 +43,10 @@ def run_agent(target, client=None, model=None, trace=True, tool_specs=None,
     of specs sent to the model, system_prompt the system prompt, and plan a
     ScanPlan handed to ToolBox. Each one left out keeps the old behavior:
     every spec in TOOL_SPECS, SYSTEM_PROMPT, and a ToolBox with no plan.
+
+    toolbox and first_message are optional too. toolbox is used instead of
+    building a ToolBox (the AI analyst passes its read only tools), and
+    first_message replaces the first user message. Left out, nothing changes.
     """
     model = model or os.environ.get("RECONMIND_MODEL")
     if not model:
@@ -51,10 +55,14 @@ def run_agent(target, client=None, model=None, trace=True, tool_specs=None,
         import anthropic  # imported here so tests don't need the package
         client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY
 
-    tools = ToolBox(target) if plan is None else ToolBox(target, plan=plan)
+    if toolbox is not None:
+        tools = toolbox
+    else:
+        tools = ToolBox(target) if plan is None else ToolBox(target, plan=plan)
     specs = TOOL_SPECS if tool_specs is None else tool_specs
     system = SYSTEM_PROMPT if system_prompt is None else system_prompt
-    messages = [{"role": "user", "content": first_user_message(target)}]
+    first = first_user_message(target) if first_message is None else first_message
+    messages = [{"role": "user", "content": first}]
 
     for step in range(1, MAX_STEPS + 1):
         response = client.messages.create(

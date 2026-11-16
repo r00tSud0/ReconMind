@@ -4,5 +4,9 @@
 # Semgrep runs only with local rules, never the registry. Set them up once:
 #     git clone https://github.com/semgrep/semgrep-rules ~/.local/share/reconmind/semgrep-rules && git -C ~/.local/share/reconmind/semgrep-rules checkout 311ca4e9ba59d700624539bf658e3d29b134ee77
 # Another location can be set with RECONMIND_SEMGREP_RULES.
-semgrep==1.185.0
+#
+# Semgrep is not installed from this file. It pins library versions that clash
+# with the app's packages, so install it in its own environment with pipx:
+#     pipx install semgrep==1.185.0
+# ReconMind already runs it as a separate program found on PATH.
 bandit==1.9.4

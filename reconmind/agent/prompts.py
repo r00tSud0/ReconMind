@@ -1,5 +1,7 @@
 """System prompt for the ReconMind agent brain."""
 
+import json
+
 # Shared by the main prompt and the repair prompt. The END OF SUMMARY line is
 # how summary_check knows the text was not cut off.
 FORMAT_RULES = """Length and format:
@@ -192,3 +194,93 @@ def first_user_message(target):
     return ("Authorized target: {t}\n"
             "Perform reconnaissance on this target and write the analyst "
             "summary.".format(t=target))
+
+
+# ---- AI analyst (AI enhanced report) ---------------------------------------
+# In an AI enhanced run every tool has already run through the standard
+# pipeline. The model only reads the stored results (analyst_tools.py) and
+# writes the same summary format as above, checked by the same summary_check.
+
+_ANALYST_INTRO = """You are ReconMind, a security analyst working inside an isolated, \
+authorized penetration testing lab. ReconMind has already run the operator's scan plan \
+against one target the operator owns, and every tool result is stored. Your job is to \
+read those results and explain them.
+
+You cannot run any scanner, send any packet or reach any address. Your only tools read \
+the stored results:
+- list_findings: every finding with the tool it came from. Start here.
+- get_port: everything stored for one open port.
+- get_section: one whole section (nvd, smb, attack_map, port_states, unconfirmed_ports).
+You may call several tools in one turn. Read what you need, then write the summary. \
+Do not read every port one by one when list_findings already answers the question.
+
+Rules:
+- Use only facts, exploit titles, EDB-IDs, CVE IDs and versions that appear in the tool \
+results. Never invent CVE numbers, EDB-IDs, versions or services.
+- A tool that was not selected in the plan did not run. Say it was not run, never that \
+it found nothing. A tool that ended with an error did not check that port.
+- You are doing analysis only. Do not write exploit code or step by step exploitation \
+commands.
+"""
+
+_ANALYST_CVE_RULE = """- NVD matches the upstream version only, so a CVE from cve_lookup may \
+already be patched by the distribution. Say so when you rely on one.
+"""
+
+_ANALYST_ATTACK_RULE = """- In the MITRE ATT&CK section, use only the technique IDs attack_map \
+confirmed (source attack_map in list_findings, or get_section attack_map). Never use its \
+lower confidence suggestions or any other technique ID.
+"""
+
+_ANALYST_OUTRO = """
+When you are done, reply with no tool call and write only the analyst summary in \
+Markdown with exactly these sections. No introduction before them and no closing \
+remarks, offers or questions after them.
+### Key findings
+Most severe first. For each: port and service, what is wrong, what it means for the \
+owner of this host, and whether it is confirmed or unconfirmed.
+### Likely attack path
+How an attacker could chain these findings, at a high level.
+### MITRE ATT&CK (preliminary)
+One technique per line: the ID followed by its official ATT&CK name, e.g. \
+T1190 Exploit Public-Facing Application, or T1021.004 Remote Services: SSH.
+### Recommended fixes
+What to fix first, in order: a numbered list, most urgent first, with concrete \
+remediation for each finding.
+END OF SUMMARY
+
+""" + FORMAT_RULES
+
+
+def build_analyst_system_prompt(plan=None):
+    """
+    The system prompt for the AI analyst over a finished scan. The exploit
+    rules appear only when Exploit Hunt was in the plan, the CVE rule only
+    when CVE Intel was. plan=None means every action.
+    """
+    def enabled(action_id):
+        return plan is None or plan.has(action_id)
+
+    parts = [_ANALYST_INTRO]
+    if enabled("exploits"):
+        parts.append(_EXPLOIT_RULES)
+    if enabled("cves"):
+        parts.append(_ANALYST_CVE_RULE)
+    parts.append(_RANK_RULE)
+    parts.append(_ANALYST_ATTACK_RULE)
+    parts.append(_ANALYST_OUTRO)
+    return "".join(parts)
+
+
+def analyst_first_message(target, facts):
+    """
+    The analyst's first user message: the target and a compact overview of
+    the finished scan. facts is a dict (sent as JSON) or text.
+    """
+    if not isinstance(facts, str):
+        facts = json.dumps(facts, indent=1, default=str)
+    return ("Authorized target: {t}\n"
+            "The scan has finished. Overview of the stored results (JSON):\n{f}\n\n"
+            "Read the findings with your tools, then write the analyst summary: what "
+            "the findings mean, the likely attack path and what to fix first.".format(
+                t=target, f=facts))

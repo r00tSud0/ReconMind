@@ -23,7 +23,8 @@ from unittest import mock
 
 from reconmind.agent import brain, llm, tools as toolmod
 from reconmind.agent import __main__ as runner
-from reconmind.agent.prompts import FORMAT_RULES, SYSTEM_PROMPT, build_system_prompt
+from reconmind.agent.prompts import (
+    FORMAT_RULES, SYSTEM_PROMPT, build_analyst_system_prompt, build_system_prompt)
 from reconmind.ai import attack_mapper
 from reconmind.core import history
 from reconmind.core.report import build_report
@@ -673,15 +674,22 @@ class CliTests(InTempDir):
                                     "k", "fake-model")
         captured = {}
 
+        # The standard pipeline runs the plan first; here it hands back a
+        # finished scan so no tool runs. Then the analyst (run_agent) reads it.
+        def fake_pipeline(target, plan, **kwargs):
+            captured["pipeline_plan"] = plan
+            tb = toolmod.ToolBox(target, plan=plan)
+            tb.scan = scan_with(dict(FTP_PORT, exploits=FAKE_EXPLOITS))
+            return tb
+
         def fake_agent(target, **kwargs):
             captured.update(kwargs, target=target)
-            tb = toolmod.ToolBox(target, plan=kwargs.get("plan"))
-            tb.scan = scan_with(dict(FTP_PORT, exploits=FAKE_EXPLOITS))
-            return tb, VALID_SUMMARY
+            return kwargs.get("toolbox"), VALID_SUMMARY
 
         out = io.StringIO()
         with mock.patch.object(llm, "load_config", return_value=config) as load, \
              mock.patch.object(llm, "make_client", return_value=NS()) as make, \
+             mock.patch.object(runner, "run_plan", side_effect=fake_pipeline), \
              mock.patch.object(brain, "run_agent", side_effect=fake_agent) as agent, \
              mock.patch.object(runner, "check_attack",
                                return_value=NS(skipped="ATT&CK check skipped", rows=[])), \
@@ -705,9 +713,11 @@ class CliTests(InTempDir):
         plan = captured["plan"]
         self.assertEqual((plan.preset, plan.ports, plan.actions),
                          ("quick", "21,22", ("surface", "web")))
+        # The plan drives the pipeline; the model only gets the read only tools.
+        self.assertIs(captured["pipeline_plan"], plan)
         self.assertEqual([s["name"] for s in captured["tool_specs"]],
-                         ["nmap_scan", "web_fingerprint", "attack_map"])
-        self.assertEqual(captured["system_prompt"], build_system_prompt(plan))
+                         ["list_findings", "get_port", "get_section"])
+        self.assertEqual(captured["system_prompt"], build_analyst_system_prompt(plan))
         self.assertIn("Scan plan: preset quick (customized), ports 21,22 (2 ports)", out)
         self.assertIn("[x] web", out)
         self.assertIn("[ ] smb", out)
@@ -909,6 +919,8 @@ class HistoryTests(InTempDir):
             "status": "ok", "open_ports": 3,
             # telnet risk flag high, nuclei high, testssl MEDIUM; "OK" is not counted
             "findings": {"critical": 0, "high": 2, "medium": 1, "low": 0},
+            # No mode passed: recorded as "ai", like every run before modes.
+            "mode": "ai", "stopped": False,
         }])
 
     def test_risk_flags_not_counted_without_exploit_hunt(self):

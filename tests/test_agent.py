@@ -203,8 +203,11 @@ class SummaryValidationRunnerTests(unittest.TestCase):
         config = llm.ProviderConfig("anthropic", "anthropic", None, "ANTHROPIC_API_KEY",
                                     "k", "fake-model")
         out = io.StringIO()
+        # The standard pipeline runs first in every run; here it hands back the
+        # prepared toolbox so no tool runs. The analyst (run_agent) returns the draft.
         with mock.patch.object(llm, "load_config", return_value=config) as load, \
              mock.patch.object(llm, "make_client", return_value=client) as make, \
+             mock.patch.object(runner, "run_plan", return_value=tb), \
              mock.patch.object(brain, "run_agent", return_value=(tb, draft)) as agent, \
              mock.patch.object(runner, "check_attack", partial(
                  check_attack, path=attack_path or ATTACK_FIXTURE)), \

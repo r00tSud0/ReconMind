@@ -7,8 +7,9 @@ INPUT decides what runs:
 
     an IPv4 address       the recon agent, exactly as python3 -m reconmind.agent
                           runs it: the authorization gate first, then the scan
-                          plan (--preset, --ports, --actions) and the model
-                          (--provider, --model)
+                          plan (--preset, --ports, --actions), the report mode
+                          (--mode standard or ai) and the model (--provider,
+                          --model)
     an existing file      the code scan: Semgrep and Bandit on code that is
     or folder             only read, saved to the report history; --explain
                           adds the optional AI explanation, using --provider
@@ -17,6 +18,9 @@ INPUT decides what runs:
 Anything else is refused with an error naming both choices. An IPv4 address
 always means recon, even if a file with that name exists.
 python3 -m reconmind.agent keeps working on its own.
+
+A code scan prints "running semgrep...", "running bandit..." and "writing the
+AI explanation..." as each one starts, so the terminal never looks frozen.
 """
 
 import argparse
@@ -28,7 +32,11 @@ from datetime import datetime
 from reconmind.agent import __main__ as agent_main
 
 AGENT_PROG = "python3 -m reconmind.agent"
-RECON_ONLY_FLAGS = (("preset", "--preset"), ("ports", "--ports"), ("actions", "--actions"))
+RECON_ONLY_FLAGS = (("preset", "--preset"), ("ports", "--ports"), ("actions", "--actions"),
+                    ("mode", "--mode"))
+# What the terminal shows as each code scan step starts.
+CODE_STEP_TEXT = {"semgrep": "running semgrep...", "bandit": "running bandit...",
+                  "explanation": "writing the AI explanation..."}
 
 NOT_UNDERSTOOD = ("{i!r} is neither an IPv4 address nor an existing file or folder.\n"
                   "Give an IPv4 address of an authorized target to run recon, or the path "
@@ -50,6 +58,7 @@ def _parse_args(args):
     parser.add_argument("--preset", help="recon only: scan preset")
     parser.add_argument("--ports", help="recon only: ports to scan")
     parser.add_argument("--actions", help="recon only: comma separated action ids")
+    parser.add_argument("--mode", help="recon only: report mode, standard or ai")
     parser.add_argument("--explain", action="store_true",
                         help="code scan only: add the AI explanation (off by default)")
     return parser.parse_args(args)
@@ -73,10 +82,14 @@ def _run_code(path, args):
     elif args.provider or args.model:
         print(MODEL_FLAGS_UNUSED)
 
+    def progress(step, status):
+        if status == "start" and step in CODE_STEP_TEXT:
+            print(CODE_STEP_TEXT[step], flush=True)
+
     started = datetime.now()
     try:
         scan = run_code_scan(path, explain=args.explain, provider=args.provider,
-                             model=args.model)
+                             model=args.model, progress=progress)
     except InputError as exc:
         print("Cannot scan: {e}".format(e=exc))
         return 1

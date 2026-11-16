@@ -17,8 +17,25 @@ that python3 -m reconmind.web serves on 127.0.0.1.
     GET  /api/scans/latest        {"job": ...}: the running job, otherwise the
                                   most recently started one, otherwise null
     GET  /api/scans/<job id>      a job's status and its last output lines
+    GET  /api/scans/<job id>/events?since=N
+                                  the job's progress events after the first N
+                                  lines of its events file: {"events", "next",
+                                  "more"}; N defaults to 0
     POST /api/scans/<job id>/stop stop that job
     GET  /api/history             report history entries, newest first
+    GET  /api/reports/<run id>    one saved run for the Report screen: its index
+                                  entry, report.md, scan.json and the findings,
+                                  port spectrum and AI summary derived from
+                                  them (see runs.report_view); never
+                                  evidence.json
+    GET  /api/reports/<run id>/evidence
+                                  evidence.json as a download (Raw evidence)
+    GET  /api/reports/<run id>/report.md
+                                  report.md as a download (Export .md)
+
+Run ids must look like the ones history.new_run_id makes, and every run file
+must resolve to exactly <report_dir>/<run id>/<name> (runs.run_file);
+anything else is 404.
 
 Every request passes the same guards before any route runs:
 
@@ -50,10 +67,14 @@ from reconmind.core.authorization import is_authorized
 from reconmind.core.report import MODE_AI, MODE_STANDARD, MODES
 from reconmind.core.scan_plan import (
     ACTIONS, DEFAULT_PRESET, PRESETS, PlanError, PortsSpecError, build_plan)
+from reconmind.web import runs
 from reconmind.web.jobs import JOB_ID, Busy, JobManager
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 MAX_HOSTS = 8
+# The "since" of the events route: a line count, digits only.
+SINCE = re.compile(r"[0-9]{1,9}")
+NO_REPORT = "There is no report with that id."
 HISTORY_WARNING = ("The report history ({p}) could not be read: {e}. "
                    "New scans still save their reports.")
 
@@ -338,6 +359,17 @@ def create_app(report_dir=None, runner=None, port=None):
             return _failure(404, "not_found", "There is no scan with that id.")
         return data
 
+    @app.get("/api/scans/{job_id}/events")
+    def scan_events(job_id: str, request: Request):
+        if not jobs.exists(job_id):
+            return _failure(404, "not_found", "There is no scan with that id.")
+        since = request.query_params.get("since", "0")
+        if not SINCE.fullmatch(since):
+            return _failure(400, "invalid", "since must be a line count, such as 0 or 42.",
+                            field="since")
+        events, next_line, more = runs.read_events(jobs.events_path(job_id), int(since))
+        return {"events": events, "next": next_line, "more": more}
+
     @app.post("/api/scans/{job_id}/stop")
     async def stop_scan(job_id: str, request: Request):
         if await _json_body(request) is None:
@@ -355,5 +387,33 @@ def create_app(report_dir=None, runner=None, port=None):
             return {"entries": [], "warning": HISTORY_WARNING.format(
                 p=os.path.join(report_dir, history.INDEX_NAME), e=exc)}
         return {"entries": [e for e in reversed(entries) if isinstance(e, dict)]}
+
+    @app.get("/api/reports/{run_id}")
+    def get_report(run_id: str):
+        try:
+            data = runs.report_view(report_dir, run_id)
+        except OSError:
+            return _failure(500, "unreadable", "This report could not be read.")
+        if data is None:
+            return _failure(404, "not_found", NO_REPORT)
+        return data
+
+    @app.get("/api/reports/{run_id}/evidence")
+    def get_evidence(run_id: str):
+        path = runs.run_file(report_dir, run_id, history.EVIDENCE_NAME)
+        if path is None:
+            return _failure(404, "not_found", "There is no raw evidence for that report.")
+        # run_id passed valid_run_id, so it is safe in a file name.
+        return FileResponse(path, media_type="application/json",
+                            filename=run_id + "_evidence.json",
+                            headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/reports/{run_id}/report.md")
+    def get_report_markdown(run_id: str):
+        path = runs.run_file(report_dir, run_id, history.REPORT_NAME)
+        if path is None:
+            return _failure(404, "not_found", NO_REPORT)
+        return FileResponse(path, media_type="text/markdown; charset=utf-8",
+                            filename=run_id + ".md", headers={"Cache-Control": "no-store"})
 
     return app

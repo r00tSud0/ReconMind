@@ -1,14 +1,16 @@
 /*
  * ReconMind web app entry: a hash router.
  *
- *   #/new          New scan (the default)
- *   #/live         the latest scan: the running job, otherwise the most
- *                  recently started one (the URL becomes #/job/<id>), or a
- *                  calm empty state when there is no scan at all
- *   #/job/<id>     the job page for one scan
- *   #/targets, #/hosts, #/system
- *                  a calm panel: these arrive in later steps (Host lists stays
- *                  a labelled placeholder while its New scan mode is hidden)
+ *   #/new              New scan (the default)
+ *   #/live             the latest scan: the running job, otherwise the most
+ *                      recently started one (the URL becomes #/job/<id>), or
+ *                      a calm empty state when there is no scan at all
+ *   #/job/<id>         Live run for one scan
+ *   #/report/<run id>  the report of one saved run
+ *   #/targets          Targets, with the newest folder open
+ *   #/targets/<name>   Targets with that folder open
+ *   #/hosts, #/system  not built yet: a placeholder with the screen's name,
+ *                      a "Not built yet" badge and what it will do
  *
  * Each view's mount function returns a cleanup function, called before the
  * next view mounts, so a view's timers never outlive it. The body carries
@@ -18,17 +20,29 @@
 
 import * as api from './api.js';
 import { checkLive } from './live.js';
-import { clone, JOB_ID } from './ui.js';
+import { clone, isRunId, JOB_ID } from './ui.js';
 import { mountNewScan } from './views/newscan.js';
 import { mountJob } from './views/job.js';
+import { mountReport } from './views/report.js';
+import { mountTargets } from './views/targets.js';
 
-const LATER = { targets: 'Targets', hosts: 'Host lists', system: 'System' };
+const LATER = {
+  hosts: {
+    name: 'Host lists',
+    text: 'Host lists will scan up to 8 lab machines one after another and show their results side by side on one page.',
+  },
+  system: {
+    name: 'System',
+    text: 'System will show which scanning tools and AI models are installed and working, and the allowlist and denylist, read only.',
+  },
+};
 
 let cleanup = null;
 
-function mountLater(view, name) {
+function mountLater(view, later) {
   const { root, refs } = clone('tpl-later');
-  refs.title.textContent = name;
+  refs.title.textContent = later.name;
+  refs.text.textContent = later.text;
   view.append(root);
   return null;
 }
@@ -65,6 +79,15 @@ function setNav(key) {
   }
 }
 
+/* A decoded hash part, or null when it is not valid percent encoding. */
+function decodePart(part) {
+  try {
+    return decodeURIComponent(part);
+  } catch (err) {
+    return null;
+  }
+}
+
 function route() {
   const parts = (location.hash || '#/new').replace(/^#\/?/, '').split('/');
   const view = document.getElementById('view');
@@ -83,11 +106,23 @@ function route() {
   } else if (parts.length === 2 && parts[0] === 'job' && JOB_ID.test(parts[1])) {
     mount = () => mountJob(view, parts[1]);
     navKey = 'live';
-    title = 'Scan job';
+    title = 'Live run';
+  } else if (parts.length === 2 && parts[0] === 'report' && isRunId(decodePart(parts[1]))) {
+    const runId = decodePart(parts[1]);
+    mount = () => mountReport(view, runId);
+    navKey = 'targets';
+    title = 'Report';
+  } else if (parts[0] === 'targets' && (parts.length === 1
+      || (parts.length === 2 && decodePart(parts[1]) !== null))) {
+    const wanted = parts.length === 2 ? decodePart(parts[1]) : null;
+    mount = () => mountTargets(view, wanted);
+    navKey = 'targets';
+    title = 'Targets';
   } else if (parts.length === 1 && Object.prototype.hasOwnProperty.call(LATER, parts[0])) {
-    mount = () => mountLater(view, LATER[parts[0]]);
+    const later = LATER[parts[0]];
+    mount = () => mountLater(view, later);
     navKey = parts[0];
-    title = LATER[parts[0]];
+    title = later.name;
   } else {
     location.replace('#/new');
     return;

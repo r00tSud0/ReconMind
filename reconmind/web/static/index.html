@@ -61,9 +61,8 @@
         <div class="seg seg-mode" role="tablist" aria-label="What are you scanning" data-ref="modeSeg">
           <span class="ind" aria-hidden="true"></span>
           <button type="button" role="tab" data-mode="host">One host</button>
-          <!-- Host lists are not built yet. Remove "hidden" to show this button again;
-               newscan.js handles two or three buttons on its own. -->
-          <button type="button" role="tab" data-mode="list" hidden>Host list</button>
+          <!-- Host lists are not built yet: the mode stays visible, Start stays disabled. -->
+          <button type="button" role="tab" data-mode="list">Host list</button>
           <button type="button" role="tab" data-mode="code">Source code</button>
         </div>
         <p class="help mode-help" data-ref="modeHelp" aria-live="polite">Scan one lab machine over the network.</p>
@@ -171,7 +170,7 @@
       <div class="launch-text">
         <p class="plan" data-ref="plan"></p>
         <p class="help small">The authorization gate checks every target before a single packet is sent. No brute force, no DoS, no outside callbacks.</p>
-        <p class="tag start-note" data-ref="startNote" hidden>Host lists arrive in a later step.</p>
+        <p class="start-note" data-ref="startNote" hidden><span class="notbuilt">Not built yet</span> Host lists will scan up to 8 lab machines one after another.</p>
       </div>
       <button type="button" class="btn primary btn-start" data-ref="start">
         <span class="spinner" data-ref="spinner" aria-hidden="true" hidden></span>
@@ -227,27 +226,88 @@
   </div>
 </template>
 
-<!-- Job page (#/job/<id>). -->
+<!-- Live run (#/job/<id>), matching 02_LiveRun.html. Filled in by js/views/job.js. -->
 <template id="tpl-job">
-  <div class="page">
-    <div class="job-head reveal">
-      <span class="kicker">Scan job</span>
-      <h1 class="title job-title" data-ref="label">Loading the scan</h1>
-      <div class="job-meta">
-        <span class="pill" data-ref="status">Loading</span>
-        <span class="tag num" data-ref="elapsed"></span>
-        <span class="tag" data-ref="runid" hidden>Run id <code class="mono" data-ref="runidValue"></code></span>
-        <button type="button" class="btn danger btn-stop" data-ref="stop" aria-busy="false" hidden>
-          <span class="spinner" data-ref="stopSpinner" aria-hidden="true" hidden></span>
-          <span data-ref="stopLabel">Stop scan</span>
-        </button>
-      </div>
-      <p class="job-step" data-ref="step" aria-live="polite" hidden></p>
+  <div class="page page-wide">
+    <div class="live-top">
+      <section class="glass radar-panel reveal" aria-label="Radar">
+        <div class="radar" data-ref="radar" role="img" aria-label="Radar with no open ports found yet">
+          <span class="rr rr1"></span>
+          <span class="rr rr2"></span>
+          <span class="rr rr3"></span>
+          <span class="hair hair-v"></span>
+          <span class="hair hair-h"></span>
+          <span class="blips" data-ref="blips"></span>
+          <span class="sweep" data-ref="sweep" hidden></span>
+          <span class="core"></span>
+        </div>
+        <p class="help small center">Each dot is an open port. Going clockwise from the top, the angle runs from port 1 to 65535.</p>
+      </section>
+
+      <section class="glass live-head reveal d1">
+        <div class="live-id">
+          <div class="live-state" data-ref="state"><span class="live-pulse" data-ref="stateDot" aria-hidden="true" hidden></span><span data-ref="stateText">Loading the scan</span></div>
+          <h1 class="live-title num" data-ref="label">Loading</h1>
+          <p class="live-sub" data-ref="sub"></p>
+        </div>
+        <div class="live-progress" data-ref="progress" hidden>
+          <div class="live-now"><span class="live-step" data-ref="step" aria-live="polite"></span><span class="help num" data-ref="stepCount"></span></div>
+          <div class="prog" aria-hidden="true"><i data-ref="progBar"></i></div>
+        </div>
+        <div class="live-counts">
+          <div class="live-count"><span class="bignum" data-ref="nPorts">0</span><span class="help">open ports</span></div>
+          <div class="live-count"><span class="bignum" data-ref="nChecks">0</span><span class="help" data-ref="nChecksLabel">checks finished</span></div>
+          <div class="live-count"><span class="bignum" data-ref="nCommands">0</span><span class="help">commands run</span></div>
+        </div>
+        <div class="live-actions">
+          <a class="btn primary" data-ref="openReport" hidden>Open report</a>
+          <a class="btn quiet" href="#/targets" data-ref="background" hidden>Keep running in background</a>
+          <button type="button" class="btn danger btn-stop" data-ref="stop" aria-busy="false" hidden>
+            <span class="spinner" data-ref="stopSpinner" aria-hidden="true" hidden></span>
+            <span data-ref="stopLabel">Stop scan</span>
+          </button>
+          <a class="btn quiet" href="#/new" data-ref="another" hidden>Start another scan</a>
+        </div>
+      </section>
     </div>
+
     <div class="alert-slot" data-ref="problem" aria-live="polite"></div>
     <div class="alert-slot" data-ref="alert" aria-live="polite"></div>
-    <section class="glass panel-col reveal d1" data-ref="logPanel">
-      <h2 class="h2">Technical log</h2>
+
+    <div class="live-mid">
+      <section class="glass steps-panel reveal d2">
+        <h2 class="h2 steps-title">Steps</h2>
+        <div class="steps" data-ref="steps"></div>
+      </section>
+      <aside class="live-aside">
+        <section class="glass side reveal d3">
+          <h2 class="h2 side-title">Good to know</h2>
+          <div class="tips" data-ref="tips"></div>
+        </section>
+        <section class="glass side reveal d4">
+          <h2 class="h2 side-title">Report</h2>
+          <p class="help" data-ref="reportText">Written when the steps finish.</p>
+          <div class="skels" data-ref="skels">
+            <div class="skel w72"></div>
+            <div class="skel w94"></div>
+            <div class="skel w86"></div>
+            <div class="skel w58"></div>
+          </div>
+          <div><a class="btn quiet" data-ref="reportLink" hidden>Open report</a></div>
+        </section>
+      </aside>
+    </div>
+
+    <section class="glass panel-col reveal d5">
+      <div class="sec-head">
+        <h2 class="h2 side-title">Commands run</h2>
+        <span class="help">Exactly what ReconMind sent, word for word</span>
+      </div>
+      <div class="cmdlog" data-ref="commands" tabindex="0" aria-label="Commands run"></div>
+    </section>
+
+    <section class="glass panel-col reveal d6" data-ref="logPanel">
+      <h2 class="h2 side-title">Technical log</h2>
       <details class="log">
         <summary>Show the technical log</summary>
         <pre class="out" data-ref="out" tabindex="0" aria-label="Technical log"></pre>
@@ -275,12 +335,118 @@
   </div>
 </template>
 
-<!-- Nav items that come in later steps. -->
+<!-- Report (#/report/<run id>), matching 03_Report.html. Filled in by js/views/report.js. -->
+<template id="tpl-report">
+  <div class="page page-wide">
+    <nav aria-label="Breadcrumb" class="crumbs reveal">
+      <a href="#/targets">Targets</a><span aria-hidden="true">/</span><a data-ref="crumbTarget" href="#/targets">Target</a><span aria-hidden="true">/</span><span data-ref="crumbScan">Report</span>
+    </nav>
+    <div class="alert-slot" data-ref="problem" aria-live="polite"></div>
+
+    <section class="glass rep-head reveal d1" data-ref="head">
+      <div class="rep-top">
+        <div class="rep-id">
+          <h1 class="title rep-title num" data-ref="title">Loading the report</h1>
+          <p class="rep-sub" data-ref="sub"></p>
+        </div>
+        <div class="rep-actions" data-ref="actions"></div>
+      </div>
+      <div class="spec-wrap" data-ref="specWrap" hidden>
+        <div data-ref="spec"></div>
+        <div class="axis num" aria-hidden="true"><span class="ax0">1</span><span class="ax1">10</span><span class="ax2">100</span><span class="ax3">1,000</span><span class="ax4">10,000</span><span class="ax5">65,535</span></div>
+        <p class="help small">Every open port, from 1 to 65535. Taller and hotter means worse. Hover a line to see the port.</p>
+      </div>
+    </section>
+
+    <section class="glass counts reveal d2" data-ref="counts" hidden></section>
+    <div class="alert-slot notices" data-ref="notices"></div>
+
+    <section class="glass meaning reveal d3" data-ref="meaning" hidden>
+      <div class="meaning-head">
+        <h2 class="h2">What it means</h2>
+        <p class="help" data-ref="meaningHelp">Written by the AI from the tool results below. It does not add or remove findings.</p>
+      </div>
+      <div class="meaning-body" data-ref="meaningBody"></div>
+    </section>
+
+    <section class="glass findings reveal d4" data-ref="findingsPanel" hidden>
+      <div class="sec-head findings-head">
+        <h2 class="h2 big">Findings</h2>
+        <span class="help">Open a finding to see the exact tool output behind it</span>
+      </div>
+      <div data-ref="findings"></div>
+    </section>
+
+    <div class="rep-bottom" data-ref="bottom" hidden>
+      <section class="glass attack reveal d5" data-ref="attackPanel">
+        <h2 class="h2">MITRE ATT&amp;CK</h2>
+        <div class="attack-list" data-ref="attack"></div>
+        <p class="help small" data-ref="attackNote"></p>
+      </section>
+      <section class="glass coverage reveal d6">
+        <h2 class="h2 coverage-title">Tool coverage</h2>
+        <div data-ref="coverage"></div>
+        <p class="help small" data-ref="coverageNote"></p>
+      </section>
+    </div>
+  </div>
+</template>
+
+<!-- Targets (#/targets and #/targets/<target>), matching 04_Targets.html. Filled in by js/views/targets.js. -->
+<template id="tpl-targets">
+  <div class="targets">
+    <section class="glass folders reveal" aria-label="Target folders">
+      <div class="folders-head">
+        <h1 class="h2 folders-title">Targets</h1>
+        <button type="button" class="btn quiet btn-small" disabled title="Not built yet">New folder</button>
+      </div>
+      <div class="folders-filter">
+        <label for="filter" class="sr-only">Filter targets</label>
+        <input id="filter" class="field field-small" type="text" autocomplete="off" spellcheck="false" placeholder="Filter by IP or name" data-ref="filter">
+      </div>
+      <div class="folder-list" data-ref="folders"></div>
+      <p class="help small folder-none" data-ref="noMatch" hidden>No target matches that filter.</p>
+    </section>
+
+    <section class="glass folder-main reveal d1" data-ref="main">
+      <div class="folder-top">
+        <div class="folder-id">
+          <h2 class="title folder-title num" data-ref="title"></h2>
+          <p class="help" data-ref="sub"></p>
+        </div>
+        <a class="btn primary" href="#/new" data-ref="scanThis">Scan this target</a>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Folder sections" data-ref="tabs">
+        <button type="button" role="tab" class="tab" data-tab="scans">Scans</button>
+        <button type="button" role="tab" class="tab" data-tab="notes">Notes <span class="notbuilt">Not built yet</span></button>
+        <button type="button" role="tab" class="tab" data-tab="reports">Your reports <span class="notbuilt">Not built yet</span></button>
+        <span class="tabind" data-ref="tabInd" aria-hidden="true"></span>
+      </div>
+      <div class="tabpanel" role="tabpanel" data-ref="panel"></div>
+    </section>
+  </div>
+</template>
+
+<!-- Targets before the first scan (09_States.html). -->
+<template id="tpl-targets-empty">
+  <div class="page page-wide">
+    <section class="glass case empty-case reveal">
+      <div class="sonar" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+      <div class="empty-text">
+        <h1 class="h2 empty-title">No targets yet</h1>
+        <p data-ref="text">Your first scan creates a folder here. It will hold every scan of that target, your notes and the reports you write.</p>
+      </div>
+      <a class="btn primary" href="#/new">Start a scan</a>
+    </section>
+  </div>
+</template>
+
+<!-- A screen or panel that is not built yet: its name, the badge and what it will do. -->
 <template id="tpl-later">
   <div class="page">
     <section class="glass later reveal">
-      <h1 class="h2 later-title" data-ref="title"></h1>
-      <p class="help">Arrives in a later step.</p>
+      <div class="later-head"><h1 class="h2 later-title" data-ref="title"></h1><span class="notbuilt">Not built yet</span></div>
+      <p class="help" data-ref="text"></p>
       <div><a class="btn quiet" href="#/new">Back to New scan</a></div>
     </section>
   </div>

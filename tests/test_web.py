@@ -4,7 +4,10 @@ scan_plan and config, /api/check for recon and code requests, /api/scans
 starting a job through a fake runner (argument list, no shell, one job at a
 time), the request guards (Host header, X-ReconMind header, JSON body, CSP),
 /api/history, job ids, /api/scans/latest, saved running jobs becoming
-interrupted, and the job labels (Quick, Standard, Full and Custom scan).
+interrupted, the job labels (Quick, Standard, Full and Custom scan), the
+progress events route (since, 404s, 400s), and the report routes (the report
+data without evidence, the evidence and report.md downloads, run id
+validation, 404s and path containment).
 
 No real process is started and no network is used: every JobManager gets a
 fake runner, and report_dir and logs/ live in a temp folder. The whole module
@@ -611,6 +614,251 @@ class LabelTests(unittest.TestCase):
     def test_no_label_says_report(self):
         for label in jobmod.PRESET_LABELS.values():
             self.assertNotIn("report", label.lower())
+
+
+# ---- /api/scans/<job id>/events --------------------------------------------
+
+JOB = "0123456789ab"
+
+
+class EventsRouteTests(WebTestCase):
+
+    def setUp(self):
+        super().setUp()
+        save_job(self.report_dir, JOB, "2026-11-12T21:36:00")
+        self.path = self.app.state.jobs.events_path(JOB)
+
+    def write_events(self, *kinds):
+        with open(self.path, "a", encoding="utf-8") as fh:
+            for kind in kinds:
+                fh.write(json.dumps({"time": "2026-11-12T21:36:00", "kind": kind}) + "\n")
+
+    def test_no_events_yet_is_empty(self):
+        response = self.client.get("/api/scans/" + JOB + "/events")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"events": [], "next": 0, "more": False})
+
+    def test_events_after_since(self):
+        self.write_events("plan", "ports", "step")
+        data = self.client.get("/api/scans/" + JOB + "/events").json()
+        self.assertEqual([e["kind"] for e in data["events"]], ["plan", "ports", "step"])
+        self.assertEqual(data["next"], 3)
+        self.write_events("finished")
+        data = self.client.get("/api/scans/" + JOB + "/events?since=3").json()
+        self.assertEqual([e["kind"] for e in data["events"]], ["finished"])
+        self.assertEqual(data["next"], 4)
+
+    def test_events_of_a_running_job_of_this_server(self):
+        runner = FakeRunner(hold=True)
+        self.runner.procs = runner.procs  # released in tearDown
+        self.app.state.jobs.runner = runner
+        with no_llm():
+            job_id = self.post("/api/scans", self.recon()).json()["job_id"]
+        with open(self.app.state.jobs.events_path(job_id), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"kind": "plan", "target": ALLOWED}) + "\n")
+        data = self.client.get("/api/scans/" + job_id + "/events").json()
+        self.assertEqual(data["events"], [{"kind": "plan", "target": ALLOWED}])
+
+    def test_bad_since_is_400(self):
+        for since in ("-1", "abc", "1.5", "1e3", "", "0x10", "1234567890"):
+            response = self.client.get("/api/scans/" + JOB + "/events", params={"since": since})
+            self.assertEqual(response.status_code, 400, since)
+            self.assertEqual(response.json()["field"], "since")
+
+    def test_unknown_or_bad_job_is_404(self):
+        for job_id in ("ffffffffffff", "nothex", "ABCDEF123456", "0123456789abc", "..", "%2e%2e"):
+            response = self.client.get("/api/scans/" + job_id + "/events")
+            self.assertEqual(response.status_code, 404, job_id)
+
+
+# ---- /api/reports/<run id> -------------------------------------------------
+
+RUN = "20261112_213600_10.10.1.20"
+SECRET_EVIDENCE = "SECRET-RAW-EVIDENCE-0123"
+REPORT_MD = "# ReconMind Report\n\n**Target:** 10.10.1.20\n"
+RECON_RESULTS = {
+    "target": ALLOWED, "status": "ok",
+    "ports": [{"port": 23, "protocol": "tcp", "service": "telnet", "product": "Linux telnetd"},
+              {"port": 80, "protocol": "tcp", "service": "http", "product": "Apache httpd"}],
+    "nuclei": {"80": {"status": "ok", "findings": [
+        {"severity": "medium", "name": "phpMyAdmin panel", "template_id": "phpmyadmin-panel"}]}},
+}
+
+
+def save_run_files(report_dir, run_id, results, kind="recon", markdown=REPORT_MD,
+                   evidence=True, index=True, entry_extra=None):
+    """A saved run as history.save_run lays it out, written directly."""
+    folder = os.path.join(report_dir, run_id)
+    os.makedirs(folder)
+    with open(os.path.join(folder, "report.md"), "w", encoding="utf-8") as fh:
+        fh.write(markdown)
+    scan = {"run_id": run_id, "results": results}
+    if kind == "code":
+        scan["kind"] = "code"
+    else:
+        scan["plan"] = build_plan(ALLOWED).to_dict()
+    jobmod.write_json(os.path.join(folder, "scan.json"), scan)
+    if evidence:
+        jobmod.write_json(os.path.join(folder, "evidence.json"),
+                          {"run_id": run_id, "evidence": {"raw_xml": SECRET_EVIDENCE}})
+    if index:
+        entry = dict({"run_id": run_id, "kind": kind, "started": "2026-11-12T21:36:00",
+                      "finished": "2026-11-12T21:49:04", "status": "ok"}, **(entry_extra or {}))
+        path = os.path.join(report_dir, "index.json")
+        entries = []
+        if os.path.exists(path):
+            with open(path) as fh:
+                entries = json.load(fh)
+        jobmod.write_json(path, entries + [entry])
+    return folder
+
+
+class ReportRouteTests(WebTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.folder = save_run_files(self.report_dir, RUN, RECON_RESULTS,
+                                     entry_extra={"target": ALLOWED, "preset": "standard"})
+
+    def test_report_has_entry_markdown_and_scan(self):
+        response = self.client.get("/api/reports/" + RUN)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["run_id"], RUN)
+        self.assertEqual(data["kind"], "recon")
+        self.assertEqual(data["entry"]["target"], ALLOWED)
+        self.assertEqual(data["markdown"], REPORT_MD)
+        self.assertEqual(data["scan"]["results"]["target"], ALLOWED)
+        self.assertTrue(data["has_evidence"])
+        self.assertEqual([(f["severity"], f["port"]) for f in data["findings"]],
+                         [("high", 23), ("medium", 80)])
+        self.assertEqual(data["spectrum"], [{"port": 23, "service": "telnet", "severity": "high"},
+                                            {"port": 80, "service": "http", "severity": "medium"}])
+        self.assertEqual(data["summary"]["state"], "none")
+
+    def test_report_never_carries_raw_evidence_or_local_paths(self):
+        text = self.client.get("/api/reports/" + RUN).text
+        self.assertNotIn(SECRET_EVIDENCE, text)
+        self.assertNotIn(self._tmp.name, text)
+        self.assertNotIn("evidence.json", text)
+
+    def test_security_headers_on_report_routes(self):
+        for url in ("/api/reports/" + RUN, "/api/reports/" + RUN + "/evidence",
+                    "/api/reports/" + RUN + "/report.md"):
+            response = self.client.get(url)
+            self.assertEqual(response.headers["content-security-policy"], CSP, url)
+            self.assertEqual(response.headers["x-content-type-options"], "nosniff", url)
+
+    def test_missing_run_is_404_on_every_route(self):
+        missing = "20261112_213600_10.10.1.21"
+        for suffix in ("", "/evidence", "/report.md"):
+            response = self.client.get("/api/reports/" + missing + suffix)
+            self.assertEqual(response.status_code, 404, suffix)
+            self.assertEqual(response.json()["reason"], "not_found")
+
+    def test_bad_run_ids_are_404_on_every_route(self):
+        for run_id in ("..", "%2e%2e", "%2E%2E", "20261112_213600_..", "abc", "index.json",
+                       ".jobs", "20261112_213600_x%2F..%2F..", "20261112_213600_x%00",
+                       "20261112_213600_" + "a" * 161):
+            for suffix in ("", "/evidence", "/report.md"):
+                response = self.client.get("/api/reports/" + run_id + suffix)
+                self.assertEqual(response.status_code, 404, run_id + suffix)
+                self.assertNotIn(SECRET_EVIDENCE, response.text)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "needs symlinks")
+    def test_symlinked_run_folder_outside_reports_is_404(self):
+        outside = os.path.join(self._tmp.name, "outside")
+        os.makedirs(outside)
+        for name in ("report.md", "scan.json", "evidence.json"):
+            with open(os.path.join(outside, name), "w") as fh:
+                fh.write('{"secret": "' + SECRET_EVIDENCE + '"}')
+        link = "20261112_213600_linked"
+        os.symlink(outside, os.path.join(self.report_dir, link))
+        for suffix in ("", "/evidence", "/report.md"):
+            response = self.client.get("/api/reports/" + link + suffix)
+            self.assertEqual(response.status_code, 404, suffix)
+            self.assertNotIn(SECRET_EVIDENCE, response.text)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "needs symlinks")
+    def test_symlinked_report_file_is_404(self):
+        outside = os.path.join(self._tmp.name, "secret.md")
+        with open(outside, "w") as fh:
+            fh.write(SECRET_EVIDENCE)
+        os.remove(os.path.join(self.folder, "report.md"))
+        os.symlink(outside, os.path.join(self.folder, "report.md"))
+        for suffix in ("", "/report.md"):
+            response = self.client.get("/api/reports/" + RUN + suffix)
+            self.assertEqual(response.status_code, 404, suffix)
+            self.assertNotIn(SECRET_EVIDENCE, response.text)
+
+    def test_unreadable_scan_json_still_shows_the_report(self):
+        with open(os.path.join(self.folder, "scan.json"), "w") as fh:
+            fh.write("{not json")
+        data = self.client.get("/api/reports/" + RUN).json()
+        self.assertIsNone(data["scan"])
+        self.assertEqual(data["findings"], [])
+        self.assertTrue(data["warnings"])
+
+    def test_run_missing_from_the_index_has_no_entry(self):
+        save_run_files(self.report_dir, RUN + "_2", RECON_RESULTS, index=False)
+        data = self.client.get("/api/reports/" + RUN + "_2").json()
+        self.assertIsNone(data["entry"])
+        self.assertEqual(len(data["findings"]), 2)
+
+    def test_unreadable_index_still_shows_the_report(self):
+        with open(os.path.join(self.report_dir, "index.json"), "w") as fh:
+            fh.write("{not json")
+        data = self.client.get("/api/reports/" + RUN).json()
+        self.assertIsNone(data["entry"])
+        self.assertTrue(data["warnings"])
+
+    def test_code_run_gives_names_never_paths(self):
+        code_run = "20261112_220000_app.py"
+        path = os.path.join(self._tmp.name, "project", "src", "app.py")
+        results = {"kind": "code", "input": path, "status": "ok", "findings": [
+            {"severity": "high", "file": "src/app.py", "line": 3, "cwe": ["CWE-78"],
+             "sources": ["bandit"], "rule_ids": {"bandit": "B605"},
+             "messages": {"bandit": "Shell call."}, "snippet": "os.system(x)"}]}
+        save_run_files(self.report_dir, code_run, results, kind="code", evidence=False,
+                       entry_extra={"input": path})
+        data = self.client.get("/api/reports/" + code_run).json()
+        self.assertEqual(data["kind"], "code")
+        self.assertEqual(data["entry"]["input"], "app.py")
+        self.assertEqual(data["scan"]["results"]["input"], "app.py")
+        self.assertEqual(data["findings"][0]["where"], "app.py, line 3")
+        self.assertEqual(data["spectrum"], [])
+        self.assertFalse(data["has_evidence"])
+        self.assertEqual(self.client.get("/api/reports/" + code_run + "/evidence").status_code, 404)
+
+
+class ReportDownloadTests(WebTestCase):
+
+    def setUp(self):
+        super().setUp()
+        save_run_files(self.report_dir, RUN, RECON_RESULTS)
+
+    def test_raw_evidence_is_a_json_download(self):
+        response = self.client.get("/api/reports/" + RUN + "/evidence")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.headers["content-type"].startswith("application/json"))
+        disposition = response.headers["content-disposition"]
+        self.assertIn("attachment", disposition)
+        self.assertIn(RUN + "_evidence.json", disposition)
+        self.assertEqual(response.json()["evidence"]["raw_xml"], SECRET_EVIDENCE)
+
+    def test_export_md_is_a_markdown_download(self):
+        response = self.client.get("/api/reports/" + RUN + "/report.md")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.headers["content-type"].startswith("text/markdown"))
+        disposition = response.headers["content-disposition"]
+        self.assertIn("attachment", disposition)
+        self.assertIn(RUN + ".md", disposition)
+        self.assertEqual(response.text, REPORT_MD)
+
+    def test_downloads_are_not_cached(self):
+        for suffix in ("/evidence", "/report.md"):
+            response = self.client.get("/api/reports/" + RUN + suffix)
+            self.assertEqual(response.headers["cache-control"], "no-store", suffix)
 
 
 if __name__ == "__main__":

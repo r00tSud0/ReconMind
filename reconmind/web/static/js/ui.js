@@ -143,3 +143,96 @@ export function basename(path) {
 }
 
 export const JOB_ID = /^[0-9a-f]{12}$/;
+
+/* The run ids history.new_run_id makes; the server checks them again. */
+const RUN_ID_SHAPE = /^[0-9]{8}_[0-9]{6}_[A-Za-z0-9._]{1,160}$/;
+export function isRunId(value) {
+  return typeof value === 'string' && RUN_ID_SHAPE.test(value) && !value.includes('..');
+}
+
+/* "12 Nov 2026" and "12 Nov 2026 at 21:36". */
+export function formatDay(text) {
+  const date = parseTime(text);
+  return date ? date.getDate() + ' ' + MONTHS[date.getMonth()] + ' ' + date.getFullYear() : '';
+}
+
+export function formatDayTime(text) {
+  const date = parseTime(text);
+  return date ? formatDay(text) + ' at ' + clock(date) : '';
+}
+
+/* "13 min 4 s", "41 s", "1 h 2 min". */
+export function formatDuration(seconds) {
+  const s = Math.max(0, Math.round(Number(seconds) || 0));
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  if (hours) return hours + ' h ' + minutes + ' min';
+  if (minutes) return minutes + ' min ' + (s % 60) + ' s';
+  return s + ' s';
+}
+
+/* The badge every feature that is not built yet carries. */
+export function notBuilt() {
+  return h('span', { class: 'notbuilt', text: 'Not built yet' });
+}
+
+/* A button for a feature that is not built yet: visible, disabled, and saying so. */
+export function notBuiltButton(label, cls) {
+  return h('button', {
+    type: 'button', class: 'btn ' + (cls || 'quiet'), disabled: true, title: 'Not built yet',
+  }, label);
+}
+
+export const SEVERITIES = ['critical', 'high', 'medium', 'low'];
+export const SEVERITY_WORDS = {
+  critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', unknown: 'Unknown', none: 'No finding',
+};
+export const severityKey = (s) => (Object.prototype.hasOwnProperty.call(SEVERITY_WORDS, s) ? s : 'none');
+
+/* "Quick scan", "Custom scan" or "Code scan" for an index entry. */
+const PRESET_TITLES = { quick: 'Quick scan', standard: 'Standard scan', full: 'Full scan' };
+export function entryTitle(entry) {
+  if (!entry || typeof entry !== 'object') return 'Scan';
+  if (entry.kind === 'code') return 'Code scan';
+  if (entry.customized === true) return 'Custom scan';
+  return PRESET_TITLES[entry.preset] || 'Scan';
+}
+
+/* x on the log scale of DESIGN 5.11, as a percentage. */
+export function portX(port) {
+  return (Math.log10(Math.max(1, Number(port) || 1)) / Math.log10(65536)) * 100;
+}
+
+/*
+ * The port spectrum (DESIGN 5.11). ports: [{port, service, severity}].
+ * Positions and delays go through the CSSOM, which the Content Security
+ * Policy allows; heights and colors come from the severity class in app.css.
+ * opts.mini draws the small thumbnail; opts.labels marks critical ports.
+ */
+export function spectrum(ports, opts) {
+  const mini = !!(opts && opts.mini);
+  const list = Array.isArray(ports) ? ports.filter((p) => p && Number(p.port) >= 1) : [];
+  const counts = {};
+  for (const p of list) counts[severityKey(p.severity)] = (counts[severityKey(p.severity)] || 0) + 1;
+  const worst = ['critical', 'high', 'medium', 'low'].filter((s) => counts[s])
+    .map((s) => counts[s] + ' ' + s).join(', ');
+  const label = plural(list.length, 'open port', 'open ports') + (worst ? '. Findings: ' + worst + '.' : '.');
+  const box = h('div', { class: mini ? 'mini' : 'spec', role: 'img', 'aria-label': label });
+  list.forEach((p, i) => {
+    const sev = severityKey(p.severity);
+    const service = typeof p.service === 'string' && p.service ? ' ' + p.service : '';
+    const tip = p.port + service + ', ' + SEVERITY_WORDS[sev].toLowerCase();
+    const bar = h('i', { class: 'sev-' + sev });
+    bar.style.animationDelay = ((mini ? 0.3 : 0.35) + i * (mini ? 0.025 : 0.045)).toFixed(3) + 's';
+    const tick = h('span', { class: 'tk', 'data-tip': tip }, bar);
+    tick.style.left = portX(p.port).toFixed(2) + '%';
+    box.append(tick);
+    if (!mini && opts && opts.labels && sev === 'critical') {
+      const mark = h('span', { class: 'tlabel', text: String(p.port) });
+      mark.style.left = portX(p.port).toFixed(2) + '%';
+      mark.style.animationDelay = (1.5 + i * 0.05).toFixed(2) + 's';
+      box.append(mark);
+    }
+  });
+  return box;
+}

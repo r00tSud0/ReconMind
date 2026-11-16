@@ -21,9 +21,11 @@
  * AI analysis follows one rule for both scan types: it is on whenever an API
  * key is set up, and the user can turn it off for any scan.
  *
- * The Host list mode is hidden for now (its button has the hidden attribute
- * in index.html); every code path for it stays, so showing it again is one
- * change.
+ * The Host list mode is visible but not built yet: picking it shows the hosts
+ * field and a "Not built yet" badge, and Start stays disabled with "Not built
+ * yet" as its title.
+ *
+ * The Last scan card links to that run's report (#/report/<run id>).
  *
  * The page never decides what is allowed: Start sends the request to
  * /api/check, which runs the authorization gate and the scan plan checks on
@@ -33,7 +35,7 @@
 import * as api from '../api.js';
 import { markRunning } from '../live.js';
 import {
-  basename, clone, countUp, formatWhen, h, heat, JOB_ID, joinList, parseTime, clock, plural,
+  basename, clone, countUp, formatWhen, h, heat, isRunId, JOB_ID, joinList, parseTime, clock, plural,
   reducedMotion,
 } from '../ui.js';
 
@@ -84,7 +86,7 @@ const COPY = {
   needTarget: 'Enter a target IP address first.',
   needPorts: 'Enter the ports to scan first.',
   needPath: 'Enter the path of a file or folder first.',
-  needHosts: 'Host lists are not built yet.',
+  needHosts: 'Not built yet',
   serverDownTitle: 'The ReconMind server is not answering',
   serverDownText: 'Check that python3 -m reconmind.web is still running.',
   unreadable: 'The server sent an answer the page could not read. Try again.',
@@ -742,6 +744,11 @@ export function mountNewScan(view) {
     }
     if (!refused) {
       for (const s of severities) r.rows.append(severityRow(s, findings[s]));
+    }
+    if (isRunId(entry.run_id)) {
+      card.append(h('a', {
+        class: 'ev-open', href: '#/report/' + encodeURIComponent(entry.run_id), text: 'Open report',
+      }));
     }
     nodes.push(card);
     return nodes;

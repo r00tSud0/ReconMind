@@ -317,6 +317,15 @@ class JobManager:
         with self._lock:
             return self._running_id
 
+    def exists(self, job_id):
+        """True for a job of this server or one saved by an earlier server."""
+        if not JOB_ID.fullmatch(str(job_id)):
+            return False
+        with self._lock:
+            if job_id in self._jobs:
+                return True
+        return os.path.isfile(self._meta_path(job_id))
+
     def get(self, job_id, max_lines=400):
         """The job's metadata plus its last max_lines lines, or None."""
         if not JOB_ID.fullmatch(str(job_id)):

@@ -28,7 +28,7 @@
 import * as api from '../api.js';
 import { checkLive, markRunning } from '../live.js';
 import {
-  clone, formatDuration, h, isRunId, joinList, parseTime, plural, portX, reducedMotion,
+  clone, formatDuration, h, isRunId, JOB_ID, joinList, parseTime, plural, portX, reducedMotion,
 } from '../ui.js';
 import { ACTION_COPY } from './newscan.js';
 
@@ -233,6 +233,8 @@ export function mountJob(view, jobId) {
           call.state = e.status === 'done' ? 'done' : 'error';
           call.message = text(e.message);
           call.end = time;
+          // Exploit Hunt's done event carries how many services had matches.
+          if (Number.isInteger(e.count) && e.count >= 0) call.count = e.count;
         }
         calls.set(key, call);
         break;
@@ -365,6 +367,11 @@ export function mountJob(view, jobId) {
       const row = rowFrom(id, names[id] || id, copy ? copy.tool : '', ev.steps[id]);
       if (id === 'surface' && row.state === 'done' && ev.ports) {
         row.sub = plural(ev.ports.length, 'open port', 'open ports') + ' found';
+      }
+      if (id === 'exploits' && row.state === 'done') {
+        const call = Array.from((ev.steps[id] || new Map()).values())
+          .find((c) => typeof c.count === 'number');
+        if (call) row.sub = 'Matches on ' + plural(call.count, 'service', 'services');
       }
       rows.push(row);
     }
@@ -546,15 +553,13 @@ export function mountJob(view, jobId) {
   }
 
   function renderTips() {
-    const target = (ev.plan && ev.plan.target) || labelParts()[1];
     const cves = !!(ev.plan && ev.plan.actions.includes('cves'));
-    const key = target + '|' + cves + '|' + isCode();
+    const key = cves + '|' + isCode();
     if (key === shownTips) return;
     shownTips = key;
     const tips = [];
     if (cves) tips.push('NVD answers are kept for 24 hours, so scanning this target again will be faster.');
-    tips.push('Closing this page does not stop the scan. The report will land in the '
-      + (target || 'target') + ' folder in Targets.');
+    tips.push('You can open other screens while the scan runs. The report lands in the target\'s folder when it finishes.');
     if (isCode()) tips.push('Only the flagged lines are ever sent to the AI model, never whole files.');
     refs.tips.replaceChildren(...tips.map((t) => h('p', { class: 'tip', text: t })));
   }
@@ -795,8 +800,13 @@ export function mountJob(view, jobId) {
       // a tick never throws
     }
   }, 1000);
-  loadActions();
-  poll();
+  // A link with an id no job can have is answered here, not sent to the server.
+  if (JOB_ID.test(jobId)) {
+    loadActions();
+    poll();
+  } else {
+    notFound();
+  }
 
   return () => {
     alive = false;

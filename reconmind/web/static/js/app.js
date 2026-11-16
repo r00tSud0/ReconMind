@@ -103,12 +103,18 @@ function route() {
     mount = () => mountLive(view);
     navKey = 'live';
     title = 'Live run';
-  } else if (parts.length === 2 && parts[0] === 'job' && JOB_ID.test(parts[1])) {
-    mount = () => mountJob(view, parts[1]);
+  } else if (parts.length === 2 && parts[0] === 'job') {
+    // An id no job can have still opens Live run, which says there is no
+    // scan with that id (mountJob never sends it to the server).
+    const jobId = JOB_ID.test(parts[1]) ? parts[1] : '';
+    mount = () => mountJob(view, jobId);
     navKey = 'live';
     title = 'Live run';
-  } else if (parts.length === 2 && parts[0] === 'report' && isRunId(decodePart(parts[1]))) {
-    const runId = decodePart(parts[1]);
+  } else if (parts.length === 2 && parts[0] === 'report') {
+    // An id no run can have still opens Report, which says there is no
+    // report with that id (mountReport checks isRunId before asking).
+    const decoded = decodePart(parts[1]);
+    const runId = isRunId(decoded) ? decoded : '';
     mount = () => mountReport(view, runId);
     navKey = 'targets';
     title = 'Report';

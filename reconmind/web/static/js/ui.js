@@ -40,6 +40,117 @@ export function h(tag, attrs, ...children) {
 }
 
 /*
+ * A small, safe Markdown renderer for the AI summary. It knows only this
+ * subset: "#" to "###" headings, numbered and bulleted lists, paragraphs,
+ * `inline code` and **bold**. Every node is made with createElement and
+ * text nodes (through h() and textContent), so HTML inside the text is
+ * shown as text and never interpreted. Anything outside the subset stays
+ * plain text, and a marker without its closing pair is kept as typed.
+ */
+const MD_HEADING = /^ {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$/;
+const MD_NUMBERED = /^\s*(\d{1,9})[.)]\s+(.*)$/;
+const MD_BULLET = /^\s*[-*+]\s+(.*)$/;
+const MD_RULE = /^\s*([-*_])(?:\s*\1){2,}\s*$/;
+
+/* Inline Markdown (`code` and **bold**) as an array of nodes. */
+export function markdownInline(text) {
+  const source = String(text === null || text === undefined ? '' : text);
+  const nodes = [];
+  let plain = '';
+  const flush = () => {
+    if (plain) nodes.push(document.createTextNode(plain));
+    plain = '';
+  };
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] === '`') {
+      const end = source.indexOf('`', i + 1);
+      if (end > i + 1) {
+        flush();
+        nodes.push(h('code', { text: source.slice(i + 1, end) }));
+        i = end + 1;
+        continue;
+      }
+    } else if (source.startsWith('**', i)) {
+      const end = source.indexOf('**', i + 2);
+      if (end > i + 2) {
+        flush();
+        // Bold may hold inline code; the text inside is always shorter, so this ends.
+        nodes.push(h('strong', {}, markdownInline(source.slice(i + 2, end))));
+        i = end + 2;
+        continue;
+      }
+    }
+    plain += source[i];
+    i += 1;
+  }
+  flush();
+  return nodes;
+}
+
+/*
+ * Block Markdown as an array of nodes: <h3> for headings, <ol>/<ul> for
+ * lists, <p> for paragraphs. classes names the class of each kind:
+ * {paragraph, heading, list}. Lines of one paragraph are joined with a
+ * space; a blank line ends a paragraph. A blank line between two items
+ * keeps one list; an indented line after an item continues that item.
+ */
+export function markdownNodes(text, classes) {
+  const cls = classes || {};
+  const blocks = [];
+  let para = [];
+  let list = null;
+  const endPara = () => {
+    if (para.length) blocks.push(h('p', { class: cls.paragraph || null }, markdownInline(para.join(' '))));
+    para = [];
+  };
+  const endBlock = () => {
+    endPara();
+    list = null;
+  };
+  for (const raw of String(text === null || text === undefined ? '' : text).split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      endPara();
+      continue;
+    }
+    if (MD_RULE.test(raw)) {
+      endBlock();
+      continue;
+    }
+    const heading = MD_HEADING.exec(raw);
+    if (heading) {
+      endBlock();
+      blocks.push(h('h3', { class: cls.heading || null }, markdownInline(heading[1])));
+      continue;
+    }
+    const numbered = MD_NUMBERED.exec(raw);
+    const bullet = numbered ? null : MD_BULLET.exec(raw);
+    if (numbered || bullet) {
+      endPara();
+      const ordered = !!numbered;
+      if (!list || list.ordered !== ordered) {
+        const attrs = { class: cls.list || null };
+        const first = ordered ? Number(numbered[1]) : 1;
+        if (first !== 1) attrs.start = String(first);
+        list = { ordered, el: h(ordered ? 'ol' : 'ul', attrs) };
+        blocks.push(list.el);
+      }
+      list.el.append(h('li', {}, markdownInline(ordered ? numbered[2] : bullet[1])));
+      continue;
+    }
+    if (list && !para.length && /^\s/.test(raw) && list.el.lastElementChild) {
+      list.el.lastElementChild.append(' ', ...markdownInline(line));
+      continue;
+    }
+    list = null;
+    para.push(line);
+  }
+  endPara();
+  return blocks;
+}
+
+/*
  * Clone a <template> from index.html. Returns {root, refs}: root is the
  * template's first element, refs maps every data-ref name to its element.
  */

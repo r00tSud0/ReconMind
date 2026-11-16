@@ -51,6 +51,10 @@ CERT_PREFIX = "cert_"
 # order (cipher_order-tls1_2). Evidence, not findings. cipherlist_* and plain
 # cipher_order stay findings.
 CIPHER_PREFIXES = ("cipher-", "cipher_order-")
+# The rating summary at the end of a run: a grade and the scores behind it.
+RATING_IDS = ("overall_grade", "final_score")
+RATING_PREFIXES = ("grade_cap_",)
+RATING_SUFFIX = "_score"
 
 # What testssl.sh says when the port does not speak TLS. A STARTTLS port that
 # never offers STARTTLS gives "Fatal error: No STARTTLS found in handshake"
@@ -111,6 +115,34 @@ def severity_rank(severity):
 def is_cipher_row(entry):
     """True for a per cipher or per protocol cipher order row."""
     return str(entry.get("id", "")).startswith(CIPHER_PREFIXES)
+
+
+def is_rating_row(entry):
+    """True for a row of testssl.sh's rating summary (overall_grade,
+    grade_cap_reason_1, final_score, protocol_support_score and the like).
+    It grades the other rows, so it is not a finding of its own."""
+    entry_id = str(entry.get("id", ""))
+    return (entry_id in RATING_IDS or entry_id.startswith(RATING_PREFIXES)
+            or entry_id.endswith(RATING_SUFFIX))
+
+
+def finding_severity(entry):
+    """
+    The severity a TLS row counts as, lowercase ("critical", "high",
+    "medium" or "low"), or None when it is not a finding: testssl.sh rated it
+    below LOW (WARN, INFO, OK, DEBUG, FATAL or nothing), or it is a cipher row
+    or a rating row. The Report screen and the index counts both use this.
+    """
+    if not isinstance(entry, dict) or is_cipher_row(entry) or is_rating_row(entry):
+        return None
+    severity = str(entry.get("severity", "")).strip().upper()
+    return severity.lower() if severity in SEVERITY_ORDER else None
+
+
+def finding_title(entry):
+    """testssl.sh's finding id and its text, e.g. "SSLv2 offered"."""
+    parts = [" ".join(str(entry.get(key) or "").split()) for key in ("id", "finding")]
+    return " ".join(part for part in parts if part)
 
 
 def _keep(entry):

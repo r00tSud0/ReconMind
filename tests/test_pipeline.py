@@ -294,6 +294,33 @@ class EventTests(unittest.TestCase):
         self.assertEqual(events.of("command", tool="nmap_scan")[0]["command"],
                          "nmap -sV -oX /tmp/x.xml " + TARGET)
 
+    def test_exploit_hunt_is_its_own_step_right_after_nmap(self):
+        matched = [{"title": "vsftpd 2.3.4 - Backdoor", "edb_id": "49757"}]
+        tb = FakeToolBox(nmap_result(dict(FTP, exploits=matched), dict(HTTP, exploits=[]),
+                                     dict(SSH, exploits=matched)))
+        _, events = run(build_plan(TARGET, actions="exploits"), tb)
+        steps = [(e["action"], e["tool"], e["status"]) for e in events.of("step")]
+        nmap_done = steps.index(("surface", "nmap_scan", "done"))
+        self.assertEqual(steps[nmap_done + 1:nmap_done + 3],
+                         [("exploits", "searchsploit", "start"),
+                          ("exploits", "searchsploit", "done")])
+        done = events.of("step", action="exploits", status="done")[0]
+        self.assertEqual((done["count"], done["port"]), (2, None))
+        # The lookup is not a separate tool call.
+        self.assertEqual(tb.order(), [("nmap_scan", None), ("attack_map", None)])
+
+    def test_no_exploit_hunt_events_without_the_action(self):
+        tb = FakeToolBox(nmap_result(dict(FTP, exploits=[{"title": "x"}])))
+        _, events = run(build_plan(TARGET, actions="web"), tb)
+        self.assertEqual(events.of("step", action="exploits"), [])
+
+    def test_exploit_hunt_is_skipped_when_nmap_did_not_complete(self):
+        tb = FakeToolBox(nmap_result(status="failed"))
+        _, events = run(build_plan(TARGET, actions="exploits"), tb)
+        (skipped,) = events.of("step", action="exploits")
+        self.assertEqual(skipped["status"], "skipped")
+        self.assertIn("status failed", skipped["reason"])
+
 
 class RealToolBoxTests(unittest.TestCase):
     """The pipeline through the real ToolBox, every runner replaced by a fake."""

@@ -675,6 +675,10 @@ body[data-view="new"] .slabs { display: block; }
 .meaning-body { flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .meaning-lead { margin: 0; font-size: 19px; line-height: 1.65; color: #E4E4E7; max-width: 64ch; white-space: pre-line; overflow-wrap: anywhere; }
 .meaning-text { margin: 0; font-size: 16px; line-height: 1.65; color: var(--text); max-width: 70ch; white-space: pre-line; overflow-wrap: anywhere; }
+.meaning-subhead { font-size: 17px; line-height: 1.4; margin: 8px 0 0; overflow-wrap: anywhere; }
+.meaning-list { margin: 0; padding-left: 1.5em; font-size: 16px; line-height: 1.65; color: var(--text); max-width: 70ch; overflow-wrap: anywhere; }
+.meaning-list li + li { margin-top: 6px; }
+.meaning-body strong { color: var(--text-strong); font-weight: 650; }
 .findings { padding: 26px 16px 8px; }
 .findings-head { padding: 0 18px 16px; }
 .findings-none { padding: 4px 18px 22px; }

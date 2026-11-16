@@ -36,6 +36,8 @@ import re
 from reconmind.core import history
 from reconmind.core import report as report_mod
 from reconmind.tools.risky_services import SEVERITY_ORDER, flag_ports
+from reconmind.tools.testssl_scan import finding_severity as tls_finding_severity
+from reconmind.tools.testssl_scan import finding_title as tls_finding_title
 
 # new_run_id makes "<YYYYmmdd_HHMMSS>_<target with [A-Za-z0-9.] kept>", and a
 # clash adds "_<n>". Nothing else is a run id.
@@ -244,11 +246,20 @@ def _tls_line(f):
     return line
 
 
+def _nuclei_severity(f):
+    severity = _severity(f.get("severity"))
+    # The same four levels the index counts.
+    return severity if severity in RECON_SEVERITIES else None
+
+
 def _tool_findings(results, ports, techniques):
     found = []
-    for key, source, title_of, line_of in (
-            ("nuclei", "nuclei", lambda f: f.get("name") or f.get("template_id"), _nuclei_line),
-            ("tls", "testssl.sh", lambda f: f.get("finding") or f.get("id"), _tls_line)):
+    for key, source, severity_of, title_of, line_of in (
+            ("nuclei", "nuclei", _nuclei_severity,
+             lambda f: f.get("name") or f.get("template_id"), _nuclei_line),
+            # testssl.sh's own rule: CRITICAL to LOW only, never a cipher or
+            # rating row, titled "<id> <finding>" (see testssl_scan).
+            ("tls", "testssl.sh", tls_finding_severity, tls_finding_title, _tls_line)):
         results_by_port = results.get(key)
         if not isinstance(results_by_port, dict):
             continue
@@ -257,8 +268,7 @@ def _tool_findings(results, ports, techniques):
                 continue
             number = _port_number(port_key)
             for f in result.get("findings") or []:
-                severity = _severity(f.get("severity")) if isinstance(f, dict) else None
-                # The same four levels the index counts.
+                severity = severity_of(f) if isinstance(f, dict) else None
                 if severity not in RECON_SEVERITIES:
                     continue
                 evidence = [line_of(f)]

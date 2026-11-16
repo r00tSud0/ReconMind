@@ -268,6 +268,80 @@ class FindingTests(unittest.TestCase):
         self.assertNotIn("src/deep", json.dumps(finding))
 
 
+# A small sample of testssl.sh's flat JSON rows for one port, as run_testssl
+# keeps them in "findings": protocol and certificate rows at every severity,
+# real findings, and the rating summary at the end.
+TLS_SAMPLE = [
+    {"id": "SSLv2", "severity": "CRITICAL", "finding": "offered", "cve": "", "cwe": "CWE-327"},
+    {"id": "SSLv3", "severity": "HIGH", "finding": "offered", "cve": "CVE-2014-3566", "cwe": ""},
+    {"id": "TLS1", "severity": "INFO", "finding": "offered", "cve": "", "cwe": ""},
+    {"id": "TLS1_2", "severity": "OK", "finding": "offered", "cve": "", "cwe": ""},
+    {"id": "cipherlist_3DES_IDEA", "severity": "MEDIUM", "finding": "offered",
+     "cve": "", "cwe": "CWE-310"},
+    {"id": "BREACH", "severity": "LOW", "finding": "potentially VULNERABLE, gzip HTTP compression",
+     "cve": "CVE-2013-3587", "cwe": "CWE-310"},
+    {"id": "cert_notAfter", "severity": "OK", "finding": "2027-04-16 14:07", "cve": "", "cwe": ""},
+    {"id": "cert_trust", "severity": "WARN", "finding": "No DNS name matches", "cve": "", "cwe": ""},
+    {"id": "cert_chain_of_trust", "severity": "CRITICAL", "finding": "failed (self signed).",
+     "cve": "", "cwe": ""},
+    {"id": "overall_grade", "severity": "CRITICAL", "finding": "T", "cve": "", "cwe": ""},
+    {"id": "grade_cap_reason_1", "severity": "INFO", "finding": "Grade capped to T.",
+     "cve": "", "cwe": ""},
+    {"id": "final_score", "severity": "INFO", "finding": "0", "cve": "", "cwe": ""},
+    {"id": "cipher-tls1_xc014", "severity": "HIGH", "finding": "TLSv1 xc014 ECDHE-RSA-AES256-SHA",
+     "cve": "", "cwe": ""},
+]
+
+TLS_RESULTS = {
+    "target": "10.10.1.20", "status": "ok",
+    "ports": [{"port": 443, "protocol": "tcp", "service": "https"}],
+    "tls": {"443": {"status": "ok", "findings": TLS_SAMPLE}},
+}
+
+TLS_PLAN = build_plan("10.10.1.20", actions=["surface", "crypto"])
+
+
+class TlsFindingTests(unittest.TestCase):
+
+    def findings(self):
+        return runs.recon_findings(TLS_RESULTS, TLS_PLAN.to_dict())
+
+    def test_only_low_and_above_appear_titled_with_id_and_text(self):
+        self.assertEqual([(f["severity"], f["title"]) for f in self.findings()], [
+            ("critical", "SSLv2 offered"),
+            ("critical", "cert_chain_of_trust failed (self signed)."),
+            ("high", "SSLv3 offered"),
+            ("medium", "cipherlist_3DES_IDEA offered"),
+            ("low", "BREACH potentially VULNERABLE, gzip HTTP compression"),
+        ])
+
+    def test_no_bare_values_as_titles(self):
+        titles = {f["title"] for f in self.findings()}
+        for bare in ("offered", "T", "2027-04-16 14:07", "0"):
+            self.assertNotIn(bare, titles)
+
+    def test_every_finding_is_testssl_on_its_port_with_evidence(self):
+        for f in self.findings():
+            self.assertEqual((f["source"], f["port"], f["where"]),
+                             ("testssl.sh", 443, "Port 443, https"))
+            self.assertTrue(f["evidence"][0].startswith("testssl.sh  "))
+        sslv3 = next(f for f in self.findings() if f["title"] == "SSLv3 offered")
+        self.assertIn("CVE-2014-3566", sslv3["evidence"][0])
+
+    def test_counts_use_the_same_rule(self):
+        self.assertEqual(history.finding_counts(TLS_RESULTS, TLS_PLAN),
+                         {"critical": 2, "high": 1, "medium": 1, "low": 1})
+        counts = dict.fromkeys(history.SEVERITIES, 0)
+        for f in self.findings():
+            counts[f["severity"]] += 1
+        self.assertEqual(counts, history.finding_counts(TLS_RESULTS, TLS_PLAN))
+
+    def test_a_port_that_did_not_finish_adds_nothing(self):
+        results = dict(TLS_RESULTS, tls={"443": {"status": "timeout", "findings": TLS_SAMPLE}})
+        self.assertEqual(runs.recon_findings(results, TLS_PLAN.to_dict()), [])
+        self.assertEqual(sum(history.finding_counts(results, TLS_PLAN).values()), 0)
+
+
 class SummaryTests(unittest.TestCase):
 
     def test_ai_summary_text_and_unverified_references(self):

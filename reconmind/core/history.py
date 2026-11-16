@@ -13,7 +13,8 @@ mid write never leaves a half written index. Flat report files from older
 versions (reports/recon_*.md) are never touched and keep working.
 
 Finding counts in the index cover risk flags (only when Exploit Hunt ran),
-nuclei findings and testssl.sh findings. NVD CVE matches are not counted:
+nuclei findings and testssl.sh findings (testssl_scan.finding_severity:
+LOW or above, never a cipher or rating row). NVD CVE matches are not counted:
 they match the upstream version only and are not confirmed findings.
 
 Every entry has a "kind": "recon" for agent runs, "code" for code scans
@@ -36,6 +37,7 @@ from datetime import datetime
 
 from reconmind.core import report as report_mod
 from reconmind.tools.risky_services import flag_ports
+from reconmind.tools.testssl_scan import finding_severity as tls_finding_severity
 
 INDEX_NAME = "index.json"
 REPORT_NAME = "report.md"
@@ -111,11 +113,13 @@ def finding_counts(scan, plan=None):
     if plan is None or plan.has("exploits"):
         for _, flag in flag_ports(scan.get("ports") or []):
             add(flag.get("severity"))
-    for key in ("nuclei", "tls"):
+    for key, severity_of in (("nuclei", lambda f: f.get("severity")),
+                             ("tls", tls_finding_severity)):
         for result in (scan.get(key) or {}).values():
             if isinstance(result, dict) and result.get("status") == "ok":
                 for finding in result.get("findings") or []:
-                    add(finding.get("severity"))
+                    if isinstance(finding, dict):
+                        add(severity_of(finding))
     return counts
 
 

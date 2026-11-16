@@ -6,8 +6,12 @@ port where that action fits, in one fixed order. No model decides anything
 here: the plan picks the actions and nmap's results pick the ports.
 
     1. nmap_scan, which also runs the Exploit-DB lookup for every port when
-       Exploit Hunt is in the plan. If the scan did not complete (refused,
-       nmap missing, an error), the pipeline stops here.
+       Exploit Hunt is in the plan. The lookup still runs inside nmap_scan,
+       but right after nmap's done event it gets its own step events (action
+       "exploits", tool "searchsploit", start then done with "count", the
+       number of services with matches), so Live run shows it as its own
+       row. If the scan did not complete (refused, nmap missing, an error),
+       the pipeline stops here.
     2. web_fingerprint on every web port            (web)
     3. web_discover on every web port               (paths)
     4. vuln_templates on every web port             (vulns)
@@ -47,6 +51,11 @@ NEEDS_NMAP = "{t} (needed the nmap results)"
 
 # attack_map belongs to no action; this is its action label in events.
 ATTACK_ACTION = "attack_map"
+
+# Exploit Hunt runs inside nmap_scan, but gets its own step events right
+# after nmap's done event, under this tool name.
+EXPLOIT_ACTION = "exploits"
+EXPLOIT_TOOL = "searchsploit"
 
 # The web steps, in run order: (action id, tool).
 WEB_STEPS = (("web", "web_fingerprint"), ("paths", "web_discover"), ("vulns", "vuln_templates"))
@@ -189,17 +198,33 @@ class _Run:
         self.emit("step", action=action, tool=tool, port=port, status="skipped", reason=reason)
         _say(self.trace, "SKIP", "{t}: {r}".format(t=tool, r=reason))
 
+    def exploit_hunt(self, ports):
+        """
+        Report Exploit Hunt as its own step. The lookup itself already ran
+        inside nmap_scan, so this only emits the start and done events, with
+        the number of services that had at least one Exploit-DB match.
+        """
+        step = {"action": EXPLOIT_ACTION, "tool": EXPLOIT_TOOL, "port": None}
+        self.emit("step", status="start", **step)
+        count = sum(1 for p in ports if isinstance(p, dict) and p.get("exploits"))
+        self.emit("step", status="done", count=count, **step)
+        _say(self.trace, "DONE", "{t}: matches on {n} service(s)".format(t=EXPLOIT_TOOL, n=count))
+
     def run(self, target):
         self.step("surface", "nmap_scan", None, {"target": target})
         scan = self.toolbox.scan
         if scan.get("status") != "ok":
             reason = NMAP_DID_NOT_COMPLETE.format(s=scan.get("status") or "unknown")
+            if self.plan.has(EXPLOIT_ACTION):
+                self.skip(EXPLOIT_ACTION, EXPLOIT_TOOL, None, reason)
             for action, tool in LATER_STEPS:
                 if action == ATTACK_ACTION or self.plan.has(action):
                     self.skip(action, tool, None, reason)
             return
 
         ports = scan.get("ports") or []
+        if self.plan.has(EXPLOIT_ACTION):
+            self.exploit_hunt(ports)
         self.emit("ports", ports=[{"port": p.get("port"), "service": p.get("service", ""),
                                    "product": p.get("product", ""),
                                    "version": p.get("version", "")} for p in ports])

@@ -18,7 +18,7 @@
 import * as api from '../api.js';
 import {
   basename, clone, countUp, entryTitle, formatDay, formatDayTime, formatDuration, h, heat,
-  isRunId, joinList, notBuiltButton, parseTime, plural, SEVERITIES, SEVERITY_WORDS, severityKey,
+  isRunId, joinList, markdownNodes, notBuiltButton, parseTime, plural, SEVERITIES, SEVERITY_WORDS, severityKey,
   spectrum,
 } from '../ui.js';
 import { ACTION_COPY } from './newscan.js';
@@ -87,7 +87,7 @@ export function mountReport(view, runId) {
     document.title = 'Report not found | ReconMind';
     refs.crumbScan.textContent = 'Not found';
     refs.problem.replaceChildren(alertBox('grey', null, message,
-      h('a', { class: 'btn quiet', href: '#/targets', text: 'Go to Targets' })));
+      h('a', { class: 'btn quiet', href: '#/new', text: 'Go to New scan' })));
   }
 
   function showFailure(res) {
@@ -278,8 +278,10 @@ export function mountReport(view, runId) {
     if (isCode || refused) return;
     const summary = asObject(d.summary);
     if (summary.state === 'ok' && typeof summary.text === 'string') {
-      const paragraphs = summary.text.split(/\n\s*\n/).map((p) => p.replace(/\*\*/g, '').trim()).filter(Boolean);
-      const body = paragraphs.map((p, i) => h('p', { class: i === 0 ? 'meaning-lead' : 'meaning-text', text: p }));
+      // The summary's Markdown, built as DOM nodes; HTML in it is never interpreted.
+      const body = markdownNodes(summary.text,
+        { paragraph: 'meaning-text', heading: 'meaning-subhead', list: 'meaning-list' });
+      if (body.length && body[0].tagName === 'P') body[0].className = 'meaning-lead';
       const refsList = asList(summary.unverified).filter((r) => typeof r === 'string');
       if (refsList.length) {
         body.push(h('p', { class: 'help', text: 'Not found in any tool result for this scan: ' + refsList.join(', ') + '.' }));

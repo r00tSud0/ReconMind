@@ -5,7 +5,9 @@ create_app(report_dir=None, runner=None, port=None) returns the FastAPI app
 that python3 -m reconmind.web serves on 127.0.0.1.
 
     GET  /                        the page (static/index.html)
-    GET  /static/...              its stylesheet and JavaScript modules
+    GET  /static/...              its stylesheet and JavaScript modules, with
+                                  "Cache-Control: no-cache" so the browser
+                                  revalidates them (ETag) on every load
     GET  /api/options             presets, actions, allowlist and denylist, and
                                   whether AI analysis is available (read only;
                                   provider and model, never the key)
@@ -210,6 +212,19 @@ async def _json_body(request):
     return body if isinstance(body, dict) else None
 
 
+class RevalidatedStaticFiles(StaticFiles):
+    """
+    StaticFiles with "Cache-Control: no-cache" on every response, so the
+    browser revalidates with the ETag on each load and never runs an old
+    copy of a script after an update.
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 def _host_ok(host, port):
     host = (host or "").strip().lower()
     if port is None:
@@ -252,7 +267,7 @@ def create_app(report_dir=None, runner=None, port=None):
             response.headers[name] = value
         return response
 
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/static", RevalidatedStaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
     def index():

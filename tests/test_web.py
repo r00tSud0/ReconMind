@@ -467,6 +467,15 @@ class SecurityTests(WebTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Content-Security-Policy", response.headers)
 
+    def test_static_files_are_revalidated(self):
+        response = self.client.get("/static/js/app.js")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Cache-Control"], "no-cache")
+        self.assertIn("etag", response.headers)
+
+    def test_index_is_not_stored(self):
+        self.assertEqual(self.client.get("/").headers["Cache-Control"], "no-store")
+
 
 # ---- history and job ids ---------------------------------------------------
 

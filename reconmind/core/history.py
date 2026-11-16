@@ -21,6 +21,10 @@ Every entry has a "kind": "recon" for agent runs, "code" for code scans
 an index entry with counts by severity (high, medium, low) and whether the
 AI explanation ran. Older entries have no kind; entry_kind() reads them as
 recon.
+
+Recon entries carry "customized": true when the plan's ports or actions
+differed from its preset. Older entries have no such key; entry_customized()
+reads them as not customized.
 """
 
 import json
@@ -193,6 +197,7 @@ def save_run(scan, plan=None, started=None, finished=None, report_dir=None, mode
         "preset": plan.preset if plan is not None else None,
         "actions": list(plan.actions) if plan is not None else [],
         "ports_spec": plan.ports if plan is not None else None,
+        "customized": plan.customized if plan is not None else False,
         "started": started.strftime(TIME_FORMAT),
         "finished": finished.strftime(TIME_FORMAT),
         "status": scan.get("status", "unknown"),
@@ -221,6 +226,14 @@ def entry_mode(entry):
     if entry_kind(entry) != KIND_RECON:
         return None
     return entry.get("mode") or report_mod.MODE_AI
+
+
+def entry_customized(entry):
+    """
+    True if the run's ports or actions differed from its preset (a Custom
+    scan in the web app). An entry written before this key existed was not.
+    """
+    return bool(entry.get("customized"))
 
 
 def entry_stopped(entry):

@@ -83,7 +83,8 @@ EXIT_STOPPED = 4
 EXIT_ERROR = 1
 SUMMARY_WARNING = "The AI summary was unavailable, so the report has the tool results only."
 
-PRESET_LABELS = {"quick": "Quick scan", "standard": "Standard scan", "full": "Full report"}
+PRESET_LABELS = {"quick": "Quick scan", "standard": "Standard scan", "full": "Full scan"}
+CUSTOM_LABEL = "Custom scan"
 META_KEYS = ("id", "kind", "label", "status", "exit_code", "started", "finished", "run_id",
              "warning")
 
@@ -145,7 +146,8 @@ def code_command(path, explain):
 
 
 def recon_label(plan):
-    name = "Custom scan" if plan.customized else PRESET_LABELS.get(plan.preset, "Scan")
+    """"Quick scan, <target>"; a plan that differs from its preset is "Custom scan"."""
+    name = CUSTOM_LABEL if plan.customized else PRESET_LABELS.get(plan.preset, "Scan")
     return "{n}, {t}".format(n=name, t=plan.target)
 
 

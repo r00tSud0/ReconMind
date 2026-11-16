@@ -290,7 +290,7 @@ class RunnerFlagTests(TmpDirTest):
         self.assertEqual(code, 1)
         agent.assert_not_called()
         self.assertIn("RECONMIND_MODEL", out)
-        self.assertNotIn("Standard report", out)
+        self.assertNotIn("AI analysis is off", out)
 
     # Without --mode or a model flag, a missing key now means a Standard
     # report, so this one asks for --mode ai, which still stops.
@@ -304,7 +304,8 @@ class RunnerFlagTests(TmpDirTest):
         code, agent, out = self.run_main(TARGET)
         self.assertEqual(code, 0)
         agent.assert_not_called()
-        self.assertIn("No API key set, so this is a Standard report.", out)
+        self.assertIn("No API key is set, so AI analysis is off for this scan.", out)
+        self.assertIn("Report mode: AI analysis off (tools only)", out)
 
     def test_gate_still_runs_first(self):
         code, agent, out = self.run_main("--provider", "nope", "10.0.3.15")

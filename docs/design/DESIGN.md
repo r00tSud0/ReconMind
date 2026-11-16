@@ -217,7 +217,14 @@ badges, and an arrow button that opens the report.
 Plain, direct, sentence case, active voice. Say what happened, what it means
 for the results, and what to do next. Never apologize, never be vague.
 
-Action descriptions (use exactly):
+One word, one meaning: the cards are Quick, Standard, Full and Custom
+("Standard" is only ever the preset, never a kind of report); the interface
+calls the actions "checks" (the engine keeps calling them actions); the port
+choice for a list is "Specific ports"; AI has one name everywhere, "AI
+analysis". Never mention nuclei modes, templates or mode ids where a user
+reads.
+
+Check descriptions (use exactly):
 
 | id | Name | Tool | Description |
 | --- | --- | --- | --- |
@@ -226,7 +233,7 @@ Action descriptions (use exactly):
 | cves | CVE Intel | NVD | Looks up each service version in the NVD database and lists its known CVEs with CVSS scores. Flags any that CISA lists as actively exploited. |
 | web | Web Fingerprint | httpx | Connects to each web port and identifies the web server, frameworks and technologies in use, plus which security headers are missing. |
 | paths | Hidden Paths | ffuf | Requests a list of common file and folder names on each web port to find pages that exist but are not linked, such as admin panels. |
-| vulns | Vuln Probe | nuclei | Runs nuclei templates against web services to confirm known vulnerabilities and misconfigurations. Safe templates only, no DoS or fuzzing. |
+| vulns | Vuln Probe | nuclei | Probes each web service for known vulnerabilities and misconfigurations. Safe checks only, no DoS or fuzzing. |
 | crypto | Crypto Check | testssl.sh | Tests every TLS port, including STARTTLS, for outdated protocol versions, weak ciphers and certificate problems. |
 | smb | SMB Recon | enum4linux-ng | Connects to SMB without a password and lists the shares, users, groups and domain details an anonymous user can see. |
 
@@ -235,37 +242,50 @@ Presets (the actions, ports and nuclei mode come from
 
 | id | Name | Description |
 | --- | --- | --- |
-| quick | Quick | Scans the top 1000 ports, then checks each service for public exploits and known CVEs. |
-| standard | Standard | Scans the top 1000 ports and runs all 8 actions. Nuclei only runs templates that match the technology it detects. |
-| full | Full report | Scans all 65535 ports and runs all 8 actions with every safe nuclei template. One host at a time. |
-| custom | Custom | You choose the ports and the actions. Starts from what the last preset had. |
+| quick | Quick | Open ports and known exploits for each service. The fastest scan. |
+| standard | Standard | Everything in Quick, plus CVEs, web, TLS and SMB checks. |
+| full | Full | Everything in Standard on every port, with deeper web testing. One host at a time. |
+| custom | Custom | Choose the ports and checks yourself. |
+
+Under the description every card shows fact lines built from /api/options:
+"Ports: top 1000", "Ports: all 65535" or "Ports: your choice"; "Checks: 2
+of 8 (Surface Map, Exploit Hunt)", "Checks: all 8" or "Checks: your choice";
+and "Deeper web testing" for a preset whose vuln_mode is deep.
 
 Custom is not a preset in `scan_plan.py`. The app sends it as the standard
-preset (nuclei auto) with the user's ports and actions.
+preset with the user's ports and actions, and Custom always starts from the
+Standard preset's ports and checks. Job titles and the Last scan card say
+Quick scan, Standard scan, Full scan or Custom scan.
 
 ### New scan order and rules
 
-1. Target (or Hosts, or Source code).
-2. What to run: the four cards Quick, Standard, Full report, Custom. Help:
-   "Pick a preset to run it exactly as set, or Custom to choose the ports and
-   actions yourself."
-3. Ports: locked unless Custom. Locked help: "Pick Custom above to change the
-   ports."
-4. Actions: locked unless Custom. Locked help: "This is exactly what will run.
-   Pick Custom above to change it." Custom help: "Tick what to look for. Each
-   action only runs on the ports it fits." Surface Map is always on.
-5. AI analysis: a switch "Write an AI analysis" with the note "A summary of
-   what the findings mean, the attack path, and what to fix first. Every claim
-   is checked against the tool results." Panel help: "The tools run exactly
-   the same either way. This only adds the written part of the report." On by
-   default when an LLM is configured. Under it: "Uses <provider>, <model>. The
-   finished scan results are sent to the model. It reads them only and never
-   runs a tool." With no key the switch is disabled and the note says "No API
-   key is set, so scans make a Standard report. Add a key in System to turn
-   this on."
-6. The plan sentence above Start ends with "You get an AI enhanced report."
-   or "You get a Standard report."
-7. Host list mode: Full report and All 65535 are disabled.
+1. Mode switch: One host or Source code (Host list is hidden until it is
+   built). One help line under it: "Scan one lab machine over the network."
+   or "Find vulnerabilities in a file or folder of code on this computer. The
+   code is read, never run."
+2. Target (or Source code).
+3. What to run: the four cards. Help: "Quick, Standard and Full run exactly
+   what their card says. Custom lets you choose."
+4. Ports and Checks: locked unless Custom. Locked means read only, not
+   switched off: full brightness, controls disabled, the picked values look
+   exactly as when unlocked. One badge per panel: "Set by Quick. Pick Custom
+   to change." or, for Custom, "Your choice". In a locked Checks panel every
+   unticked row carries "Not in Quick". Unlocked help: "Specific ports takes
+   numbers and ranges, like 22,80,8000-8100." and "Each check only runs on
+   the ports it fits. Surface Map always runs."
+5. AI analysis, one rule for both scan types. Panel help: "AI analysis is on
+   whenever an API key is set up. You can turn it off for any scan." Network
+   note: "Adds a written summary, the attack path and what to fix first. The
+   checks run exactly the same either way, and every claim is checked against
+   their results." Code note: "Explains why each finding is dangerous and how
+   to fix it. Only the flagged lines are sent to the model, never whole files.
+   The findings come from Semgrep and Bandit either way." With no key the
+   switch is disabled and off, with a link to System.
+6. The plan sentence: "Scan 10.10.1.20 on the top 1000 ports with 2 of 8
+   checks. AI analysis on." Code: "Read app.py with Semgrep and Bandit. AI
+   analysis off."
+7. Start is disabled, with the reason as its title, while the target, the
+   Specific ports field or the code path is empty.
 
 ## 8. Safety rules for the frontend (required)
 

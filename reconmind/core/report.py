@@ -38,7 +38,8 @@ MATCH_WORDING = {
 MODE_STANDARD = "standard"
 MODE_AI = "ai"
 MODES = (MODE_STANDARD, MODE_AI)
-STANDARD_NOTE = "Standard report. Turn on AI analysis for a written summary and attack path."
+STANDARD_NOTE = ("AI analysis was off for this scan, so there is no written summary. Turn it on "
+                 "for a summary, the attack path and what to fix first.")
 
 STATUS_STOPPED = "stopped"
 STOPPED_NOTICE = ("**Stopped.** This scan was stopped before it finished, so this is a "
@@ -1003,7 +1004,7 @@ def build_report(scan, analyst_summary=None, unverified_refs=(), summary_failed=
     Without one, every section renders as before. path is where to write;
     without it the report goes to a new flat file in REPORT_DIR, as before.
 
-    mode is "standard", "ai" or None. A Standard report has no summary
+    mode is "standard", "ai" or None. With AI analysis off ("standard") there is no summary
     section, only the one line STANDARD_NOTE; "ai" and None keep the summary
     section exactly as before. A scan with status "stopped" starts with the
     Stopped notice, listing scan["stop"]["finished"] and ["not_run"].

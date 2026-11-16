@@ -3,8 +3,8 @@ Offline tests for the web app (reconmind/web): /api/options against
 scan_plan and config, /api/check for recon and code requests, /api/scans
 starting a job through a fake runner (argument list, no shell, one job at a
 time), the request guards (Host header, X-ReconMind header, JSON body, CSP),
-/api/history, job ids, /api/scans/latest, and saved running jobs becoming
-interrupted.
+/api/history, job ids, /api/scans/latest, saved running jobs becoming
+interrupted, and the job labels (Quick, Standard, Full and Custom scan).
 
 No real process is started and no network is used: every JobManager gets a
 fake runner, and report_dir and logs/ live in a temp folder. The whole module
@@ -578,6 +578,30 @@ class InterruptedTests(unittest.TestCase):
             self.assertEqual(manager.get("0123456789ab")["status"], "interrupted")
             self.assertEqual(manager.get("ba9876543210")["status"], "done")
             self.assertIsNone(manager.running_id)
+
+
+# ---- job labels ------------------------------------------------------------
+
+class LabelTests(unittest.TestCase):
+
+    def test_preset_labels(self):
+        self.assertEqual(jobmod.recon_label(build_plan(ALLOWED, preset="quick")),
+                         "Quick scan, 10.10.1.20")
+        self.assertEqual(jobmod.recon_label(build_plan(ALLOWED, preset="standard")),
+                         "Standard scan, 10.10.1.20")
+        self.assertEqual(jobmod.recon_label(build_plan(ALLOWED, preset="full")),
+                         "Full scan, 10.10.1.20")
+
+    def test_customized_plan_is_a_custom_scan(self):
+        # The page sends Custom as the standard preset with the user's ports and actions.
+        plan = build_plan(ALLOWED, preset="standard", ports="22,80", actions=["exploits"])
+        self.assertEqual(jobmod.recon_label(plan), "Custom scan, 10.10.1.20")
+        plan = build_plan(ALLOWED, preset="quick", actions=["exploits", "cves"])
+        self.assertEqual(jobmod.recon_label(plan), "Custom scan, 10.10.1.20")
+
+    def test_no_label_says_report(self):
+        for label in jobmod.PRESET_LABELS.values():
+            self.assertNotIn("report", label.lower())
 
 
 if __name__ == "__main__":

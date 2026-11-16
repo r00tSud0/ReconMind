@@ -89,10 +89,10 @@ from reconmind.core.summary_check import NOT_MAPPED, check_summary, mark_not_map
 
 MISSING_PACKAGE = ("Missing package. Activate your venv and run:\n"
                    "    pip install -r requirements.txt")
-NO_KEY_STANDARD = "No API key set, so this is a Standard report."
+NO_KEY_STANDARD = "No API key is set, so AI analysis is off for this scan."
 MODE_TEXT = {
-    MODE_STANDARD: "Standard (tools only, no LLM)",
-    MODE_AI: "AI enhanced (tools first, then a read only AI analyst)",
+    MODE_STANDARD: "AI analysis off (tools only)",
+    MODE_AI: "AI analysis on (tools first, then a read only AI analyst)",
 }
 
 EXIT_OK = 0

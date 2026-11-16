@@ -58,12 +58,15 @@
       <div class="hero-main reveal">
         <h1 class="title page-title">New scan</h1>
         <p class="lead">Choose a target and what to run. Every result is saved to that target's folder.</p>
-        <div class="seg seg-mode" role="tablist" aria-label="What are you scanning">
+        <div class="seg seg-mode" role="tablist" aria-label="What are you scanning" data-ref="modeSeg">
           <span class="ind" aria-hidden="true"></span>
           <button type="button" role="tab" data-mode="host">One host</button>
-          <button type="button" role="tab" data-mode="list">Host list</button>
+          <!-- Host lists are not built yet. Remove "hidden" to show this button again;
+               newscan.js handles two or three buttons on its own. -->
+          <button type="button" role="tab" data-mode="list" hidden>Host list</button>
           <button type="button" role="tab" data-mode="code">Source code</button>
         </div>
+        <p class="help mode-help" data-ref="modeHelp" aria-live="polite">Scan one lab machine over the network.</p>
       </div>
       <aside class="feed" aria-label="Last scan" data-ref="last"></aside>
     </section>
@@ -90,13 +93,6 @@
           <input id="path" class="field field-mono" type="text" autocomplete="off" spellcheck="false" placeholder="/home/you/project/app.py" aria-describedby="path-error path-help">
           <p class="field-error" id="path-error" data-error="path" hidden></p>
           <p class="tag" id="path-help">A full path, or a path inside the ReconMind folder such as examples/vulnerable_python/app.py.</p>
-          <label class="toggle-row">
-            <span class="toggle-text">
-              <span class="toggle-name">Explain findings with AI</span>
-              <span class="tag">Why each finding is dangerous and how to fix it. Only the flagged lines are sent, never whole files.</span>
-            </span>
-            <input type="checkbox" class="switch" id="explain">
-          </label>
         </div>
       </div>
     </section>
@@ -104,7 +100,7 @@
     <section class="glass panel stack reveal d2" data-ref="runPanel">
       <div class="head">
         <h2 class="h2">What to run</h2>
-        <p class="help">Pick a preset to run it exactly as set, or Custom to choose the ports and actions yourself.</p>
+        <p class="help">Quick, Standard and Full run exactly what their card says. Custom lets you choose.</p>
       </div>
       <div class="body">
         <div class="presets" data-ref="presets" role="group" aria-label="What to run"></div>
@@ -119,14 +115,14 @@
           <svg class="lk lk-open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 7.5-2"></path></svg>
           <span data-ref="portsBadgeText"></span>
         </span>
-        <p class="help" data-ref="portsHelp"></p>
+        <p class="help" data-ref="portsHelp" hidden>Specific ports takes numbers and ranges, like 22,80,8000-8100.</p>
       </div>
       <div class="body">
         <div class="seg seg-ports" role="group" aria-labelledby="ports-title">
           <span class="ind" aria-hidden="true"></span>
           <button type="button" data-ports="top">Top 1000</button>
           <button type="button" data-ports="all">All 65535</button>
-          <button type="button" data-ports="custom">Custom list</button>
+          <button type="button" data-ports="custom">Specific ports</button>
         </div>
         <div class="group" data-ref="customPorts" hidden>
           <label for="ports" class="label">Ports and ranges, separated by commas</label>
@@ -138,13 +134,13 @@
 
     <section class="glass panel reveal d4" data-ref="actionsPanel">
       <div class="head">
-        <h2 class="h2" id="actions-title">Actions</h2>
+        <h2 class="h2" id="actions-title">Checks</h2>
         <span class="lockbadge pop" data-ref="actionsBadge" hidden>
           <svg class="lk lk-shut" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
           <svg class="lk lk-open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 7.5-2"></path></svg>
           <span data-ref="actionsBadgeText"></span>
         </span>
-        <p class="help" data-ref="actionsHelp"></p>
+        <p class="help" data-ref="actionsHelp" hidden>Each check only runs on the ports it fits. Surface Map always runs.</p>
       </div>
       <div class="body">
         <div class="actions" data-ref="actions" role="group" aria-labelledby="actions-title"></div>
@@ -155,13 +151,13 @@
     <section class="glass panel reveal d5" data-ref="aiPanel">
       <div class="head">
         <h2 class="h2">AI analysis</h2>
-        <p class="help">The tools run exactly the same either way. This only adds the written part of the report.</p>
+        <p class="help">AI analysis is on whenever an API key is set up. You can turn it off for any scan.</p>
       </div>
       <div class="body">
         <label class="toggle-row plain" data-ref="aiRow">
           <span class="toggle-text">
-            <span class="toggle-name">Write an AI analysis</span>
-            <span class="tag" id="ai-note">A summary of what the findings mean, the attack path, and what to fix first. Every claim is checked against the tool results.</span>
+            <span class="toggle-name">AI analysis</span>
+            <span class="tag" id="ai-note" data-ref="aiNote"></span>
           </span>
           <input type="checkbox" class="switch" id="ai" aria-describedby="ai-note ai-info">
         </label>
@@ -223,7 +219,15 @@
   </div>
 </template>
 
-<!-- Job page (#/job/<id>). Temporary; the Live run screen replaces it later. -->
+<!-- Shown in the presets and checks panels when /api/options fails. -->
+<template id="tpl-options-error">
+  <div class="alert grey" role="status">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#BDBDC2" stroke-width="2" stroke-linecap="round" aria-hidden="true" class="alert-icon"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.01"></path></svg>
+    <div><p>The scan options could not be loaded. Reload to try again.</p><div class="notice-extra"><button type="button" class="btn quiet" data-ref="reload">Reload</button></div></div>
+  </div>
+</template>
+
+<!-- Job page (#/job/<id>). -->
 <template id="tpl-job">
   <div class="page">
     <div class="job-head reveal">
@@ -233,17 +237,30 @@
         <span class="pill" data-ref="status">Loading</span>
         <span class="tag num" data-ref="elapsed"></span>
         <span class="tag" data-ref="runid" hidden>Run id <code class="mono" data-ref="runidValue"></code></span>
+        <button type="button" class="btn danger btn-stop" data-ref="stop" aria-busy="false" hidden>
+          <span class="spinner" data-ref="stopSpinner" aria-hidden="true" hidden></span>
+          <span data-ref="stopLabel">Stop scan</span>
+        </button>
       </div>
+      <p class="job-step" data-ref="step" aria-live="polite" hidden></p>
     </div>
+    <div class="alert-slot" data-ref="problem" aria-live="polite"></div>
     <div class="alert-slot" data-ref="alert" aria-live="polite"></div>
-    <section class="glass panel-col reveal d1">
-      <div class="out-head">
-        <h2 class="h2">Output</h2>
-        <button type="button" class="btn danger" data-ref="stop" hidden>Stop scan</button>
-      </div>
-      <pre class="out" data-ref="out" tabindex="0" aria-label="Scan output"></pre>
-      <p class="help small">This page is temporary. The Live run screen arrives in a later step.</p>
+    <section class="glass panel-col reveal d1" data-ref="logPanel">
+      <h2 class="h2">Technical log</h2>
+      <details class="log">
+        <summary>Show the technical log</summary>
+        <pre class="out" data-ref="out" tabindex="0" aria-label="Technical log"></pre>
+      </details>
     </section>
+    <dialog class="glass dialog" data-ref="stopDialog" aria-labelledby="stop-title" aria-describedby="stop-text">
+      <h2 class="h2" id="stop-title">Stop this scan?</h2>
+      <p class="help" id="stop-text">Steps that already finished are kept as a partial report.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" data-ref="stopConfirm">Stop scan</button>
+        <button type="button" class="btn quiet" data-ref="stopCancel" autofocus>Keep scanning</button>
+      </div>
+    </dialog>
   </div>
 </template>
 

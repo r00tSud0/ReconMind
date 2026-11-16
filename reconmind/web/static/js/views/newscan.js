@@ -1,19 +1,29 @@
 /*
  * New scan view (#/new), matching docs/design/screens/01_Main.html.
  *
- * Order: Target (or Hosts, or Source code), What to run, Ports, Actions,
+ * Order: Target (or Hosts, or Source code), What to run, Ports, Checks,
  * AI analysis, then the plan sentence and Start.
  *
- * What to run has four cards: Quick, Standard, Full report and Custom. The
- * actions, ports and nuclei mode of Quick, Standard and Full report come
- * from /api/options, never from this file. While one of those is picked, the
- * Ports and Actions panels are locked (DESIGN 5.13a): every control is
- * disabled, the picked values stay readable and a badge says which preset
- * set them. Custom unlocks both, starting from the last preset's values.
+ * What to run has four cards: Quick, Standard, Full and Custom. Each card
+ * shows a one line description and fact lines built from /api/options (the
+ * ports, the checks and, when a preset tests web services deeply, a line that
+ * says so), never hard coded here. While Quick, Standard or Full is picked,
+ * the Ports and Checks panels are locked: read only, at full brightness, with
+ * the picked values exactly as they look when unlocked, and a badge that says
+ * which preset set them. Custom unlocks both and always starts from the
+ * Standard preset's ports and checks.
  *
  * The request sends a preset with its own ports and actions, or for Custom
- * the preset "standard" with the user's ports and actions, so nuclei stays on
- * auto. "mode" is "ai" when the AI switch is on, otherwise "standard".
+ * the preset "standard" with the user's ports and actions. "mode" is "ai"
+ * when AI analysis is on, otherwise "standard". The engine calls the checks
+ * "actions"; only the interface says "checks".
+ *
+ * AI analysis follows one rule for both scan types: it is on whenever an API
+ * key is set up, and the user can turn it off for any scan.
+ *
+ * The Host list mode is hidden for now (its button has the hidden attribute
+ * in index.html); every code path for it stays, so showing it again is one
+ * change.
  *
  * The page never decides what is allowed: Start sends the request to
  * /api/check, which runs the authorization gate and the scan plan checks on
@@ -27,46 +37,57 @@ import {
   reducedMotion,
 } from '../ui.js';
 
-const ACTION_COPY = {
+/* Short tool names and descriptions for each check. The job page uses the tool names too. */
+export const ACTION_COPY = {
   surface: { tool: 'nmap', desc: 'Scans the target with nmap to find which TCP ports are open and which service and version runs on each. Always runs.' },
   exploits: { tool: 'searchsploit', desc: 'Searches Exploit-DB for public exploits that match each service and version nmap found, marks whether the version match is exact, and flags services that are risky just by being exposed.' },
   cves: { tool: 'NVD', desc: 'Looks up each service version in the NVD database and lists its known CVEs with CVSS scores. Flags any that CISA lists as actively exploited.' },
   web: { tool: 'httpx', desc: 'Connects to each web port and identifies the web server, frameworks and technologies in use, plus which security headers are missing.' },
   paths: { tool: 'ffuf', desc: 'Requests a list of common file and folder names on each web port to find pages that exist but are not linked, such as admin panels.' },
-  vulns: { tool: 'nuclei', desc: 'Runs nuclei templates against web services to confirm known vulnerabilities and misconfigurations. Safe templates only, no DoS or fuzzing.' },
+  vulns: { tool: 'nuclei', desc: 'Probes each web service for known vulnerabilities and misconfigurations. Safe checks only, no DoS or fuzzing.' },
   crypto: { tool: 'testssl.sh', desc: 'Tests every TLS port, including STARTTLS, for outdated protocol versions, weak ciphers and certificate problems.' },
   smb: { tool: 'enum4linux-ng', desc: 'Connects to SMB without a password and lists the shares, users, groups and domain details an anonymous user can see.' },
 };
 
 const CUSTOM = 'custom';
-// Custom sends this preset with the user's ports and actions, so nuclei stays on auto.
+// Custom sends this preset with the user's ports and actions, and always starts from it.
 const CUSTOM_BASE = 'standard';
+const DEEP = 'deep';
 
-/*
- * Copy for the cards, the locked and open help, and the AI note (DESIGN
- * section 7, "New scan order and rules"). Fixed panel help lives in
- * index.html.
- */
 const PRESET_COPY = {
-  quick: { name: 'Quick', desc: 'Scans the top 1000 ports, then checks each service for public exploits and known CVEs.' },
-  standard: { name: 'Standard', desc: 'Scans the top 1000 ports and runs all 8 actions. Nuclei only runs templates that match the technology it detects.' },
-  full: { name: 'Full report', desc: 'Scans all 65535 ports and runs all 8 actions with every safe nuclei template. One host at a time.' },
-  custom: { name: 'Custom', desc: 'You choose the ports and the actions. Starts from what the last preset had.' },
+  quick: { name: 'Quick', desc: 'Open ports and known exploits for each service. The fastest scan.' },
+  standard: { name: 'Standard', desc: 'Everything in Quick, plus CVEs, web, TLS and SMB checks.' },
+  full: { name: 'Full', desc: 'Everything in Standard on every port, with deeper web testing. One host at a time.' },
+  custom: { name: 'Custom', desc: 'Choose the ports and checks yourself.' },
 };
+const PRESET_TITLES = { quick: 'Quick scan', standard: 'Standard scan', full: 'Full scan' };
+const CUSTOM_TITLE = 'Custom scan';
+
+const MODE_HELP = {
+  host: 'Scan one lab machine over the network.',
+  list: 'Scan several lab machines over the network, one at a time.',
+  code: 'Find vulnerabilities in a file or folder of code on this computer. The code is read, never run.',
+};
+
 const COPY = {
-  portsLocked: 'Pick Custom above to change the ports.',
-  portsOpen: 'All 65535 finds open ports fast first, then looks closely at those.',
-  portsOpenList: 'All 65535 is for one host only, so a list stays quick.',
-  actionsLocked: 'This is exactly what will run. Pick Custom above to change it.',
-  actionsOpen: 'Tick what to look for. Each action only runs on the ports it fits.',
-  badgeOpen: 'Yours to choose',
-  aiSent: 'The finished scan results are sent to the model. It reads them only and never runs a tool.',
-  aiNoKeyStart: 'No API key is set, so scans make a Standard report. ',
+  badgeOpen: 'Your choice',
+  aiNoteNetwork: 'Adds a written summary, the attack path and what to fix first. The checks run exactly the same either way, and every claim is checked against their results.',
+  aiNoteCode: 'Explains why each finding is dangerous and how to fix it. Only the flagged lines are sent to the model, never whole files. The findings come from Semgrep and Bandit either way.',
+  aiSentNetwork: ' The finished scan results are sent to the model. It reads them only and never runs a tool.',
+  aiNoKeyStart: 'No API key is set, so AI analysis is off. ',
   aiNoKeyLink: 'Add a key in System',
-  aiNoKeyEnd: ' to turn this on.',
-  aiUnknown: 'The AI setup could not be read, so scans make a Standard report.',
-  reportAi: 'You get an AI enhanced report.',
-  reportStandard: 'You get a Standard report.',
+  aiNoKeyEnd: ' to turn it on.',
+  aiUnknown: 'The AI setup could not be read, so AI analysis is off.',
+  aiChecking: 'Checking whether an AI model is set up.',
+  optionsFailed: 'The scan options could not be loaded. Reload to try again.',
+  optionsLoading: 'The scan options are still loading.',
+  needTarget: 'Enter a target IP address first.',
+  needPorts: 'Enter the ports to scan first.',
+  needPath: 'Enter the path of a file or folder first.',
+  needHosts: 'Host lists are not built yet.',
+  serverDownTitle: 'The ReconMind server is not answering',
+  serverDownText: 'Check that python3 -m reconmind.web is still running.',
+  unreadable: 'The server sent an answer the page could not read. Try again.',
 };
 const PROVIDER_NAMES = {
   openrouter: 'OpenRouter', anthropic: 'Anthropic', huggingface: 'Hugging Face', ollama: 'Ollama',
@@ -79,7 +100,6 @@ const FIELDS = ['target', 'ports', 'path', 'actions'];
 const RECON_SEVERITIES = ['critical', 'high', 'medium', 'low'];
 const CODE_SEVERITIES = ['high', 'medium', 'low'];
 const SEVERITY_WORDS = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
-const PRESET_TITLES = { quick: 'Quick scan', standard: 'Standard scan', full: 'Full report' };
 
 export function mountNewScan(view) {
   const { root, refs } = clone('tpl-newscan');
@@ -89,7 +109,6 @@ export function mountNewScan(view) {
   const hostsInput = root.querySelector('#hosts');
   const pathInput = root.querySelector('#path');
   const portsInput = root.querySelector('#ports');
-  const explainInput = root.querySelector('#explain');
   const aiInput = root.querySelector('#ai');
   const modeButtons = Array.from(root.querySelectorAll('[data-mode]'));
   const portButtons = Array.from(root.querySelectorAll('[data-ports]'));
@@ -98,31 +117,35 @@ export function mountNewScan(view) {
 
   const state = {
     mode: 'host',
-    picked: null,    // quick, standard, full or custom
-    last: null,      // the last preset picked (never custom)
-    sel: [],         // ticked action ids, in /api/options order
-    ports: 'top',    // top, all or custom
-    explain: false,
-    ai: false,
+    picked: null,      // quick, standard, full or custom
+    sel: [],           // ticked action ids, in /api/options order
+    ports: 'top',      // top, all or custom (Specific ports)
+    ai: false,         // AI analysis for a network scan
+    explain: false,    // AI analysis for a code scan
     aiAvailable: false,
+    aiSetup: null,     // the "ai" object from /api/options, or null
     busy: false,
     opts: null,
+    optsFailed: false,
   };
   const presetCards = {};
   const actionRows = {};
   let alive = true;
   let lastPlan = '';
+  let lastAiInfo = null;
 
   // ---- options and helpers ---------------------------------------------
 
-  const preset = (id) => (state.opts ? state.opts.presets.find((p) => p.id === id) : null);
+  const preset = (id) => (state.opts ? state.opts.presets.find((p) => p.id === id) || null : null);
   const actionIds = () => state.opts.actions.map((a) => a.id);
-  const presetName = (id) => (PRESET_COPY[id] ? PRESET_COPY[id].name : id);
+  const presetName = (id) => (PRESET_COPY[id] ? PRESET_COPY[id].name : String(id));
   const isCustom = () => state.picked === CUSTOM;
-  // Ports and Actions are locked while a preset (not Custom) is picked.
+  // Ports and Checks are locked while a preset (not Custom) is picked.
   const locked = () => !isCustom();
   // Presets that scan every port are for one host at a time.
   const presetAllowed = (p) => !(state.mode === 'list' && p.ports === 'all');
+  const visibleModes = () => modeButtons.filter((btn) => !btn.hidden);
+  const aiOn = () => (state.mode === 'code' ? state.explain : state.ai);
 
   // "22, 80" and "22,80" mean the same; the server still checks the spec itself.
   function customPorts() {
@@ -151,7 +174,6 @@ export function mountNewScan(view) {
     const p = preset(id);
     if (!p || !presetAllowed(p)) return;
     state.picked = p.id;
-    state.last = p.id;
     state.sel = actionIds().filter((a) => p.actions.includes(a));
     if (p.ports === 'top' || p.ports === 'all') {
       state.ports = p.ports;
@@ -163,10 +185,10 @@ export function mountNewScan(view) {
     clearFieldError('actions');
   }
 
-  /* Custom starts from the ports and actions the last picked preset had. */
+  /* Custom always starts from the Standard preset's ports and checks. */
   function pickCustom() {
     if (isCustom()) return;
-    if (state.last) applyPreset(state.last);
+    applyPreset(CUSTOM_BASE);
     state.picked = CUSTOM;
     if (state.mode === 'list' && state.ports === 'all') state.ports = 'top';
   }
@@ -179,9 +201,11 @@ export function mountNewScan(view) {
 
   function setMode(mode) {
     if (!MODES.includes(mode) || mode === state.mode) return;
+    const btn = modeButtons.find((b) => b.dataset.mode === mode);
+    if (!btn || btn.hidden) return;
     state.mode = mode;
     if (mode === 'list' && state.opts) {
-      // Full report and All 65535 are for one host only.
+      // Full and All 65535 are for one host only.
       const p = preset(state.picked);
       if (p && !presetAllowed(p)) {
         const fallback = listFallback();
@@ -211,7 +235,27 @@ export function mountNewScan(view) {
 
   // ---- building the lists from /api/options ----------------------------
 
-  function presetCard(id, copy) {
+  function portsFact(p) {
+    if (p.ports === 'top') return 'Ports: top 1000';
+    if (p.ports === 'all') return 'Ports: all 65535';
+    return 'Ports: ' + p.ports;
+  }
+
+  function checksFact(p) {
+    const all = state.opts.actions;
+    const names = all.filter((a) => p.actions.includes(a.id)).map((a) => a.name);
+    if (names.length === all.length) return 'Checks: all ' + all.length;
+    return 'Checks: ' + names.length + ' of ' + all.length + ' (' + names.join(', ') + ')';
+  }
+
+  function presetFacts(p) {
+    if (!p) return ['Ports: your choice', 'Checks: your choice'];
+    const facts = [portsFact(p), checksFact(p)];
+    if (p.vuln_mode === DEEP) facts.push('Deeper web testing');
+    return facts;
+  }
+
+  function presetCard(id, copy, p) {
     const card = h('button', {
       type: 'button',
       class: 'preset',
@@ -221,7 +265,9 @@ export function mountNewScan(view) {
     h('span', { class: 'dot', 'aria-hidden': 'true' }),
     h('span', { class: 'preset-text' },
       h('span', { class: 'preset-name', text: copy.name }),
-      h('span', { class: 'preset-desc', text: copy.desc })));
+      h('span', { class: 'preset-desc', text: copy.desc }),
+      h('span', { class: 'preset-facts' },
+        presetFacts(p).map((fact) => h('span', { class: 'preset-fact', text: fact })))));
     presetCards[id] = card;
     return card;
   }
@@ -229,9 +275,9 @@ export function mountNewScan(view) {
   function buildPresets() {
     refs.presets.replaceChildren();
     for (const p of state.opts.presets) {
-      refs.presets.append(presetCard(p.id, PRESET_COPY[p.id] || { name: p.id, desc: '' }));
+      refs.presets.append(presetCard(p.id, PRESET_COPY[p.id] || { name: p.id, desc: '' }, p));
     }
-    refs.presets.append(presetCard(CUSTOM, PRESET_COPY.custom));
+    refs.presets.append(presetCard(CUSTOM, PRESET_COPY.custom, null));
   }
 
   function buildActions() {
@@ -246,46 +292,63 @@ export function mountNewScan(view) {
         'aria-describedby': 'act-desc-' + a.id,
         onchange: (event) => { toggleAction(a.id, event.target.checked); render(); },
       });
+      const skip = h('span', { class: 'act-skip', hidden: true });
       const row = h('label', { class: 'act' + (always ? ' locked' : '') },
         box,
         h('span', { class: 'act-text' },
           h('span', {},
             h('span', { class: 'act-name', text: a.name }),
             h('span', { class: 'tag act-tool', text: copy.tool })),
-          h('span', { class: 'act-desc', id: 'act-desc-' + a.id, text: copy.desc })));
-      actionRows[a.id] = { row, box };
+          h('span', { class: 'act-desc', id: 'act-desc-' + a.id, text: copy.desc }),
+          skip));
+      actionRows[a.id] = { row, box, skip };
       refs.actions.append(row);
     }
   }
 
   function setupAi() {
     const ai = state.opts.ai && typeof state.opts.ai === 'object' ? state.opts.ai : null;
+    state.aiSetup = ai;
     state.aiAvailable = !!(ai && ai.available === true);
+    // One rule for both scan types: on whenever an API key is set up.
     state.ai = state.aiAvailable;
-    aiInput.checked = state.ai;
-    if (state.aiAvailable) {
-      const provider = PROVIDER_NAMES[ai.provider] || String(ai.provider || 'the configured provider');
-      refs.aiInfo.textContent = 'Uses ' + provider + (ai.model ? ', ' + String(ai.model) : '')
-        + '. ' + COPY.aiSent;
-    } else if (ai) {
-      refs.aiInfo.replaceChildren(
-        COPY.aiNoKeyStart,
-        h('a', { href: '#/system', text: COPY.aiNoKeyLink }),
-        COPY.aiNoKeyEnd);
-    } else {
-      refs.aiInfo.textContent = COPY.aiUnknown;
-    }
+    state.explain = state.aiAvailable;
+  }
+
+  function optionsNotice() {
+    const { root: box, refs: r } = clone('tpl-options-error');
+    r.reload.addEventListener('click', () => location.reload());
+    return box;
+  }
+
+  function optionsFailed() {
+    state.optsFailed = true;
+    state.aiSetup = null;
+    state.aiAvailable = false;
+    state.ai = false;
+    state.explain = false;
+    refs.allowed.textContent = 'the allowlist could not be loaded';
+    refs.presets.replaceChildren(optionsNotice());
+    refs.actions.replaceChildren(optionsNotice());
+    render();
   }
 
   // ---- rendering -------------------------------------------------------
 
+  function checksPhrase() {
+    const total = state.opts.actions.length;
+    const n = state.sel.length;
+    return n === total ? 'all ' + total + ' checks' : n + ' of ' + total + ' checks';
+  }
+
   function planSentence() {
+    const ai = aiOn() ? ' AI analysis on.' : ' AI analysis off.';
     if (state.mode === 'code') {
       const path = pathInput.value.trim();
       const what = path ? basename(path) : 'the code';
-      return 'Read ' + what + ' with Semgrep and Bandit'
-        + (state.explain ? ', then explain each finding with AI.' : '. No AI explanation.');
+      return 'Read ' + what + ' with Semgrep and Bandit.' + ai;
     }
+    if (state.optsFailed) return COPY.optionsFailed;
     if (!state.opts) return 'Loading the scan options.';
     let who;
     if (state.mode === 'list') {
@@ -296,13 +359,24 @@ export function mountNewScan(view) {
       who = targetInput.value.trim() || 'the target';
     }
     let ports;
-    if (state.ports === 'top') ports = 'the top 1000 TCP ports';
-    else if (state.ports === 'all') ports = 'all 65535 TCP ports';
-    else ports = customPorts() ? 'ports ' + customPorts() : 'a custom port list';
-    const p = preset(isCustom() ? CUSTOM_BASE : state.picked);
-    const nuclei = state.sel.includes('vulns') ? 'nuclei on ' + (p ? p.vuln_mode : 'auto') : 'nuclei off';
-    return 'Scan ' + who + ' on ' + ports + ' with ' + plural(state.sel.length, 'action', 'actions')
-      + ', ' + nuclei + '. ' + (state.ai ? COPY.reportAi : COPY.reportStandard);
+    if (state.ports === 'top') ports = 'the top 1000 ports';
+    else if (state.ports === 'all') ports = 'all 65535 ports';
+    else ports = customPorts() ? 'ports ' + customPorts() : 'the ports you list';
+    const p = isCustom() ? null : preset(state.picked);
+    const deeper = p && p.vuln_mode === DEEP && state.sel.includes('vulns')
+      ? ', with deeper web testing' : '';
+    return 'Scan ' + who + ' on ' + ports + ' with ' + checksPhrase() + deeper + '.' + ai;
+  }
+
+  /* Why Start cannot be pressed yet, or '' when it can. */
+  function startBlocker() {
+    if (state.optsFailed) return COPY.optionsFailed;
+    if (state.mode === 'list') return COPY.needHosts;
+    if (state.mode === 'code') return pathInput.value.trim() ? '' : COPY.needPath;
+    if (!state.opts || !state.picked) return COPY.optionsLoading;
+    if (!targetInput.value.trim()) return COPY.needTarget;
+    if (state.ports === 'custom' && !customPorts()) return COPY.needPorts;
+    return '';
   }
 
   function renderBadge(badge, text) {
@@ -315,7 +389,31 @@ export function mountNewScan(view) {
       void badge.offsetWidth;
       badge.classList.add('pop');
     }
-    text.textContent = open ? COPY.badgeOpen : 'Set by ' + presetName(state.picked);
+    text.textContent = open ? COPY.badgeOpen
+      : 'Set by ' + presetName(state.picked) + '. Pick Custom to change.';
+  }
+
+  /* The provider line, or the no key line with its link to System. */
+  function renderAiInfo() {
+    const isCode = state.mode === 'code';
+    const ai = state.aiSetup;
+    const key = [state.optsFailed, !!state.opts, state.aiAvailable, isCode].join('|');
+    if (key === lastAiInfo) return;
+    lastAiInfo = key;
+    if (state.aiAvailable) {
+      const provider = PROVIDER_NAMES[ai.provider] || String(ai.provider || 'the configured provider');
+      refs.aiInfo.textContent = 'Uses ' + provider + (ai.model ? ', ' + String(ai.model) : '') + '.'
+        + (isCode ? '' : COPY.aiSentNetwork);
+    } else if (ai) {
+      refs.aiInfo.replaceChildren(
+        COPY.aiNoKeyStart,
+        h('a', { href: '#/system', text: COPY.aiNoKeyLink }),
+        COPY.aiNoKeyEnd);
+    } else if (state.optsFailed) {
+      refs.aiInfo.textContent = COPY.aiUnknown;
+    } else {
+      refs.aiInfo.textContent = COPY.aiChecking;
+    }
   }
 
   function render() {
@@ -323,28 +421,35 @@ export function mountNewScan(view) {
     const isList = state.mode === 'list';
     const isLocked = locked();
 
-    modeButtons.forEach((btn, i) => {
+    // Mode switch: two or three visible buttons.
+    const shownModes = visibleModes();
+    refs.modeSeg.classList.toggle('cols-2', shownModes.length === 2);
+    shownModes.forEach((btn, i) => {
+      const on = btn.dataset.mode === state.mode;
+      if (on) modeInd.style.transform = 'translateX(' + i * 100 + '%)';
+    });
+    modeButtons.forEach((btn) => {
       const on = btn.dataset.mode === state.mode;
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-selected', on ? 'true' : 'false');
-      if (on) modeInd.style.transform = 'translateX(' + i * 100 + '%)';
     });
+    refs.modeHelp.textContent = MODE_HELP[state.mode];
     for (const group of root.querySelectorAll('[data-group]')) {
       group.hidden = group.dataset.group !== state.mode;
     }
     refs.targetHead.textContent = isCode ? 'Source code' : (isList ? 'Hosts' : 'Target');
-    refs.targetHelp.textContent = isCode ? 'The code is read, never run.'
+    refs.targetHelp.textContent = isCode ? 'A file or folder on this computer.'
       : (isList ? 'One IP per line, up to ' + (state.opts ? state.opts.max_hosts : 8)
         + '. Each one is checked against the allowlist on its own.'
         : 'One IP address from your lab.');
     refs.runPanel.hidden = isCode;
     refs.portsPanel.hidden = isCode;
     refs.actionsPanel.hidden = isCode;
-    refs.aiPanel.hidden = isCode;
 
-    // Ports: locked while a preset is picked.
+    // Ports: read only while a preset is picked.
     refs.portsPanel.classList.toggle('locked', isLocked);
     renderBadge(refs.portsBadge, refs.portsBadgeText);
+    refs.portsHelp.hidden = isLocked;
     portButtons.forEach((btn, i) => {
       const choice = btn.dataset.ports;
       btn.classList.toggle('on', choice === state.ports);
@@ -356,13 +461,11 @@ export function mountNewScan(view) {
     });
     refs.customPorts.hidden = state.ports !== 'custom';
     portsInput.disabled = isLocked;
-    refs.portsHelp.textContent = isLocked ? COPY.portsLocked
-      : (isList ? COPY.portsOpenList : COPY.portsOpen);
 
-    // Actions: locked while a preset is picked; Surface Map always on.
+    // Checks: read only while a preset is picked; Surface Map always on.
     refs.actionsPanel.classList.toggle('locked', isLocked);
     renderBadge(refs.actionsBadge, refs.actionsBadgeText);
-    refs.actionsHelp.textContent = isLocked ? COPY.actionsLocked : COPY.actionsOpen;
+    refs.actionsHelp.hidden = isLocked || !state.opts;
 
     if (state.opts) {
       for (const [id, card] of Object.entries(presetCards)) {
@@ -372,18 +475,23 @@ export function mountNewScan(view) {
         const p = preset(id);
         card.disabled = !!p && !presetAllowed(p);
       }
-      for (const [id, { row, box }] of Object.entries(actionRows)) {
+      const notIn = 'Not in ' + presetName(state.picked);
+      for (const [id, { row, box, skip }] of Object.entries(actionRows)) {
         const on = state.sel.includes(id);
         box.checked = on;
         box.disabled = isLocked || id === ALWAYS_ON;
         row.classList.toggle('off', !on);
+        skip.hidden = !(isLocked && !on);
+        skip.textContent = notIn;
       }
     }
 
-    // AI analysis: off and disabled when no model is set up.
+    // AI analysis: one switch, one rule for both scan types; off and disabled without a key.
     aiInput.disabled = !state.aiAvailable;
-    aiInput.checked = state.ai;
+    aiInput.checked = state.aiAvailable && aiOn();
     refs.aiRow.classList.toggle('disabled', !state.aiAvailable);
+    refs.aiNote.textContent = isCode ? COPY.aiNoteCode : COPY.aiNoteNetwork;
+    renderAiInfo();
 
     const sentence = planSentence();
     if (sentence !== lastPlan) {
@@ -400,7 +508,10 @@ export function mountNewScan(view) {
       : (isList ? 'Scan ' + (hostLines().length ? plural(hostLines().length, 'host', 'hosts') : 'hosts')
         : 'Start scan');
     refs.startNote.hidden = !isList;
-    refs.start.disabled = state.busy || isList || (!isCode && !state.opts);
+    const blocker = startBlocker();
+    refs.start.disabled = state.busy || !!blocker;
+    if (blocker && !state.busy) refs.start.setAttribute('title', blocker);
+    else refs.start.removeAttribute('title');
     refs.start.setAttribute('aria-busy', state.busy ? 'true' : 'false');
     refs.spinner.hidden = !state.busy;
   }
@@ -463,8 +574,9 @@ export function mountNewScan(view) {
     // A new node each time, so the alert shakes once on every refusal.
     const { root: box, refs: r } = clone('tpl-refused');
     r.title.textContent = target + ' is not on the allowlist';
-    const list = Array.isArray(networks) && networks.length ? networks : state.opts.allowlist;
-    for (const net of list) r.nets.append(h('span', { class: 'net', text: net }));
+    const list = Array.isArray(networks) && networks.length ? networks
+      : (state.opts ? state.opts.allowlist : []);
+    for (const net of list) r.nets.append(h('span', { class: 'net', text: String(net) }));
     r.change.addEventListener('click', () => {
       refs.alert.replaceChildren();
       targetInput.focus();
@@ -474,11 +586,13 @@ export function mountNewScan(view) {
   }
 
   function handleFailure(data, body) {
+    const message = typeof data.message === 'string' && data.message ? data.message : null;
     if (data.reason === 'refused') {
-      showRefused(body.target, data.networks);
+      showRefused(String(body.target || 'The target'), data.networks);
     } else if (data.reason === 'invalid') {
-      if (!showFieldError(data.field, data.message)) {
-        showNotice('This scan cannot start', data.message);
+      const field = typeof data.field === 'string' ? data.field : '';
+      if (!showFieldError(field, message || 'This value is not valid.')) {
+        showNotice('This scan cannot start', message || 'The server refused the request.');
       }
     } else if (data.reason === 'busy') {
       const link = typeof data.job_id === 'string' && JOB_ID.test(data.job_id)
@@ -487,7 +601,7 @@ export function mountNewScan(view) {
       markRunning();
       showNotice('A scan is already running', 'One scan runs at a time. Wait for it to finish or stop it first.', link);
     } else {
-      showNotice('This scan cannot start', data.message || 'The server refused the request.');
+      showNotice('This scan cannot start', message || 'The server refused the request.');
     }
   }
 
@@ -495,9 +609,9 @@ export function mountNewScan(view) {
 
   function requestBody() {
     if (state.mode === 'code') {
-      return { kind: 'code', path: pathInput.value.trim(), explain: state.explain };
+      return { kind: 'code', path: pathInput.value.trim(), explain: state.aiAvailable && state.explain };
     }
-    const mode = state.ai ? 'ai' : 'standard';
+    const mode = state.aiAvailable && state.ai ? 'ai' : 'standard';
     const target = targetInput.value.trim();
     if (isCustom()) {
       return {
@@ -517,40 +631,45 @@ export function mountNewScan(view) {
     render();
   }
 
+  const isAnswer = (data) => !!data && typeof data === 'object' && !Array.isArray(data);
+
+  /* A calm notice for a request that did not get a usable answer. */
+  function requestProblem(res, title) {
+    if (res.status === 0) showNotice(COPY.serverDownTitle, COPY.serverDownText);
+    else if (res.ok) showNotice(title, COPY.unreadable);
+    else showNotice(title, 'The server answered with status ' + res.status + '. Try again.');
+  }
+
   async function start() {
-    if (state.busy || state.mode === 'list' || refs.start.disabled) return;
+    if (state.busy || refs.start.disabled || startBlocker()) return;
     clearProblems();
-    const body = requestBody();
     setBusy(true);
     try {
+      const body = requestBody();
       const check = await api.post('/api/check', body);
       if (!alive) return;
-      if (check.status === 0) {
-        showNotice('The ReconMind server is not answering', 'Check that python3 -m reconmind.web is still running.');
+      if (!isAnswer(check.data) || (!check.ok && !check.data.reason)) {
+        requestProblem(check, 'The check did not run');
         return;
       }
-      if (!check.ok || !check.data) {
-        showNotice('The check did not run', (check.data && check.data.message) || 'The server answered with status ' + check.status + '.');
-        return;
-      }
-      if (!check.data.ok) {
+      if (check.data.ok !== true) {
         handleFailure(check.data, body);
         return;
       }
       const started = await api.post('/api/scans', body);
       if (!alive) return;
-      if (started.status === 201 && started.data && JOB_ID.test(String(started.data.job_id))) {
+      if (started.status === 201 && isAnswer(started.data) && JOB_ID.test(String(started.data.job_id))) {
         markRunning();
         location.hash = '#/job/' + started.data.job_id;
         return;
       }
-      if (started.status === 0) {
-        showNotice('The ReconMind server is not answering', 'Check that python3 -m reconmind.web is still running.');
-      } else if (started.data && started.data.reason) {
+      if (isAnswer(started.data) && started.data.reason) {
         handleFailure(started.data, body);
       } else {
-        showNotice('The scan did not start', 'The server answered with status ' + started.status + '.');
+        requestProblem(started, 'The scan did not start');
       }
+    } catch (err) {
+      if (alive) showNotice('The scan did not start', 'Something went wrong in the page. Reload and try again.');
     } finally {
       if (alive) setBusy(false);
     }
@@ -578,6 +697,12 @@ export function mountNewScan(view) {
       value);
   }
 
+  /* "Quick scan", or "Custom scan" when the run's ports or checks were changed. */
+  function scanTitle(entry) {
+    if (entry.customized === true) return CUSTOM_TITLE;
+    return PRESET_TITLES[entry.preset] || 'Scan';
+  }
+
   function lastCard(entry) {
     const kind = entry.kind || 'recon';
     const findings = entry.findings && typeof entry.findings === 'object' ? entry.findings : {};
@@ -591,12 +716,13 @@ export function mountNewScan(view) {
     const { root: card, refs: r } = clone('tpl-last');
     const when = formatWhen(entry.finished) || formatWhen(entry.started);
     if (kind === 'code') {
-      const files = Object.values(entry.languages || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+      const languages = entry.languages && typeof entry.languages === 'object' ? entry.languages : {};
+      const files = Object.values(languages).reduce((a, b) => a + (Number(b) || 0), 0);
       if (started) nodes.push(event(clock(started), 'Read ' + plural(files, 'source file', 'source files')));
       r.when.textContent = (when ? when + ', ' : '') + 'report written';
       r.title.textContent = 'Code scan, ' + basename(entry.input);
       r.sub.textContent = plural(total, 'finding', 'findings')
-        + (entry.ai_explanation ? ', explained with AI.' : '.');
+        + (entry.ai_explanation ? ', with AI analysis.' : '.');
     } else {
       const target = String(entry.target || 'unknown');
       if (started) {
@@ -604,7 +730,7 @@ export function mountNewScan(view) {
           : 'Gate passed, ' + target + ' allowed'));
       }
       r.when.textContent = (when ? when + ', ' : '') + (refused ? 'refused' : 'report written');
-      r.title.textContent = (PRESET_TITLES[entry.preset] || 'Scan') + ', ' + target;
+      r.title.textContent = scanTitle(entry) + ', ' + target;
       if (refused) {
         r.sub.textContent = 'Refused by the authorization gate. Nothing was sent.';
       } else {
@@ -622,19 +748,34 @@ export function mountNewScan(view) {
   }
 
   async function loadLast() {
-    const res = await api.get('/api/history');
+    let res;
+    try {
+      res = await api.get('/api/history');
+    } catch (err) {
+      res = { ok: false, status: 0, data: null };
+    }
     if (!alive) return;
-    if (!res.ok || !res.data || !Array.isArray(res.data.entries)) {
+    if (res.status === 0) {
+      refs.last.replaceChildren(emptyLast('The report history could not be loaded. The ReconMind server is not answering.'));
+      return;
+    }
+    if (!res.ok || !isAnswer(res.data) || !Array.isArray(res.data.entries)) {
       refs.last.replaceChildren(emptyLast('The report history could not be loaded.'));
       return;
     }
-    const entry = res.data.entries.find((e) => e && typeof e === 'object');
+    const warning = typeof res.data.warning === 'string' ? res.data.warning : null;
+    const entry = res.data.entries.find((e) => isAnswer(e));
     if (!entry) {
-      refs.last.replaceChildren(emptyLast(res.data.warning || null));
+      refs.last.replaceChildren(emptyLast(warning));
       return;
     }
-    refs.last.replaceChildren(...lastCard(entry));
-    if (res.data.warning) refs.last.append(h('p', { class: 'tag', text: res.data.warning }));
+    try {
+      refs.last.replaceChildren(...lastCard(entry));
+    } catch (err) {
+      refs.last.replaceChildren(emptyLast('The last scan could not be shown.'));
+      return;
+    }
+    if (warning) refs.last.append(h('p', { class: 'tag', text: warning }));
   }
 
   // ---- wiring ----------------------------------------------------------
@@ -645,9 +786,10 @@ export function mountNewScan(view) {
     render();
     if (state.ports === 'custom' && !portsInput.disabled) portsInput.focus();
   }));
-  explainInput.addEventListener('change', () => { state.explain = explainInput.checked; render(); });
   aiInput.addEventListener('change', () => {
-    state.ai = state.aiAvailable && aiInput.checked;
+    const on = state.aiAvailable && aiInput.checked;
+    if (state.mode === 'code') state.explain = on;
+    else state.ai = on;
     render();
   });
   for (const [input, field] of [[targetInput, 'target'], [portsInput, 'ports'], [pathInput, 'path']]) {
@@ -666,10 +808,8 @@ export function mountNewScan(view) {
   loadLast();
   api.options().then((res) => {
     if (!alive) return;
-    if (!res.ok || !res.data || !Array.isArray(res.data.presets)) {
-      refs.allowed.textContent = 'the allowlist could not be loaded';
-      refs.aiInfo.textContent = COPY.aiUnknown;
-      if (res.status !== 0) showNotice('The scan options could not be loaded', 'Reload the page to try again.');
+    if (!res.ok) {
+      optionsFailed();
       return;
     }
     state.opts = res.data;
@@ -685,6 +825,8 @@ export function mountNewScan(view) {
     }
     render();
     targetInput.focus({ preventScroll: true });
+  }).catch(() => {
+    if (alive) optionsFailed();
   });
 
   return () => { alive = false; };

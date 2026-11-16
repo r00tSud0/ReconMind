@@ -167,8 +167,8 @@ def _check_mode(body):
     if mode not in MODES:
         raise Invalid("Mode must be \"standard\" or \"ai\".", "mode")
     if mode == MODE_AI and not ai_options()["available"]:
-        raise Invalid("AI analysis needs an LLM. Set an API key in .env, or choose the "
-                      "Standard report.", "mode")
+        raise Invalid("AI analysis needs an LLM. Set an API key in .env, or turn AI "
+                      "analysis off.", "mode")
     return mode
 
 

@@ -72,8 +72,12 @@ VULN_MODE_TEXT = {
 }
 
 Preset = namedtuple("Preset", "name actions ports vuln_mode")
+# The ladder: quick finds open ports and known exploits; standard adds CVEs,
+# web, TLS and SMB checks; full does standard on every port with deeper web
+# testing. CVE Intel stays out of quick because the NVD lookup is the slowest
+# step without an API key.
 PRESETS = {
-    "quick": Preset("quick", ("surface", "exploits", "cves"), PORTS_TOP, VULN_MODE_AUTO),
+    "quick": Preset("quick", ("surface", "exploits"), PORTS_TOP, VULN_MODE_AUTO),
     "standard": Preset("standard", ACTION_IDS, PORTS_TOP, VULN_MODE_AUTO),
     "full": Preset("full", ACTION_IDS, PORTS_ALL, VULN_MODE_DEEP),
 }

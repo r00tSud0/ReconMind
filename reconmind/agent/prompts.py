@@ -196,7 +196,7 @@ def first_user_message(target):
             "summary.".format(t=target))
 
 
-# ---- AI analyst (AI enhanced report) ---------------------------------------
+# ---- AI analyst (AI analysis on) -------------------------------------------
 # In an AI enhanced run every tool has already run through the standard
 # pipeline. The model only reads the stored results (analyst_tools.py) and
 # writes the same summary format as above, checked by the same summary_check.

@@ -212,7 +212,7 @@ body[data-view="new"] .slabs { display: block; }
 .lockbadge {
   display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 4px 10px;
   border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(10,10,11,.55);
-  font-size: 12px; font-weight: 650; color: #C8C8CE; white-space: nowrap;
+  font-size: 12px; font-weight: 650; line-height: 1.4; color: #C8C8CE;
 }
 /* Pops in when shown, and again each time it switches between locked and open. */
 .lockbadge.pop { animation: pop .4s cubic-bezier(.3,1.6,.5,1) both; }
@@ -220,15 +220,24 @@ body[data-view="new"] .slabs { display: block; }
 .lockbadge .lk-open, .lockbadge.open .lk-shut { display: none; }
 .lockbadge.open .lk-open { display: inline; }
 .lockbadge.open { border-color: rgba(229,72,77,.55); color: #FF9A9A; background: rgba(229,72,77,.08); }
-/* The body dims as a whole; every control is disabled but the picked values stay readable. */
-.panel .body { transition: opacity .4s ease, filter .4s ease; }
-.panel.locked .body { opacity: .6; filter: saturate(.5); }
+/*
+ * Locked means read only, not switched off: the panel stays at full
+ * brightness and the picked port choice and ticked checks look exactly as
+ * they do when unlocked. Only the cursor says the controls cannot change.
+ */
 .panel.locked .seg button:disabled { opacity: 1; cursor: not-allowed; }
 .panel.locked .seg button.never { opacity: .3; }
 .panel.locked .act { cursor: not-allowed; }
 .panel.locked .act:hover { background: transparent; }
 .panel.locked .ck:disabled { cursor: not-allowed; }
-.panel.locked .field:disabled { cursor: not-allowed; }
+.panel.locked .field:disabled { cursor: not-allowed; opacity: 1; -webkit-text-fill-color: currentColor; }
+/* An unticked check in a locked panel: "Not in Quick". */
+.act-skip {
+  align-self: flex-start; margin-top: 4px; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14); font-size: 12px; color: var(--text-muted);
+}
+/* The options could not be loaded: one notice across the whole panel. */
+.presets > .alert, .actions > .alert { grid-column: 1 / -1; }
 
 /* ---- 6. Page load sequence and title sweep ------------------------------ */
 .reveal { animation: reveal .8s var(--ease-out) both; }
@@ -303,6 +312,10 @@ body[data-view="new"] .slabs { display: block; }
   min-width: min(400px, 100%);
 }
 .seg-mode { max-width: 460px; margin-top: 10px; }
+/* Two visible buttons (Host list hidden): two columns, and the indicator fits one. */
+.seg.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); max-width: 320px; min-width: min(300px, 100%); }
+.seg.cols-2 .ind { width: calc((100% - 8px) / 2); }
+.mode-help { max-width: 52ch; }
 .seg-ports { max-width: 440px; }
 .ind {
   position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 3);
@@ -363,6 +376,8 @@ body[data-view="new"] .slabs { display: block; }
 .preset-text { display: flex; flex-direction: column; gap: 4px; }
 .preset-name { font-stretch: 125%; font-weight: 750; color: var(--text-strong); }
 .preset-desc { font-size: 13px; line-height: 1.45; color: var(--text-muted); }
+.preset-facts { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.preset-fact { font-size: 12.5px; line-height: 1.45; color: var(--text); }
 
 /* ---- 5.9 Checkbox and toggle -------------------------------------------- */
 .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); column-gap: 36px; row-gap: 2px; }
@@ -486,7 +501,7 @@ body[data-view="new"] .slabs { display: block; }
 .heat.medium i:nth-child(-n+2) { background: var(--sev-medium); }
 .heat.low i:nth-child(1) { background: var(--sev-low); }
 
-/* ---- Job page (temporary) ----------------------------------------------- */
+/* ---- Job page ----------------------------------------------------------- */
 .job-head { display: flex; flex-direction: column; gap: 12px; }
 .job-title { font-size: clamp(30px, 4vw, 44px); font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; overflow-wrap: anywhere; }
 .job-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
@@ -499,7 +514,31 @@ body[data-view="new"] .slabs { display: block; }
 .pill.done { color: var(--text-strong); }
 .pill.failed, .pill.refused { color: var(--sev-critical); border-color: rgba(255,107,94,.5); background: rgba(255,107,94,.08); }
 .pill.stopped, .pill.interrupted { color: var(--warn); border-color: rgba(233,210,103,.45); background: rgba(233,210,103,.06); }
-.out-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.btn-stop .spinner { border-color: rgba(255,90,95,.35); border-top-color: var(--red-light); }
+.job-step { margin: 0; font-size: 15px; color: var(--text-strong); overflow-wrap: anywhere; }
+.job-step::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 10px; vertical-align: middle;
+  border-radius: 50%; background: var(--live); box-shadow: 0 0 10px var(--live); animation: pulse 1.6s ease-in-out infinite;
+}
+.log summary {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--text-muted); list-style: none;
+}
+.log summary::-webkit-details-marker { display: none; }
+.log summary::before { content: "\25B8"; transition: transform .25s ease; }
+.log[open] summary::before { transform: rotate(90deg); }
+.log summary:hover { color: var(--text-strong); }
+.log[open] .out { margin-top: 8px; }
+
+/* Stop confirmation: an in page dialog styled like the glass panels. */
+.dialog {
+  width: min(440px, calc(100vw - 32px)); padding: 28px; color: var(--text);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.dialog:not([open]) { display: none; }
+.dialog::backdrop { background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.dialog[open] { animation: pop .3s cubic-bezier(.3,1.4,.5,1) both; }
+.dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .out {
   margin: 0; min-height: 240px; max-height: 60vh; overflow: auto; padding: 18px 20px; border-radius: 12px;
   background: rgba(0,0,0,.6); border: 1px solid var(--line);

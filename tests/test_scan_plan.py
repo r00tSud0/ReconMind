@@ -29,7 +29,8 @@ from reconmind.ai import attack_mapper
 from reconmind.core import history
 from reconmind.core.report import build_report
 from reconmind.core.scan_plan import (
-    ACTION_IDS, PlanError, PortsSpecError, ScanPlan, build_plan, parse_ports, port_count)
+    ACTION_IDS, PRESETS, PlanError, PortsSpecError, ScanPlan, build_plan, parse_ports,
+    port_count)
 from reconmind.tools import nmap_scan, nuclei_scan
 
 TARGET = "10.10.1.100"
@@ -143,9 +144,16 @@ class PresetTests(unittest.TestCase):
 
     def test_quick(self):
         plan = build_plan(TARGET, "quick")
-        self.assertEqual(plan.actions, ("surface", "exploits", "cves"))
+        self.assertEqual(plan.actions, ("surface", "exploits"))
         self.assertEqual(plan.ports, "top")
+        self.assertEqual(plan.vuln_mode, "auto")
         self.assertFalse(plan.customized)
+
+    def test_quick_is_surface_and_exploits_only(self):
+        # CVE Intel (the slow NVD lookup) is not part of Quick.
+        self.assertEqual(PRESETS["quick"].actions, ("surface", "exploits"))
+        self.assertNotIn("cves", build_plan(TARGET, "quick").actions)
+        self.assertTrue(build_plan(TARGET, "quick", actions="exploits,cves").customized)
 
     def test_standard_is_the_default(self):
         plan = build_plan(TARGET)
@@ -212,7 +220,7 @@ class OverrideTests(unittest.TestCase):
     def test_to_dict(self):
         self.assertEqual(build_plan(TARGET, "quick", ports="21").to_dict(), {
             "target": TARGET, "preset": "quick", "customized": True, "ports": "21",
-            "actions": ["surface", "exploits", "cves"], "vuln_mode": "auto"})
+            "actions": ["surface", "exploits"], "vuln_mode": "auto"})
 
 
 # ---- nmap ----------------------------------------------------------------
@@ -402,14 +410,14 @@ class ToolBoxPlanTests(unittest.TestCase):
              mock.patch.object(toolmod, "run_enum4linux") as enum:
             for name, args in (("web_fingerprint", {"port": 80}), ("web_discover", {"port": 80}),
                                ("vuln_templates", {"port": 80}), ("tls_check", {"port": 443}),
-                               ("smb_enum", {})):
+                               ("smb_enum", {}), ("cve_lookup", {})):
                 obs, is_error = tb.call(name, args)
                 self.assertTrue(is_error, name)
                 self.assertIn("{n} is not part of this scan".format(n=name), obs)
-                self.assertIn("nmap_scan, exploit_lookup, cve_lookup", obs)
+                self.assertIn("Tools in this scan: nmap_scan, exploit_lookup.", obs)
         for fake in (httpx, ffuf, nuclei, testssl, enum):
             fake.assert_not_called()
-        self.assertEqual(len(tb.calls), 5)
+        self.assertEqual(len(tb.calls), 6)
 
     def test_exploit_lookup_refused_without_exploit_hunt(self):
         tb = toolmod.ToolBox(TARGET, plan=build_plan(TARGET, actions="web"))
@@ -484,7 +492,7 @@ class ToolBoxPlanTests(unittest.TestCase):
     def test_spec_filter(self):
         quick = toolmod.plan_tool_specs(build_plan(TARGET, "quick"))
         self.assertEqual([s["name"] for s in quick],
-                         ["nmap_scan", "exploit_lookup", "cve_lookup", "attack_map"])
+                         ["nmap_scan", "exploit_lookup", "attack_map"])
         self.assertEqual(toolmod.plan_tool_specs(build_plan(TARGET, "full")), toolmod.TOOL_SPECS)
         self.assertIs(toolmod.plan_tool_specs(None), toolmod.TOOL_SPECS)
 
@@ -532,7 +540,7 @@ class BrainPlanTests(unittest.TestCase):
                                 plan=plan)
         for request in client.requests:
             self.assertEqual([s["name"] for s in request["tools"]],
-                             ["nmap_scan", "exploit_lookup", "cve_lookup", "attack_map"])
+                             ["nmap_scan", "exploit_lookup", "attack_map"])
             self.assertEqual(request["system"], build_system_prompt(plan))
         self.assertIs(tb.plan, plan)
         result = client.requests[1]["messages"][-1]["content"][0]
@@ -638,11 +646,14 @@ class PromptTests(unittest.TestCase):
     def test_quick_names_only_its_tools(self):
         prompt = build_system_prompt(build_plan(TARGET, "quick"))
         for tool in ("web_fingerprint", "web_discover", "vuln_templates", "tls_check",
-                     "smb_enum"):
+                     "smb_enum", "cve_lookup"):
             self.assertNotIn(tool, prompt)
         self.assertIn("Call exploit_lookup only when", prompt)
-        self.assertIn("- Call cve_lookup once, after nmap_scan. It takes no inputs.", prompt)
         self.assertIn("- Match labels:", prompt)
+
+    def test_cve_rule_after_nmap_without_web_tools(self):
+        prompt = build_system_prompt(build_plan(TARGET, "quick", actions="exploits,cves"))
+        self.assertIn("- Call cve_lookup once, after nmap_scan. It takes no inputs.", prompt)
         for rule in OTHER_RULES:
             self.assertIn(rule, prompt)
         self.assertTrue(prompt.endswith(FORMAT_RULES))
@@ -775,7 +786,8 @@ class CliTests(InTempDir):
         self.assertEqual(code, 0)
         entry = history.read_index()[-1]
         self.assertEqual(entry["preset"], "quick")
-        self.assertEqual(entry["actions"], ["surface", "exploits", "cves"])
+        self.assertEqual(entry["actions"], ["surface", "exploits"])
+        self.assertFalse(entry["customized"])
         report_path = os.path.join("reports", entry["run_id"], "report.md")
         self.assertIn(report_path, out)
         with open(report_path) as fh:
@@ -799,8 +811,8 @@ class ReportPlanTests(InTempDir):
         self.assertIn("- Ports: top (nmap's default top 1000 ports)", report)
         self.assertIn("| surface | Surface Map | Ran |", report)
         self.assertIn("| exploits | Exploit Hunt | Ran |", report)
-        self.assertIn("| cves | CVE Intel | Selected, did not run |", report)
-        for action_id, name in (("web", "Web Fingerprint"), ("paths", "Hidden Paths"),
+        for action_id, name in (("cves", "CVE Intel"), ("web", "Web Fingerprint"),
+                                ("paths", "Hidden Paths"),
                                 ("vulns", "Vuln Probe"), ("crypto", "Crypto Check"),
                                 ("smb", "SMB Recon")):
             self.assertIn("| {i} | {n} | Not run (not selected) |".format(i=action_id, n=name),
@@ -812,9 +824,13 @@ class ReportPlanTests(InTempDir):
         report = self.read(scan, plan=build_plan(TARGET, "quick"))
         self.assertIn("## Known exploits (Exploit-DB)", report)
         for head in ("## Web technology (httpx)", "## Web content discovery (ffuf)",
-                     "## Template checks (nuclei)"):
+                     "## Template checks (nuclei)", "## Known CVEs (NVD)"):
             self.assertNotIn(head, report)
-        # Selected but not run still gets its own "not checked" line.
+
+    def test_selected_but_not_run_says_not_checked(self):
+        scan = scan_with(dict(FTP_PORT, exploits=FAKE_EXPLOITS), HTTP_PORT)
+        report = self.read(scan, plan=build_plan(TARGET, "quick", actions="exploits,cves"))
+        self.assertIn("| cves | CVE Intel | Selected, did not run |", report)
         self.assertIn("## Known CVEs (NVD)", report)
         self.assertIn("**Not checked:** open ports carry CPEs, but cve_lookup did not run", report)
 
@@ -914,7 +930,7 @@ class HistoryTests(InTempDir):
         self.assertEqual(entries, [{
             "run_id": "20261112_100000_10.10.1.100", "kind": "recon", "target": TARGET,
             "preset": "standard",
-            "actions": list(ACTION_IDS), "ports_spec": "top",
+            "actions": list(ACTION_IDS), "ports_spec": "top", "customized": False,
             "started": "2026-11-12T10:00:00", "finished": "2026-11-12T10:05:30",
             "status": "ok", "open_ports": 3,
             # telnet risk flag high, nuclei high, testssl MEDIUM; "OK" is not counted
@@ -922,6 +938,24 @@ class HistoryTests(InTempDir):
             # No mode passed: recorded as "ai", like every run before modes.
             "mode": "ai", "stopped": False,
         }])
+
+    def test_index_entry_carries_customized(self):
+        self.save(plan=build_plan(TARGET, "standard", ports="22,80", actions="exploits,web"))
+        self.save(plan=build_plan(TARGET, "quick"))
+        custom, quick = history.read_index()
+        self.assertIs(custom["customized"], True)
+        self.assertIs(quick["customized"], False)
+        self.assertTrue(history.entry_customized(custom))
+        self.assertFalse(history.entry_customized(quick))
+
+    def test_old_entry_without_customized_is_not_customized(self):
+        old = {"run_id": "20250101_000000_10.10.1.100", "kind": "recon", "preset": "standard"}
+        self.assertFalse(history.entry_customized(old))
+
+    def test_refused_run_without_plan_is_not_customized(self):
+        history.save_run({"target": "8.8.8.8", "status": "refused", "ports": []},
+                         started=STARTED, finished=STARTED)
+        self.assertIs(history.read_index()[-1]["customized"], False)
 
     def test_risk_flags_not_counted_without_exploit_hunt(self):
         self.save(plan=build_plan(TARGET, actions="vulns,crypto,paths"))

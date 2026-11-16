@@ -5,9 +5,10 @@
  *   #/live         the latest scan: the running job, otherwise the most
  *                  recently started one (the URL becomes #/job/<id>), or a
  *                  calm empty state when there is no scan at all
- *   #/job/<id>     the job page for one scan (temporary; Live run replaces it)
+ *   #/job/<id>     the job page for one scan
  *   #/targets, #/hosts, #/system
- *                  a calm panel: these arrive in later steps
+ *                  a calm panel: these arrive in later steps (Host lists stays
+ *                  a labelled placeholder while its New scan mode is hidden)
  *
  * Each view's mount function returns a cleanup function, called before the
  * next view mounts, so a view's timers never outlive it. The body carries
@@ -43,10 +44,12 @@ function mountLive(view) {
     }
     const { root, refs } = clone('tpl-live-empty');
     if (res.status === 0) {
-      refs.text.textContent = 'The latest scan could not be loaded.';
+      refs.text.textContent = 'The latest scan could not be loaded. The ReconMind server is not answering.';
     } else if (!res.ok) {
       refs.text.textContent = 'The latest scan could not be loaded. The server answered with status '
         + res.status + '.';
+    } else if (!res.data || typeof res.data !== 'object') {
+      refs.text.textContent = 'The latest scan could not be read. Reload to try again.';
     }
     view.replaceChildren(root);
   });

@@ -9,8 +9,8 @@
  *   #/report/<run id>  the report of one saved run
  *   #/targets          Targets, with the newest folder open
  *   #/targets/<name>   Targets with that folder open
- *   #/hosts, #/system  not built yet: a placeholder with the screen's name,
- *                      a "Not built yet" badge and what it will do
+ *   #/system           System check and editable local AI and NVD settings
+ *   #/hosts            not built yet: a placeholder screen
  *
  * Each view's mount function returns a cleanup function, called before the
  * next view mounts, so a view's timers never outlive it. The body carries
@@ -25,16 +25,14 @@ import { mountNewScan } from './views/newscan.js';
 import { mountJob } from './views/job.js';
 import { mountReport } from './views/report.js';
 import { mountTargets } from './views/targets.js';
+import { mountSystem } from './views/system.js';
 
 const LATER = {
   hosts: {
     name: 'Host lists',
     text: 'Host lists will scan up to 8 lab machines one after another and show their results side by side on one page.',
   },
-  system: {
-    name: 'System',
-    text: 'System will show which scanning tools and AI models are installed and working, and the allowlist and denylist, read only.',
-  },
+
 };
 
 let cleanup = null;
@@ -124,6 +122,10 @@ function route() {
     mount = () => mountTargets(view, wanted);
     navKey = 'targets';
     title = 'Targets';
+  } else if (parts.length === 1 && parts[0] === 'system') {
+    mount = () => mountSystem(view);
+    navKey = 'system';
+    title = 'System check';
   } else if (parts.length === 1 && Object.prototype.hasOwnProperty.call(LATER, parts[0])) {
     const later = LATER[parts[0]];
     mount = () => mountLater(view, later);

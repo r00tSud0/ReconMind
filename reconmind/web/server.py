@@ -48,7 +48,8 @@ Every request passes the same guards before any route runs:
 
 The server checks what it can before launching (IPv4, the authorization
 gate, the scan plan, the code input) and the CLI runs the same checks again
-inside the job. There is no route that changes the configuration.
+inside the job. Only the local System settings route can update owned .env keys. It cannot
+change lab authorization networks or scanning scope.
 """
 
 import os
@@ -67,7 +68,7 @@ from reconmind.core.authorization import is_authorized
 from reconmind.core.report import MODE_AI, MODE_STANDARD, MODES
 from reconmind.core.scan_plan import (
     ACTIONS, DEFAULT_PRESET, PRESETS, PlanError, PortsSpecError, build_plan)
-from reconmind.web import runs
+from reconmind.web import runs, system, settings
 from reconmind.web.jobs import JOB_ID, Busy, JobManager
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -307,6 +308,31 @@ def create_app(report_dir=None, runner=None, port=None):
             "max_hosts": MAX_HOSTS,
             "ai": ai_options(),
         }
+
+    @app.get("/api/system")
+    def system_check():
+        # GET is read-only. A new request rechecks executable availability.
+        return system.snapshot(report_dir)
+
+    @app.post("/api/system/save")
+    async def save_settings(request: Request):
+        body = await _json_body(request)
+        if body is None:
+            return _failure(403, "forbidden", "The request body must be a JSON object.")
+        try:
+            return await run_in_threadpool(settings.save, body, cwd)
+        except settings.SettingsError as exc:
+            return _failure(400, "invalid", str(exc))
+
+    @app.post("/api/system/test")
+    async def test_settings(request: Request):
+        body = await _json_body(request)
+        if body is None:
+            return _failure(403, "forbidden", "The request body must be a JSON object.")
+        try:
+            return await run_in_threadpool(settings.test_connection, body, cwd)
+        except settings.SettingsError as exc:
+            return _failure(400, "invalid", str(exc))
 
     @app.post("/api/check")
     async def check(request: Request):

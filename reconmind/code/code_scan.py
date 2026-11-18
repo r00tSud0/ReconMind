@@ -22,7 +22,7 @@ after both tools finished. It never changes the findings.
 import re
 
 from reconmind.code.bandit_scan import not_run_result, run_bandit
-from reconmind.code.inputs import resolve_reported, validate_input
+from reconmind.code.inputs import read_snippet, resolve_reported, validate_input
 from reconmind.code.semgrep_scan import run_semgrep
 from reconmind.core.events import emit
 
@@ -154,6 +154,33 @@ def merge(semgrep_findings, bandit_findings, root):
     return items
 
 
+def add_display_context(findings, root):
+    """Save up to 3 surrounding code lines for the local report view, not LLM.
+    Only files inside the validated code input may be read. Existing snippets
+    remain the exact scanner findings and are the only code sent to the AI.
+    """
+    import os
+    for finding in findings:
+        try:
+            start = int(finding.get("line"))
+            end = max(start, int(finding.get("end_line")))
+        except (ValueError, TypeError):
+            continue
+        display = finding.get("file")
+        if start < 1 or not isinstance(display, str) or not display:
+            continue
+        reported = os.path.join(root, display) if os.path.isdir(root) else root
+        real, _ = resolve_reported(root, reported)
+        if real is None:
+            continue
+        first = max(1, start - 3)
+        last = min(end + 3, first + 14)
+        context = read_snippet(root, real, first, last)
+        if context:
+            finding["display_context"] = context
+            finding["display_context_start"] = first
+
+
 def severity_counts(findings):
     """{"high", "medium", "low"} counts, plus "unknown" only when there is one."""
     counts = dict.fromkeys(SEVERITIES, 0)
@@ -215,6 +242,7 @@ def run_code_scan(path, explain=False, provider=None, model=None, client=None, p
     findings = merge(semgrep["findings"] if semgrep["status"] == STATUS_OK else [],
                      bandit["findings"] if bandit["status"] == STATUS_OK else [],
                      code_input.root)
+    add_display_context(findings, code_input.root)
     ran = any(t["status"] == STATUS_OK for t in (semgrep, bandit))
     scan = {
         "kind": "code",

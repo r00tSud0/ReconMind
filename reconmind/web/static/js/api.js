@@ -90,3 +90,6 @@ export function options() {
   }
   return optionsCache;
 }
+
+/* System saves can change AI availability within the same browser tab. */
+export function invalidateOptions() { optionsCache = null; }

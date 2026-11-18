@@ -155,6 +155,20 @@ export function mountReport(view, runId) {
     else if (!isCode && entry.mode === 'standard') sub += ' AI analysis off.';
     else if (isCode) sub += entry.ai_explanation ? ' AI analysis on.' : ' AI analysis off.';
     refs.sub.textContent = sub;
+    if (isCode) {
+      const tools = asObject(results.tools);
+      const badges = [];
+      for (const name of ['semgrep', 'bandit']) {
+        const info = asObject(tools[name]);
+        const version = words(info.version);
+        badges.push(h('span', { class: 'code-chip', text:
+          (name === 'semgrep' ? 'Semgrep' : 'Bandit') + (version ? ' ' + version : '') }));
+      }
+      const explanation = asObject(results.explanation);
+      badges.push(h('span', { class: 'code-chip', text:
+        explanation.status === 'ok' ? 'AI explanation on' : 'AI explanation off' }));
+      refs.sub.after(h('div', { class: 'code-chips' }, ...badges));
+    }
 
     const base = '/api/reports/' + encodeURIComponent(runId);
     const actions = [];
@@ -275,7 +289,23 @@ export function mountReport(view, runId) {
   // ---- what it means ---------------------------------------------------
 
   function renderMeaning(d, isCode, refused) {
-    if (isCode || refused) return;
+    if (refused) return;
+    if (isCode) {
+      const explanation = asObject(asObject(asObject(d.scan).results).explanation);
+      const ok = explanation.status === 'ok' && typeof explanation.text === 'string';
+      const help = refs.meaning.querySelector('.h2');
+      if (help) help.textContent = 'AI explanation';
+      refs.meaningHelp.textContent = ok
+        ? 'Written from flagged findings. This explanation covers the code report as a whole.'
+        : 'The findings come from Semgrep and Bandit, whether AI analysis is on or off.';
+      refs.meaningBody.replaceChildren(...(ok
+        ? markdownNodes(explanation.text,
+          { paragraph: 'meaning-text', heading: 'meaning-subhead', list: 'meaning-list' })
+        : [h('p', { class: 'meaning-text', text:
+          explanation.reason || 'No AI explanation was written for this scan.' })]));
+      refs.meaning.hidden = false;
+      return;
+    }
     const summary = asObject(d.summary);
     if (summary.state === 'ok' && typeof summary.text === 'string') {
       // The summary's Markdown, built as DOM nodes; HTML in it is never interpreted.
@@ -328,17 +358,76 @@ export function mountReport(view, runId) {
     return h('div', { class: 'finding' }, btn, panel);
   }
 
+  function codeFindingRow(f, index, open, explanation) {
+    const sev = severityKey(f.severity);
+    const code = asObject(f.code);
+    const start = Number(code.line) || 1;
+    const end = Number(code.end_line) || start;
+    const panelId = 'code-ev-' + index;
+    const ruleIds = Object.values(asObject(code.rule_ids)).map(String);
+    const btn = h('button', {
+      type: 'button', class: 'frow sev-' + sev,
+      'aria-expanded': 'false', 'aria-controls': panelId,
+    },
+    svg(['M9 6l6 6-6 6'], { width: 16, height: 16, class: 'chev' }),
+    heat(sev === 'none' ? 'low' : sev),
+    h('span', { class: 'frow-main' },
+      h('span', { class: 'frow-title', text: words(f.title) || 'Code finding' }),
+      h('span', { class: 'help', text: words(f.where) + '. ' + asList(f.ids).join(', ') })),
+    h('span', { class: 'help frow-source', text: words(f.source) }),
+    h('span', { class: 'frow-ids', text: ruleIds.join(', ') }));
+    const snippet = words(code.context) || words(code.snippet);
+    const first = words(code.context) && Number.isInteger(Number(code.context_start))
+      ? Number(code.context_start) : start;
+    const lines = snippet ? snippet.split('\n').map((line, i) => {
+      const n = first + i;
+      return h('div', { class: 'code-line' + (n >= start && n <= end ? ' marked' : '') },
+        h('span', { class: 'code-number', text: String(n) }),
+        h('span', { class: 'code-source', text: line || ' ' }));
+    }) : [h('p', { class: 'help', text: 'The scanning tools did not save a code snippet for this finding.' })];
+    const panel = h('div', { class: 'evw', id: panelId, role: 'region' },
+      h('div', { class: 'code-detail' },
+        h('div', { class: 'code-evidence' },
+          h('h3', { class: 'h2 code-detail-title', text: words(code.file) + ', line ' + start }),
+          h('div', { class: 'code-lines', tabindex: '0', 'aria-label': 'Saved code evidence' }, ...lines)),
+        h('aside', { class: 'code-aside' },
+          h('h3', { class: 'h2 code-detail-title', text: 'Finding details' }),
+          h('p', { class: 'help', text: asList(f.evidence).slice(0, 2).join(' ') }),
+          h('p', { class: 'help', text:
+            'AI explanation is report-wide, not independently verified for this line.' }),
+          explanation ? h('details', { class: 'code-explanation' },
+            h('summary', { text: 'View report-wide AI explanation' }),
+            ...markdownNodes(explanation,
+              { paragraph: 'meaning-text', heading: 'meaning-subhead', list: 'meaning-list' }))
+            : h('p', { class: 'help', text: 'No AI explanation was saved.' }))));
+    const toggle = (on) => {
+      btn.classList.toggle('open', on);
+      panel.classList.toggle('open', on);
+      btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    };
+    btn.addEventListener('click', () => toggle(!btn.classList.contains('open')));
+    toggle(open);
+    return h('div', { class: 'finding' }, btn, panel);
+  }
+
   function renderFindings(d, isCode, refused) {
     if (refused) return;
     const findings = asList(d.findings).filter(isObject);
     if (findings.length) {
-      refs.findings.replaceChildren(...findings.map((f, i) => findingRow(f, i, i === 0)));
+      const explanation = asObject(asObject(asObject(d.scan).results).explanation);
+      refs.findings.replaceChildren(...findings.map((f, i) =>
+        isCode ? codeFindingRow(f, i, i === 0,
+          explanation.status === 'ok' ? words(explanation.text) : '') : findingRow(f, i, i === 0)));
     } else {
       refs.findings.replaceChildren(h('p', {
         class: 'help findings-none',
         text: isCode ? 'Semgrep and Bandit found nothing in this code.'
           : 'No findings at low severity or above. CVE matches from NVD are not counted as findings because they match the version only; Export .md lists them.',
       }));
+    }
+    if (isCode) {
+      const help = refs.findingsPanel.querySelector('.findings-head .help');
+      if (help) help.textContent = 'Open a finding to see its saved code and flagged line';
     }
     refs.findingsPanel.hidden = false;
   }

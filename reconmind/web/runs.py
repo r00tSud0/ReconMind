@@ -308,7 +308,8 @@ def recon_findings(results, plan=None):
 def code_findings(results):
     """
     The findings of a code run, in the order the scan sorted them. where is
-    the file name and line only, never the folder it sits in.
+    the file name and line only, never the folder it sits in. code holds only
+    the saved, scan-time snippet and range, not a fresh read of source code.
     """
     found = []
     for f in (results.get("findings") if isinstance(results, dict) else None) or []:
@@ -332,9 +333,30 @@ def code_findings(results):
         snippet = str(f.get("snippet") or "").rstrip()
         if snippet:
             evidence.extend(snippet.splitlines()[:MAX_EVIDENCE_LINES])
+        # Code scans store the exact flagged snippet at scan time. Reuse that
+        # saved evidence; never read the user's source files when viewing a report.
+        line = f.get("line")
+        try:
+            line = max(1, int(line))
+        except (ValueError, TypeError):
+            line = 1
+        end_line = f.get("end_line")
+        try:
+            end_line = max(line, int(end_line))
+        except (ValueError, TypeError):
+            end_line = line
+        context = str(f.get("display_context") or "")[:12000]
+        try:
+            context_start = max(1, int(f.get("display_context_start")))
+        except (ValueError, TypeError):
+            context_start = line
         found.append({"severity": severity, "title": _short(title), "where": where,
                       "port": None, "source": " and ".join(sources),
-                      "ids": [_text(c) for c in f.get("cwe") or [] if c], "evidence": evidence})
+                      "ids": [_text(c) for c in f.get("cwe") or [] if c], "evidence": evidence,
+                      "code": {"file": name, "line": line, "end_line": end_line,
+                               "snippet": snippet[:12000],
+                               "context": context, "context_start": context_start,
+                               "rule_ids": {str(k): _short(v) for k, v in rule_ids.items()}}})
     return found
 
 

@@ -594,11 +594,11 @@ export function mountJob(view, jobId) {
     const isRunning = running();
     const id = isRunning ? null : runId();
     const href = id ? '#/report/' + encodeURIComponent(id) : null;
-    for (const link of [refs.openReport, refs.reportLink]) {
-      link.hidden = !href;
-      if (href) link.setAttribute('href', href);
-      else link.removeAttribute('href');
-    }
+    // One Open report button, in the header. The Report card only says
+    // whether a report is saved, as in 02_LiveRun.html.
+    refs.openReport.hidden = !href;
+    if (href) refs.openReport.setAttribute('href', href);
+    else refs.openReport.removeAttribute('href');
     refs.skels.hidden = !isRunning;
     refs.background.hidden = !isRunning;
     refs.another.hidden = isRunning;

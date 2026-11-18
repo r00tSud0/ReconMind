@@ -55,8 +55,8 @@ STATUS_TIMEOUT = "timeout"
 STATUS_FAILED = "failed"
 STATUS_BAD_JSON = "bad-json"
 
-NOT_INSTALLED = ("semgrep is not installed on this machine. Install it with: "
-                 "pip install -r requirements-code.txt")
+NOT_INSTALLED = ("semgrep is not installed on this machine. Run ReconMind setup: "
+                 "python3 -m reconmind.setup --install")
 NO_RULES = "Semgrep rules were not found at {r}. Set them up once with:\n    {cmd}"
 NO_LANGUAGE_RULES = "The rules folder {r} has no rules folder for: {langs}."
 UNKNOWN_COMMIT = ("The rules commit could not be read from the .git folder of {r}, so "
@@ -158,6 +158,20 @@ def _dict(value):
     return value if isinstance(value, dict) else {}
 
 
+def short_rule_id(check_id, rules=None):
+    """Semgrep names local rules after their folder, so a rule in
+    ~/.local/share/reconmind/semgrep-rules/python/... comes back as
+    home.user..local.share.reconmind.semgrep-rules.python.... Drop that folder
+    part so the id reads like the registry's: python.lang.security...."""
+    check_id = str(check_id or "")
+    folder = os.path.realpath(rules or rules_dir())
+    for base in {folder, os.path.abspath(rules or rules_dir())}:
+        prefix = base.strip(os.sep).replace(os.sep, ".") + "."
+        if check_id.startswith(prefix) and len(check_id) > len(prefix):
+            return check_id[len(prefix):]
+    return check_id
+
+
 def _finding(obj):
     """One kept finding, or None when the rule is not in the security category."""
     extra = _dict(obj.get("extra"))
@@ -165,7 +179,7 @@ def _finding(obj):
     if meta.get("category") != SECURITY_CATEGORY:
         return None
     return {
-        "rule_id": obj.get("check_id", ""),
+        "rule_id": short_rule_id(obj.get("check_id", "")),
         "file": obj.get("path", ""),
         "start_line": _dict(obj.get("start")).get("line"),
         "end_line": _dict(obj.get("end")).get("line"),

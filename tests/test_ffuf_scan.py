@@ -143,7 +143,8 @@ class WordlistTests(Base):
     def test_default_wordlist_order(self):
         self.assertEqual(ffuf_scan.DEFAULT_WORDLISTS, (
             "/usr/share/wordlists/dirb/common.txt",
-            "/usr/share/seclists/Discovery/Web-Content/common.txt"))
+            "/usr/share/seclists/Discovery/Web-Content/common.txt",
+            "/usr/share/dirb/wordlists/common.txt"))
 
     def test_line_count_and_sha256_are_recorded(self):
         result = self._run(fake_ffuf(JSON_TEXT))

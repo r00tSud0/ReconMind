@@ -33,6 +33,8 @@ BINARY_NAME = "ffuf"
 DEFAULT_WORDLISTS = (
     "/usr/share/wordlists/dirb/common.txt",
     "/usr/share/seclists/Discovery/Web-Content/common.txt",
+    # Where Ubuntu and Debian's dirb package puts the same list.
+    "/usr/share/dirb/wordlists/common.txt",
 )
 
 # Response codes ffuf keeps. Everything else is dropped.

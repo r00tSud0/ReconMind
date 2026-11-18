@@ -1,5 +1,6 @@
 # ReconMind installer and repair wizard
-Status: approved product direction; **NOT implemented** in this preview.
+Status: tools installer implemented as a command (`python3 -m reconmind.setup`).
+Model download, Setup screen and desktop packaging are not built yet.
 For Claude Code handoff. Source of truth for the installer-first distribution.
 
 ## Product contract
@@ -74,3 +75,29 @@ do not claim Windows or macOS support without testing.
 - Confirm no API secrets or privileged information leak into logs.
 - Record the full command/version manifest and how to uninstall/repair.
 - Do not merge/push installer code before user and Claude review.
+
+## Implemented: tools installer (milestone M1 plus M3, command line)
+- `python3 -m reconmind.setup --check` runs preflight (OS, CPU, Python,
+  disk, network, apt, sudo), shows the 9 tools as the engine sees them and the
+  install plan. It changes nothing.
+- `python3 -m reconmind.setup --install` asks once, then installs or repairs.
+  Running it again skips what is already in place, so it is also the repair.
+- Supported: Ubuntu, Debian and Kali (WSL included), 64 bit Intel/AMD and ARM.
+  Anything else stops at preflight with "not supported yet".
+- System packages, one sudo step: nmap, testssl.sh, dirb (wordlist),
+  smbclient, samba-common-bin, git, python3-venv; on Kali also exploitdb,
+  ffuf, nuclei, httpx-toolkit and enum4linux-ng.
+- Ubuntu and Debian, no sudo: ffuf 2.3.0, nuclei 3.11.1 and ProjectDiscovery
+  httpx 1.12.0 release binaries checked against pinned SHA-256 digests from
+  each project's checksums file; Exploit-DB from GitLab (newest commit,
+  logged); enum4linux-ng v1.3.10 at a pinned commit in its own venv.
+- Everywhere: Semgrep 1.185.0 and Bandit 1.9.4 each in their own venv, Semgrep
+  rules at the pinned commit, nuclei templates (official updater, else the
+  pinned v10.5.2 release).
+- Everything lives in `~/.local/share/reconmind/`. `reconmind/toolpath.py`
+  puts its `bin/` first on PATH when the package is imported, so the CLI, the
+  web app and scan child processes all find the tools.
+- Never scans and never reads or writes the allow or deny lists
+  (enforced by `tests/test_setup.py`).
+- Verified for real on a clean Ubuntu 24.04 machine: 9 of 9 tools ready, a
+  second run skipped every step, a local code scan ran Semgrep and Bandit.

@@ -15,12 +15,12 @@ pushed to the user's GitHub repository.
 - [x] Preserved authorization, scan plan, and core tool execution behavior.
 
 ## Product requirement: installer-first distribution
-- [ ] Build a guided installation and repair wizard that provisions all required
-      scanning executables and compatible Python dependencies before normal use.
+- [x] Installer and repair command that provisions all 9 scanning tools
+      (`python3 -m reconmind.setup`). Setup screen in the app: not built yet.
 - [ ] Retrieve the fine-tuned SciBERT Run 3 model weights and metadata from the
       user's configured GitHub large-file location (Releases or Git LFS).
       The exact repository/asset URL and artifact checksum must be verified.
-- [ ] Verify tools using the same binary-resolution rules as the engine.
+- [x] Verify tools using the same binary-resolution rules as the engine.
 - [ ] Perform bounded local SciBERT inference verification during setup.
 - [ ] Present installation errors with retry/repair, rather than presenting
       ongoing manual installation instructions inside New Scan.

@@ -8,60 +8,23 @@ and never returns API key values.
 import importlib.util
 import os
 import shutil
-import subprocess
 
 from reconmind.agent import llm
 from reconmind.agent.__main__ import _load_dotenv
 from reconmind.ai import attack_mapper
 from reconmind.core import config
-from reconmind.tools import httpx_scan
+from reconmind.setup import detect
+from reconmind.tools import httpx_scan  # noqa: F401  (tests patch it here)
 
-# (label, engine check, version command, check category). Installing or
-# repairing tools belongs to the setup wizard, so no install guidance is kept here.
-TOOLS = (
-    ("nmap", "nmap", ("--version",), "Surface Map"),
-    ("searchsploit", "searchsploit", ("-h",), "Exploit Hunt"),
-    ("httpx", "httpx", ("-version",), "Web Fingerprint"),
-    ("ffuf", "ffuf", ("-V",), "Hidden Paths"),
-    ("nuclei", "nuclei", ("-version",), "Vuln Probe"),
-    ("testssl.sh", "testssl", ("--version",), "Crypto Check"),
-    ("enum4linux-ng", "enum4linux-ng", ("-h",), "SMB Recon"),
-    ("Semgrep", "semgrep", ("--version",), "Code scan"),
-    ("Bandit", "bandit", ("--version",), "Code scan"),
-)
-
-
-def _path(name):
-    """Exact engine selection for ProjectDiscovery httpx and testssl variants."""
-    if name == "httpx":
-        return shutil.which(httpx_scan.find_binary() or "")
-    if name == "testssl":
-        return shutil.which("testssl") or shutil.which("testssl.sh")
-    return shutil.which(name)
-
-
-def _version(binary, flags):
-    """Best-effort version, never fail System if a tool hangs or prints junk."""
-    try:
-        result = subprocess.run([binary, *flags], capture_output=True, text=True,
-                                stdin=subprocess.DEVNULL, timeout=2, check=False)
-    except (OSError, subprocess.TimeoutExpired):
-        return ""
-    lines = (result.stdout or result.stderr or "").splitlines()
-    return next((line.strip()[:120] for line in lines if line.strip()), "")
+# Tool detection is shared with the setup wizard, so both use the engine's
+# own lookup rules. Installing or repairing tools belongs to the wizard only.
+TOOLS = detect.TOOLS
+_path = detect.tool_path
+_version = detect.tool_version
 
 
 def _tools():
-    result = []
-    for label, executable, flags, action in TOOLS:
-        binary = _path(executable)
-        result.append({
-            "name": label,
-            "action": action,
-            "status": "ready" if binary else "missing",
-            "version": _version(binary, flags) if binary else "",
-        })
-    return result
+    return detect.tools()
 
 
 def _ai():

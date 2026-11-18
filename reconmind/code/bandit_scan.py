@@ -34,8 +34,8 @@ STATUS_TIMEOUT = "timeout"
 STATUS_FAILED = "failed"
 STATUS_BAD_JSON = "bad-json"
 
-NOT_INSTALLED = ("bandit is not installed on this machine. Install it with: "
-                 "pip install -r requirements-code.txt")
+NOT_INSTALLED = ("bandit is not installed on this machine. Run ReconMind setup: "
+                 "python3 -m reconmind.setup --install")
 NO_PYTHON = "The input has no Python files, so Bandit was not run."
 
 

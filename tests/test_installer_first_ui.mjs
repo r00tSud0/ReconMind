@@ -27,3 +27,13 @@ assert.ok(!css.includes('.scan-tool-warning'),
 assert.match(system, /Enter a new key only to replace the saved one/,
   'Saved key wording refinement must survive');
 console.log('Installer-first UI contract: all assertions passed.');
+
+// Batch 1 review fixes: the code report names each tool once, says when a
+// tool did not run, and points to the report-wide AI text instead of copying it.
+const report = src('../reconmind/web/static/js/views/report.js');
+assert.ok(report.includes("tool + ' did not run'"), 'A tool that did not run is labelled');
+assert.ok(!report.includes("'AI explanation on'"), 'No chip repeats the AI analysis line');
+assert.ok(!report.includes('View report-wide AI explanation'),
+  'The AI explanation is not copied into every finding');
+assert.ok(!system.includes('sys-command'), 'No install command column remains');
+console.log('Batch 1 review fixes: all assertions passed.');

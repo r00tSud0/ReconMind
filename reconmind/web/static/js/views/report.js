@@ -160,13 +160,13 @@ export function mountReport(view, runId) {
       const badges = [];
       for (const name of ['semgrep', 'bandit']) {
         const info = asObject(tools[name]);
-        const version = words(info.version);
-        badges.push(h('span', { class: 'code-chip', text:
-          (name === 'semgrep' ? 'Semgrep' : 'Bandit') + (version ? ' ' + version : '') }));
+        const tool = name === 'semgrep' ? 'Semgrep' : 'Bandit';
+        // Tools print their own name in --version ("bandit 1.9.4"); show it once.
+        const version = words(info.version).replace(new RegExp('^' + name + '\\s*', 'i'), '');
+        badges.push(h('span', { class: 'code-chip', text: info.status === 'ok'
+          ? tool + (version ? ' ' + version : '') : tool + ' did not run' }));
       }
-      const explanation = asObject(results.explanation);
-      badges.push(h('span', { class: 'code-chip', text:
-        explanation.status === 'ok' ? 'AI explanation on' : 'AI explanation off' }));
+      // AI analysis on or off is already in the line above, so no chip repeats it.
       refs.sub.after(h('div', { class: 'code-chips' }, ...badges));
     }
 
@@ -358,7 +358,7 @@ export function mountReport(view, runId) {
     return h('div', { class: 'finding' }, btn, panel);
   }
 
-  function codeFindingRow(f, index, open, explanation) {
+  function codeFindingRow(f, index, open, hasExplanation) {
     const sev = severityKey(f.severity);
     const code = asObject(f.code);
     const start = Number(code.line) || 1;
@@ -373,7 +373,8 @@ export function mountReport(view, runId) {
     heat(sev === 'none' ? 'low' : sev),
     h('span', { class: 'frow-main' },
       h('span', { class: 'frow-title', text: words(f.title) || 'Code finding' }),
-      h('span', { class: 'help', text: words(f.where) + '. ' + asList(f.ids).join(', ') })),
+      h('span', { class: 'help', text: words(f.where)
+        + (asList(f.ids).length ? '. ' + asList(f.ids).join(', ') : '') })),
     h('span', { class: 'help frow-source', text: words(f.source) }),
     h('span', { class: 'frow-ids', text: ruleIds.join(', ') }));
     const snippet = words(code.context) || words(code.snippet);
@@ -393,13 +394,11 @@ export function mountReport(view, runId) {
         h('aside', { class: 'code-aside' },
           h('h3', { class: 'h2 code-detail-title', text: 'Finding details' }),
           h('p', { class: 'help', text: asList(f.evidence).slice(0, 2).join(' ') }),
-          h('p', { class: 'help', text:
-            'AI explanation is report-wide, not independently verified for this line.' }),
-          explanation ? h('details', { class: 'code-explanation' },
-            h('summary', { text: 'View report-wide AI explanation' }),
-            ...markdownNodes(explanation,
-              { paragraph: 'meaning-text', heading: 'meaning-subhead', list: 'meaning-list' }))
-            : h('p', { class: 'help', text: 'No AI explanation was saved.' }))));
+          // The AI explanation covers the whole report. Point to it once instead
+          // of copying the full text into every finding.
+          hasExplanation ? h('p', { class: 'help', text:
+            'The AI explanation above covers the whole report, not this line alone.' }) : null,
+          hasExplanation ? readExplanation() : null)));
     const toggle = (on) => {
       btn.classList.toggle('open', on);
       panel.classList.toggle('open', on);
@@ -410,6 +409,15 @@ export function mountReport(view, runId) {
     return h('div', { class: 'finding' }, btn, panel);
   }
 
+  function readExplanation() {
+    const btn = h('button', { type: 'button', class: 'btn quiet code-read-ai',
+      text: 'Read the AI explanation' });
+    btn.addEventListener('click', () => {
+      refs.meaning.scrollIntoView({ block: 'start' });
+    });
+    return btn;
+  }
+
   function renderFindings(d, isCode, refused) {
     if (refused) return;
     const findings = asList(d.findings).filter(isObject);
@@ -417,7 +425,7 @@ export function mountReport(view, runId) {
       const explanation = asObject(asObject(asObject(d.scan).results).explanation);
       refs.findings.replaceChildren(...findings.map((f, i) =>
         isCode ? codeFindingRow(f, i, i === 0,
-          explanation.status === 'ok' ? words(explanation.text) : '') : findingRow(f, i, i === 0)));
+          explanation.status === 'ok' && !!words(explanation.text)) : findingRow(f, i, i === 0)));
     } else {
       refs.findings.replaceChildren(h('p', {
         class: 'help findings-none',

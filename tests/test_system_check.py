@@ -45,7 +45,10 @@ class SystemCheckTests(unittest.TestCase):
             tools = system._tools()
         self.assertEqual(len(tools), len(system.TOOLS))
         self.assertTrue(all(t["status"] == "missing" for t in tools))
-        self.assertTrue(all(t["install"] for t in tools))
+        # Installer-first: System reports readiness only, never install commands.
+        self.assertTrue(all("install" not in t for t in tools))
+        self.assertNotIn("apt install", str(system.TOOLS))
+        self.assertNotIn("pip install", str(system.TOOLS))
 
 
 if __name__ == "__main__":

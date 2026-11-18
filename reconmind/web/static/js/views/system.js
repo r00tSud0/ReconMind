@@ -13,14 +13,18 @@ const label = (value) => value === null || value === undefined ? '' : String(val
 function status(text, good) {
   return h('span', { class: 'sys-status' + (good ? ' good' : ''), text });
 }
-function row(name, detail, state, good, extra) {
+function row(name, detail, state, good) {
   return h('div', { class: 'sys-row' },
     h('div', { class: 'sys-row-id' },
       h('strong', { text: label(name) }),
-      h('span', { class: 'help', text: label(detail) }),
-      extra ? h('span', { class: 'sys-command', text: label(extra) }) : null),
+      h('span', { class: 'help', text: label(detail) })),
     status(label(state), good));
 }
+const MAPPER_STATES = {
+  'files present': 'Files present',
+  'dependencies missing': 'Dependencies missing',
+  'model missing': 'Model missing',
+};
 function section(title, ...contents) {
   return h('section', { class: 'glass sys-panel reveal' },
     h('h2', { class: 'h2', text: title }), ...contents);
@@ -37,7 +41,7 @@ function aiRows(ai, mapper) {
         + 'for custom addresses to protect your key.' }) : null,
     row('ATT&CK mapper', 'Model folder: ' + (mapper.folder || 'unknown')
       + '. This checks files and dependencies, not live inference.',
-      mapper.status || 'Unknown', mapper.files_present && mapper.dependencies_present),
+      MAPPER_STATES[mapper.status] || 'Unknown', mapper.files_present && mapper.dependencies_present),
   ];
 }
 function nvdRows(nvd) {
@@ -229,7 +233,7 @@ export function mountSystem(view) {
     const toolsPanel = section('Security tools',
       h('p', { class: 'help', text: 'Readiness checks for the tools used by the scanning engine.' }),
       ...tools.map((t) => row(t.name, t.action + (t.version ? ' · ' + t.version : ''),
-        t.status === 'ready' ? 'Ready' : 'Missing', t.status === 'ready', '')));
+        t.status === 'ready' ? 'Ready' : 'Missing', t.status === 'ready')));
     const aiPanel = section('AI', ...aiRows(ai, mapper));
     const nvdPanel = section('NVD', ...nvdRows(nvd));
     async function refreshAfterSave() {

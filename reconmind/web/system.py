@@ -16,17 +16,18 @@ from reconmind.ai import attack_mapper
 from reconmind.core import config
 from reconmind.tools import httpx_scan
 
-# (label, engine check, version command, install guidance, check category).
+# (label, engine check, version command, check category). Installing or
+# repairing tools belongs to the setup wizard, so no install guidance is kept here.
 TOOLS = (
-    ("nmap", "nmap", ("--version",), "sudo apt install nmap", "Surface Map"),
-    ("searchsploit", "searchsploit", ("-h",), "sudo apt install exploitdb", "Exploit Hunt"),
-    ("httpx", "httpx", ("-version",), "Install ProjectDiscovery httpx", "Web Fingerprint"),
-    ("ffuf", "ffuf", ("-V",), "sudo apt install ffuf", "Hidden Paths"),
-    ("nuclei", "nuclei", ("-version",), "Install ProjectDiscovery nuclei", "Vuln Probe"),
-    ("testssl.sh", "testssl", ("--version",), "sudo apt install testssl.sh", "Crypto Check"),
-    ("enum4linux-ng", "enum4linux-ng", ("-h",), "sudo apt install enum4linux-ng", "SMB Recon"),
-    ("Semgrep", "semgrep", ("--version",), "pip install -r requirements-code.txt", "Code scan"),
-    ("Bandit", "bandit", ("--version",), "pip install -r requirements-code.txt", "Code scan"),
+    ("nmap", "nmap", ("--version",), "Surface Map"),
+    ("searchsploit", "searchsploit", ("-h",), "Exploit Hunt"),
+    ("httpx", "httpx", ("-version",), "Web Fingerprint"),
+    ("ffuf", "ffuf", ("-V",), "Hidden Paths"),
+    ("nuclei", "nuclei", ("-version",), "Vuln Probe"),
+    ("testssl.sh", "testssl", ("--version",), "Crypto Check"),
+    ("enum4linux-ng", "enum4linux-ng", ("-h",), "SMB Recon"),
+    ("Semgrep", "semgrep", ("--version",), "Code scan"),
+    ("Bandit", "bandit", ("--version",), "Code scan"),
 )
 
 
@@ -52,14 +53,13 @@ def _version(binary, flags):
 
 def _tools():
     result = []
-    for label, executable, flags, install, action in TOOLS:
+    for label, executable, flags, action in TOOLS:
         binary = _path(executable)
         result.append({
             "name": label,
             "action": action,
             "status": "ready" if binary else "missing",
             "version": _version(binary, flags) if binary else "",
-            "install": "" if binary else install,
         })
     return result
 

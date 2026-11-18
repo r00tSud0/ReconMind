@@ -952,7 +952,6 @@ a.scan:hover .mini .tk i { filter: brightness(1.3); }
 .sys-row-id{display:flex;flex-direction:column;gap:4px;min-width:0;overflow-wrap:anywhere}
 .sys-row-id strong{color:var(--text-strong);font-size:14px}
 .sys-row-id .help{font-size:12px}
-.sys-command{font:12px/1.5 "IBM Plex Mono",monospace;color:var(--text-muted)}
 .sys-status{display:inline-flex;flex:none;border:1px solid var(--line);border-radius:7px;
   padding:4px 9px;font-size:12px;font-weight:650;color:var(--sev-medium)}
 .sys-status.good{color:var(--text-strong)}
@@ -966,9 +965,7 @@ a.scan:hover .mini .tk i { filter: brightness(1.3); }
   .sys-panel{padding:18px}
 }
 
-.code-explanation{margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft)}
-.code-explanation summary{color:var(--red-light);font-size:13px;cursor:pointer;margin-bottom:12px}
-.code-explanation .meaning-text{font-size:13px;overflow-wrap:anywhere}
+.code-read-ai{margin-top:12px}
 
 /* Step 4: local, keyboard-accessible System settings. */
 .sys-setting-field{display:flex;flex-direction:column;gap:7px;margin:12px 0}

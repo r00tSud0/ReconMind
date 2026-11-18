@@ -61,7 +61,7 @@ pushes, scans, or live provider connection tests were executed.
   reported as a passed browser test.
 - A spreadsheet-related warmup warning from the execution environment
   appeared before unittest; the unittest suite itself completed successfully.
-- Read `STEP4_TEST_LOG.txt` for exact test output.
+- Read `docs/design/step4-logs/STEP4_TEST_LOG.txt` for exact test output.
 
 ## Suggested review tomorrow
 1. Verify the `/api/system/save` route against the original intended UX,

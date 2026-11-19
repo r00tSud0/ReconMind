@@ -72,6 +72,7 @@ const MODE_HELP = {
   host: 'Scan one lab machine over the network.',
   list: 'Scan several lab machines over the network, one at a time.',
   code: 'Find vulnerabilities in a file or folder of code on this computer. The code is read, never run.',
+  malware: 'Future component: identify the malware family of a suspected file with a trained image classifier. Not part of this version.',
 };
 
 const AI_LEVEL_HELP = {
@@ -109,7 +110,9 @@ const PROVIDER_NAMES = {
 };
 
 const ALWAYS_ON = 'surface';
-const MODES = ['host', 'list', 'code'];
+const MODES = ['host', 'list', 'code', 'malware'];
+// Shown so the plan is visible, but it never starts anything (a future component).
+const FUTURE_MODES = new Set(['malware']);
 const PORT_CHOICES = ['top', 'all', 'custom'];
 const FIELDS = ['target', 'ports', 'path', 'actions', 'hosts'];
 const RECON_SEVERITIES = ['critical', 'high', 'medium', 'low'];
@@ -373,6 +376,7 @@ export function mountNewScan(view) {
   }
 
   function planSentence() {
+    if (state.mode === 'malware') return 'Malware file analysis is a future component. Nothing runs in this version.';
     const level = state.mode === 'code' ? null : aiLevel();
     const ai = level === 'agent' ? ' AI agent MORVAIN-X0 proposes the checks and you approve each plan.'
       : (level === 'ai' || (level === null && aiOn()) ? ' AI analysis on.' : ' AI analysis off.');
@@ -407,6 +411,7 @@ export function mountNewScan(view) {
 
   /* Why Start cannot be pressed yet, or '' when it can. */
   function startBlocker() {
+    if (FUTURE_MODES.has(state.mode)) return 'Malware file analysis is a future component. It is not part of this version.';
     if (state.optsFailed) return COPY.optionsFailed;
     if (state.mode === 'list') {
       const n = hostLines().length;
@@ -465,11 +470,13 @@ export function mountNewScan(view) {
   function render() {
     const isCode = state.mode === 'code';
     const isList = state.mode === 'list';
+    const isFuture = FUTURE_MODES.has(state.mode);
     const isLocked = locked();
 
-    // Mode switch: two or three visible buttons.
+    // Mode switch: the visible buttons share the width.
     const shownModes = visibleModes();
     refs.modeSeg.classList.toggle('cols-2', shownModes.length === 2);
+    refs.modeSeg.classList.toggle('cols-4', shownModes.length === 4);
     shownModes.forEach((btn, i) => {
       const on = btn.dataset.mode === state.mode;
       if (on) modeInd.style.transform = 'translateX(' + i * 100 + '%)';
@@ -483,14 +490,16 @@ export function mountNewScan(view) {
     for (const group of root.querySelectorAll('[data-group]')) {
       group.hidden = group.dataset.group !== state.mode;
     }
-    refs.targetHead.textContent = isCode ? 'Source code' : (isList ? 'Hosts' : 'Target');
-    refs.targetHelp.textContent = isCode ? 'A file or folder on this computer.'
+    refs.targetHead.textContent = isFuture ? 'Malware file' : (isCode ? 'Source code' : (isList ? 'Hosts' : 'Target'));
+    refs.targetHelp.textContent = isFuture ? 'A planned part of ReconMind, shown so you can see where it fits.'
+      : isCode ? 'A file or folder on this computer.'
       : (isList ? 'One IP per line, up to ' + (state.opts ? state.opts.max_hosts : 8)
         + '. Each one is checked against the allowlist on its own.'
         : 'One IP address from your lab.');
-    refs.runPanel.hidden = isCode;
-    refs.portsPanel.hidden = isCode;
-    refs.actionsPanel.hidden = isCode;
+    refs.runPanel.hidden = isCode || isFuture;
+    refs.portsPanel.hidden = isCode || isFuture;
+    refs.actionsPanel.hidden = isCode || isFuture;
+    refs.aiPanel.hidden = isFuture;
 
     // Ports: read only while a preset is picked.
     refs.portsPanel.classList.toggle('locked', isLocked);
@@ -564,7 +573,7 @@ export function mountNewScan(view) {
       lastPlan = sentence;
     }
 
-    refs.startLabel.textContent = isCode ? 'Scan code'
+    refs.startLabel.textContent = isFuture ? 'Future component' : isCode ? 'Scan code'
       : (isList ? 'Scan ' + (hostLines().length ? plural(hostLines().length, 'host', 'hosts') : 'hosts')
         : 'Start scan');
     refs.startNote.hidden = !isList;

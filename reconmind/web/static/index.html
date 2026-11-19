@@ -64,6 +64,7 @@
           <button type="button" role="tab" data-mode="host">One host</button>
           <button type="button" role="tab" data-mode="list">Host list</button>
           <button type="button" role="tab" data-mode="code">Source code</button>
+          <button type="button" role="tab" data-mode="malware" class="mode-future">Malware file <span class="future-tag">Future</span></button>
         </div>
         <p class="help mode-help" data-ref="modeHelp" aria-live="polite">Scan one lab machine over the network.</p>
       </div>
@@ -93,6 +94,21 @@
           <input id="path" class="field field-mono" type="text" autocomplete="off" spellcheck="false" placeholder="/home/you/project/app.py" aria-describedby="path-error path-help">
           <p class="field-error" id="path-error" data-error="path" hidden></p>
           <p class="tag" id="path-help">A full path, or a path inside the ReconMind folder such as examples/vulnerable_python/app.py.</p>
+        </div>
+        <div class="group future-box" data-group="malware" hidden>
+          <span class="future-badge">Future component</span>
+          <p class="future-lead">Not part of this version. Nothing here runs.</p>
+          <label for="malware-file" class="label">Suspected malware file</label>
+          <input id="malware-file" class="field field-mono" type="text" disabled placeholder="/home/you/samples/suspect.exe" aria-describedby="malware-how">
+          <div class="future-how" id="malware-how">
+            <h3 class="h3">How it was going to work</h3>
+            <ol class="future-steps">
+              <li><b>Read, never run.</b> You give ReconMind a suspected Windows program (.exe or .dll). It only reads the file's bytes. The file is never opened or executed.</li>
+              <li><b>Bytes become a picture.</b> Every byte becomes one grayscale pixel (0 is black, 255 is white), and the rows of pixels form an image. Malware from the same family is built from similar code, so its images share textures and patterns.</li>
+              <li><b>A trained image classifier reads it.</b> A convolutional neural network (CNN), trained on the Malimg dataset (9,339 malware images from 25 known families), says which family the file most resembles and how confident it is.</li>
+              <li><b>One report.</b> The family, its confidence and what that family is known to do would go into the same ReconMind report, with severity and ATT&amp;CK techniques, next to the network and source code results.</li>
+            </ol>
+          </div>
         </div>
       </div>
     </section>

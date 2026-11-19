@@ -39,4 +39,11 @@ assert.ok(app.includes("job.status === 'running'") && app.includes('No scan is r
   'Live run opens only a running scan; otherwise it says none is running');
 assert.ok(!html.includes('New folder'), 'Targets has no New folder button');
 assert.ok(js['views/report.js'].includes('Write your own report'), 'Your reports are named the same everywhere');
+// Malware file: shown as a future component, never starts anything.
+const ns = js['views/newscan.js'];
+assert.ok(html.includes('data-mode="malware"') && html.includes('Future component'), 'Malware file is shown as a future component');
+assert.ok(html.includes('id="malware-file"') && /id="malware-file"[^>]*disabled/.test(html), 'Its file field is locked');
+assert.ok(html.includes('Malimg'), 'It explains the planned Malimg image classifier');
+assert.ok(ns.includes("if (FUTURE_MODES.has(state.mode)) return 'Malware file analysis is a future component."), 'Start stays disabled for it');
+assert.ok(!ns.includes("kind: 'malware'"), 'Nothing is ever sent to the server for it');
 console.log('Finished app UI contract: all assertions passed.');

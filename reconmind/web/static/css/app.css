@@ -1276,3 +1276,22 @@ html.lite .note-card, html.lite .af-finding { animation: none; }
 .follow-note { margin: 6px 0 0; padding: 8px 12px; border-radius: 10px; background: rgba(229,72,77,.12);
   border: 1px solid rgba(229,72,77,.3); color: var(--text-strong); font-size: 14px; }
 .folders-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+
+/* ---- New scan: Malware file, a future component (shown, never runs) -------- */
+.seg.cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); max-width: 720px; }
+.seg-mode button { white-space: nowrap; }
+.seg.cols-4 .ind { width: calc((100% - 8px) / 4); }
+.seg-mode button.mode-future { color: var(--text-faint, #77777f); display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seg-mode button.mode-future.on { color: var(--text-muted); }
+.future-tag { font: 700 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.2); color: var(--text-muted); }
+.future-box { display: flex; flex-direction: column; gap: 12px; opacity: .92; }
+.future-badge { align-self: flex-start; font: 700 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 5px 10px;
+  border-radius: 8px; background: rgba(255,255,255,.06); border: 1px dashed rgba(255,255,255,.28); color: var(--text-muted); }
+.future-lead { margin: 0; color: var(--text-muted); }
+.future-box .field:disabled { opacity: .45; cursor: not-allowed; }
+.future-how { padding: 16px 18px; border-radius: 14px; border: 1px dashed rgba(255,255,255,.16); background: rgba(10,10,11,.35); }
+.future-how .h3 { margin: 0 0 10px; font-size: 15px; color: var(--text-strong); }
+.future-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--text); line-height: 1.5; max-width: 72ch; }
+.future-steps b { color: var(--text-strong); }
+@media (max-width: 720px) { .seg.cols-4 { grid-template-columns: repeat(2, minmax(0,1fr)); } .seg.cols-4 .ind { display: none; } }

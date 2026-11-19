@@ -17,12 +17,16 @@
  * the agent works it vents again every few seconds, and when it is powered
  * down there is none.
  *
- * Without WebGL, a still fallback swaps the powered down and lit portraits.
- * With reduced motion requested, nothing moves and there is no steam; the
- * lights still switch on and off. Lite mode (chosen on its own for virtual
- * machines and software renderers, or picked on System, Display) uses the
- * still fallback too: a virtual machine's graphics driver can freeze the
- * whole screen under constant WebGL drawing.
+ * It runs the same on every computer, with no setting to pick, and is kept
+ * light so it stays smooth in a virtual machine too: the canvas is never
+ * drawn larger than MAX_PIXELS wide, it draws only while it is on screen,
+ * and when frames start coming slowly it draws every other frame (about 30
+ * a second), which still looks smooth for motion this slow.
+ *
+ * Only a browser with no WebGL at all (or a lost WebGL context) gets the
+ * still fallback, which swaps the powered down and lit portraits. With
+ * reduced motion requested, nothing moves and there is no steam; the lights
+ * still switch on and off.
  */
 
 const IMG = '/static/img/';
@@ -143,9 +147,8 @@ function loadImage(src) {
 function reducedMotion() {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (err) { return false; }
 }
-function lite() {
-  return typeof document !== 'undefined' && document.documentElement.classList.contains('lite');
-}
+const MAX_PIXELS = 480;      // widest the canvas is ever drawn, in device pixels
+const SLOW_FRAME_MS = 24;    // frames slower than this on average: draw every other one
 
 /* A spring that chases a target: it eases in, overshoots a touch and settles. */
 function spring(stiffness, damping) {
@@ -181,7 +184,6 @@ function stillFallback(stage, onMissing) {
 }
 
 export function createMorvain(stage, onMissing) {
-  if (lite()) return stillFallback(stage, onMissing);
   const canvas = document.createElement('canvas');
   canvas.className = 'mx-canvas';
   canvas.setAttribute('aria-hidden', 'true');
@@ -212,6 +214,12 @@ export function createMorvain(stage, onMissing) {
   let nextPuff = 0;
   let powerStart = -1;
   let shown = false;
+  let onScreen = true;
+  let halfRate = false;        // frames are coming slowly: draw every other one
+  let warm = 0;               // frames seen; the first 60 (page load) are not timed
+  let skip = false;
+  const gaps = [];             // recent frame gaps, to notice a slow computer
+  let lastFrame = 0;
   const lightNow = [0, 0, 0];
   let glowNow = 0;
   let breathPhase = 0;
@@ -308,6 +316,19 @@ export function createMorvain(stage, onMissing) {
     // Leaving the page removes the canvas: stop for good. Not yet shown: wait.
     if (!canvas.isConnected) { if (shown) api.destroy(); return; }
     shown = true;
+    if (!onScreen) { lastFrame = 0; warm = 0; gaps.length = 0; return; }
+    // Watch the frame gaps (after the page settles): a slow computer draws
+    // every other frame, and goes back to every frame if it speeds up.
+    if (lastFrame) {
+      warm += 1;
+      if (warm > 60) {
+        gaps.push(now - lastFrame);
+        if (gaps.length > 120) gaps.shift();
+        if (gaps.length === 120) halfRate = gaps.reduce((a, b) => a + b, 0) / 120 > SLOW_FRAME_MS;
+      }
+    }
+    lastFrame = now;
+    if (halfRate) { skip = !skip; if (skip) return; }
     const calm = reducedMotion();
     const dt = Math.min(0.05, lastDraw ? (now - lastDraw) / 1000 : 0.016);
     lastDraw = now;
@@ -357,7 +378,8 @@ export function createMorvain(stage, onMissing) {
     const nod = head.nod.step(target.nod, dt);
 
     // ---- draw ----
-    const scale = Math.min(window.devicePixelRatio || 1, lite() ? 1 : 2);
+    const scale = Math.min(window.devicePixelRatio || 1, 1.5,
+      MAX_PIXELS / Math.max(1, canvas.clientWidth));
     const w = Math.max(1, Math.round(canvas.clientWidth * scale));
     const h = Math.max(1, Math.round(canvas.clientHeight * scale));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
@@ -382,6 +404,12 @@ export function createMorvain(stage, onMissing) {
   }
 
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); fail(); });
+  // Scrolled out of view: stop drawing until it comes back.
+  if (typeof IntersectionObserver === 'function') {
+    new IntersectionObserver((entries) => {
+      onScreen = entries.some((e) => e.isIntersecting);
+    }).observe(canvas);
+  }
 
   api = {
     kind: 'webgl',

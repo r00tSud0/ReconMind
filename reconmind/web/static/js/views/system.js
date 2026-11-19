@@ -5,7 +5,6 @@
  */
 import * as api from '../api.js';
 import { h } from '../ui.js';
-import * as visuals from '../visuals.js';
 
 const asObject = (x) => x && typeof x === 'object' && !Array.isArray(x) ? x : {};
 const asList = (x) => Array.isArray(x) ? x : [];
@@ -195,38 +194,6 @@ function settingsPanel(initialAI, initialNVD, afterSave) {
   return panel;
 }
 
-/* Display: full or lite effects (lite for computers without graphics acceleration). */
-function displayPanel() {
-  const names = { auto: 'Auto', full: 'Full', lite: 'Lite' };
-  const note = h('p', { class: 'help sys-display-note', role: 'status', 'aria-live': 'polite' });
-  const ind = h('span', { class: 'ind', 'aria-hidden': 'true' });
-  const buttons = visuals.CHOICES.map((id) => {
-    const b = h('button', { type: 'button', text: names[id] });
-    b.addEventListener('click', () => { visuals.set(id); update(); });
-    return b;
-  });
-  function update() {
-    const pick = visuals.choice();
-    buttons.forEach((b, i) => {
-      const on = visuals.CHOICES[i] === pick;
-      b.className = on ? 'on' : '';
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-      if (on) ind.style.transform = 'translateX(' + i * 100 + '%)';
-    });
-    // why() is a full sentence when there is a reason; otherwise say what is on.
-    note.textContent = visuals.why() || ((visuals.isLite() ? 'Lite effects are on. '
-      : 'Full effects are on. ') + 'Auto switches to Lite when this computer draws the page slowly.');
-  }
-  update();
-  // Auto may switch a moment after the page opens, once it has timed the frames.
-  setTimeout(update, 3000);
-  return section('Display',
-    h('p', { class: 'help', text: 'Lite turns off the blur, glows and moving effects so the app '
-      + 'stays smooth on computers without graphics acceleration, such as a virtual machine.' }),
-    h('div', { class: 'seg sys-display', role: 'group', 'aria-label': 'Visual effects' }, ind, ...buttons),
-    note);
-}
-
 export function mountSystem(view) {
   let alive = true;
   const root = h('main', { class: 'page page-wide system-page' });
@@ -307,8 +274,7 @@ export function mountSystem(view) {
       row('Reports', 'Saved in ' + (storage.reports_folder || 'reports') + '/', free, true));
     body.replaceChildren(toolsPanel,
       h('div', { class: 'sys-stack' },
-        aiPanel, nvdPanel, settingsPanel(ai, nvd, refreshAfterSave), safetyPanel, storagePanel,
-        displayPanel()));
+        aiPanel, nvdPanel, settingsPanel(ai, nvd, refreshAfterSave), safetyPanel, storagePanel));
   }
   reload.addEventListener('click', load);
   load();

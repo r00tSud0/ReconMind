@@ -18,6 +18,7 @@
  */
 
 import * as api from '../api.js';
+import { checkLive, markRunning } from '../live.js';
 import { formatDayTime, h, heat, isRunId, JOB_ID, plural, SEVERITIES } from '../ui.js';
 
 const LIST_ID = /^[0-9a-f]{10}$/;
@@ -103,6 +104,8 @@ export function mountHosts(view, listId) {
   function renderOne(data) {
     const hosts = Array.isArray(data.hosts) ? data.hosts.filter(isObject) : [];
     const running = data.status === 'running';
+    if (running) markRunning();
+    else checkLive();
     const current = hosts.findIndex((x) => x.status === 'running');
     const head = running
       ? h('div', { class: 'hl-live' }, h('span', { class: 'live-pulse', 'aria-hidden': 'true' }),

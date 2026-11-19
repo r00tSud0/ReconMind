@@ -34,9 +34,13 @@ assert.ok(!setup.includes('apt install') && !setup.includes('pip install'),
 assert.ok(html.includes('href="#/agent" data-route="agent">MORVAIN-X0</a>'), 'MORVAIN-X0 has its own tab');
 assert.ok(app.includes("parts[0] === 'agent'"), 'The #/agent route exists');
 assert.ok(morvain.includes("mode: 'agent'"), 'The tab starts agent scans');
-const visualsJs = src('../reconmind/web/static/js/visuals.js');
 const css = src('../reconmind/web/static/css/app.css');
-assert.ok(app.includes('visuals.init()'), 'Visual effects are chosen at startup');
-assert.ok(/html\.lite \.glass \{[^}]*backdrop-filter: none/.test(css), 'Lite turns off the glass blur');
-assert.ok(visualsJs.includes('catch (err)'), 'Visual settings never break when storage is unavailable');
+const uiJs = src('../reconmind/web/static/js/ui.js');
+const systemJs = src('../reconmind/web/static/js/views/system.js');
+// One look everywhere: no Display setting; the background moves only while a scan runs.
+assert.ok(!app.includes('visuals') && !systemJs.includes("section('Display'") && !css.includes('html.lite'),
+  'There is no Lite, Full or Display setting');
+assert.ok(uiJs.includes("classList.toggle('scanning', !!on)"), 'The Live run dot also switches the background motion');
+assert.ok(css.includes('html:not(.scanning) .ring { animation: none;'), 'The radar rings move only while a scan runs');
+assert.ok(css.includes('html:not(.scanning) .a1'), "The logo's signals move only while a scan runs");
 console.log('Agent and Setup UI contract: all assertions passed.');

@@ -14,6 +14,7 @@
  */
 import * as api from '../api.js';
 import { h } from '../ui.js';
+import { checkLive, markRunning } from '../live.js';
 import { createAgentPanel } from './agent.js';
 
 const isObject = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
@@ -32,6 +33,7 @@ export function mountMorvain(view) {
   let job = null;
   let panel = null;
   let since = 0;
+  let wasRunning = false;
   const progress = { gate: false, ports: null, exploits: null, done: 0, failed: 0, plan: 0 };
 
   const root = h('main', { class: 'page page-wide morvain-page' });
@@ -86,6 +88,7 @@ export function mountMorvain(view) {
       if (!alive) return;
       if (res.ok && isObject(res.data) && JOB_ID.test(String(res.data.job_id))) {
         job = { id: res.data.job_id, status: 'running', label: AGENT_LABEL + value };
+        markRunning();
         showSession();
         return;
       }
@@ -180,6 +183,10 @@ export function mountMorvain(view) {
     const meta = await api.get('/api/scans/' + job.id);
     if (!alive) return;
     if (meta.ok && isObject(meta.data)) job = Object.assign(job, meta.data);
+    // Keep the Live run dot (and the background radar) in step with the scan.
+    if (job.status === 'running') markRunning();
+    else if (wasRunning) checkLive();
+    wasRunning = job.status === 'running';
     panel.setJob(job.status);
     panel.render();
     renderProgress();

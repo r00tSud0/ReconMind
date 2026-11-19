@@ -35,7 +35,6 @@ import { mountSetup } from './views/setup.js';
 import { mountMorvain } from './views/morvain.js';
 import { mountHosts } from './views/hosts.js';
 import { mountAnalyst } from './views/analyst.js';
-import * as visuals from './visuals.js';
 
 let cleanup = null;
 
@@ -172,9 +171,6 @@ async function loadScope() {
   document.getElementById('scope-text').textContent =
     'Scope locked to ' + n + (n === 1 ? ' lab network' : ' lab networks');
 }
-
-// Full or lite effects, before the first page draws.
-visuals.init();
 
 const openedOnLive = /^#\/live$/.test(location.hash);
 window.addEventListener('hashchange', route);

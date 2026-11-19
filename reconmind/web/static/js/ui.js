@@ -220,6 +220,8 @@ export function serverDown(down) {
 export function setLive(on) {
   const dot = document.getElementById('live-dot');
   if (dot) dot.hidden = !on;
+  // The background radar and the logo's signals move only while a scan runs (app.css).
+  document.documentElement.classList.toggle('scanning', !!on);
 }
 
 /* "a, b, c and d" */

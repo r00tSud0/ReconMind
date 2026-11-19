@@ -111,6 +111,6 @@ do not claim Windows or macOS support without testing.
   loads it in a child process with a 10 minute limit, requires 394 labels and
   one test prediction, then swaps it into `models/attack_mapper_run3` keeping
   the old folder until the swap worked.
-- Installs torch (CPU), transformers 5.22.1 and safetensors into ReconMind's own
+- Installs torch (CPU), transformers 5.22.1 (5.20.2 on Python 3.10) and safetensors into ReconMind's own
   Python environment first when missing; refuses the system Python.
 - A working installed model is checked and left alone, so rerunning is safe.

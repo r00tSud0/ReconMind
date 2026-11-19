@@ -50,7 +50,8 @@ def pip_failure(text):
         return ("The disk is full. torch needs about 2 GB free. Free some space, then run "
                 "setup again. Details are in setup.log.")
     if "no matching distribution" in low:
-        return ("pip found no torch build for this Python version. Details are in setup.log.")
+        return ("pip found no build of torch or transformers for this Python version. "
+                "Details are in setup.log.")
     return ("torch or transformers could not be downloaded. Check the internet connection "
             "and run setup again. Details are in setup.log.")
 

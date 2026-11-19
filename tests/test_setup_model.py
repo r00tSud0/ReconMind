@@ -248,6 +248,8 @@ class StepTests(unittest.TestCase):
         self.worker.step_mapper_packages()
         self.assertIn("--no-cache-dir", calls[2])
         self.assertIn("--no-cache-dir", calls[3])
+        self.assertIn('transformers==5.20.2; python_version < "3.11"', calls[3])
+        self.assertIn('transformers==5.22.1; python_version >= "3.11"', calls[3])
 
     def test_mapper_packages_refuse_system_python(self):
         answers = iter([Proc(returncode=1), Proc(stdout="False\n")])

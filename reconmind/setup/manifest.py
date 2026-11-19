@@ -78,4 +78,7 @@ MODEL = {
 }
 # Packages the mapper needs inside the app's own Python environment.
 MAPPER_TORCH_INDEX = "https://download.pytorch.org/whl/cpu"
-MAPPER_PACKAGES = ("torch", "transformers==5.22.1", "safetensors")
+# transformers 5.21 and later need Python 3.11, so Python 3.10 (Ubuntu 22.04)
+# gets 5.20.2, the last release for it. pip installs whichever line matches.
+MAPPER_PACKAGES = ("torch", 'transformers==5.22.1; python_version >= "3.11"',
+                   'transformers==5.20.2; python_version < "3.11"', "safetensors")

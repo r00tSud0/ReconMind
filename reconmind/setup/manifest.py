@@ -65,3 +65,17 @@ NUCLEI_TEMPLATES = {"url": "https://github.com/projectdiscovery/nuclei-templates
 # Python programs, each in its own environment so their pins never clash
 # with the app's packages (Semgrep's opentelemetry pin clashes with FastAPI).
 PIP_TOOLS = {"semgrep": "semgrep==1.185.0", "bandit": "bandit==1.9.4"}
+
+# The fine tuned SciBERT Run 3 ATT&CK mapper, from the project's own GitHub
+# Release (tag model-run3-v1). url, sha256 and size are the published asset's,
+# checked by downloading it on 18 Nov 2026.
+MODEL = {
+    "url": "https://github.com/r00tSud0/ReconMind/releases/download/model-run3-v1/attack_mapper_run3.tar.gz",
+    "sha256": "6ce8ca961388546f8779a382e454b3775a3d5cddf4b6a812d5d1fdb4ad128a23",
+    "size": 409970311,
+    "folder": "attack_mapper_run3",
+    "labels": 394,
+}
+# Packages the mapper needs inside the app's own Python environment.
+MAPPER_TORCH_INDEX = "https://download.pytorch.org/whl/cpu"
+MAPPER_PACKAGES = ("torch", "transformers==5.22.1", "safetensors")

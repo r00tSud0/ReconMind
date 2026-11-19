@@ -1,6 +1,6 @@
 # ReconMind installer and repair wizard
 Status: tools installer implemented as a command (`python3 -m reconmind.setup`).
-Model download, Setup screen and desktop packaging are not built yet.
+Model download included. Setup screen and desktop packaging are not built yet.
 For Claude Code handoff. Source of truth for the installer-first distribution.
 
 ## Product contract
@@ -101,3 +101,16 @@ do not claim Windows or macOS support without testing.
   (enforced by `tests/test_setup.py`).
 - Verified for real on a clean Ubuntu 24.04 machine: 9 of 9 tools ready, a
   second run skipped every step, a local code scan ran Semgrep and Bandit.
+
+## Implemented: model download (milestone M2)
+- Source: GitHub Release `model-run3-v1` on r00tSud0/ReconMind, asset
+  `attack_mapper_run3.tar.gz`, 409970311 bytes, SHA-256
+  `6ce8ca961388546f8779a382e454b3775a3d5cddf4b6a812d5d1fdb4ad128a23`.
+- Resumes an interrupted download, checks exact size and SHA-256, extracts only
+  regular files under `attack_mapper_run3/` (no absolute paths, `..`, links),
+  loads it in a child process with a 10 minute limit, requires 394 labels and
+  one test prediction, then swaps it into `models/attack_mapper_run3` keeping
+  the old folder until the swap worked.
+- Installs torch (CPU), transformers 5.22.1 and safetensors into ReconMind's own
+  Python environment first when missing; refuses the system Python.
+- A working installed model is checked and left alone, so rerunning is safe.

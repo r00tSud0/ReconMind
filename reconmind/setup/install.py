@@ -28,7 +28,8 @@ import zipfile
 
 from reconmind import toolpath
 from reconmind.code import semgrep_scan
-from reconmind.setup import detect, manifest
+from reconmind.ai import attack_mapper
+from reconmind.setup import detect, manifest, model
 from reconmind.tools import nuclei_scan
 
 MAX_DOWNLOAD = 300 * 1024 * 1024
@@ -280,6 +281,12 @@ class Installer:
                       + " into " + self.rules_dir))
         steps.append(("nuclei templates", "nuclei -update-templates, or the pinned "
                       + manifest.NUCLEI_TEMPLATES["ref"] + " release if that does not work"))
+        steps.append(("ATT&CK mapper packages", "torch (CPU), transformers, safetensors "
+                      "into this Python environment, if missing"))
+        src = manifest.MODEL
+        steps.append(("SciBERT Run 3 model", ("download " + src["url"] + ", check size and "
+                      "SHA-256, test load and one prediction") if src["url"]
+                      else "download source not set yet"))
         return steps
 
     # ---- steps ------------------------------------------------------------
@@ -450,6 +457,75 @@ class Installer:
             raise StepError("The templates were downloaded but nuclei does not report them.")
         return DONE, "templates " + version + " installed from the pinned release"
 
+    def _python_has(self, code):
+        try:
+            proc = self._run([self.python, "-c", code], check=False, capture_output=True,
+                             text=True, stdin=subprocess.DEVNULL, timeout=120)
+        except (OSError, subprocess.TimeoutExpired):
+            return False, ""
+        return proc.returncode == 0, (proc.stdout or "").strip()
+
+    def step_mapper_packages(self):
+        ok, _ = self._python_has("import torch, transformers, safetensors")
+        if ok:
+            return SKIPPED, "torch and transformers already installed"
+        in_venv, out = self._python_has("import sys; print(sys.prefix != sys.base_prefix)")
+        if not in_venv or out != "True":
+            raise StepError("Run setup from ReconMind's own Python environment, so the model "
+                            "packages are installed there and not into the system Python.")
+        self.say("   Installing torch for the CPU. This is a large download.")
+        self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
+                  "torch", "--index-url", manifest.MAPPER_TORCH_INDEX], timeout=3600)
+        self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
+                  *manifest.MAPPER_PACKAGES[1:]], timeout=1800)
+        ok, _ = self._python_has("import torch, transformers, safetensors")
+        if not ok:
+            raise StepError("torch or transformers still cannot be imported.")
+        return DONE, "torch, transformers and safetensors installed"
+
+    def step_model(self, verify=None, model_dir=None):
+        verify = verify or (lambda d: model.verify(d, manifest.MODEL["labels"], python=self.python))
+        src = manifest.MODEL
+        dest = model_dir or attack_mapper.model_dir()
+        present = all(os.path.isfile(os.path.join(dest, n)) for n in attack_mapper.REQUIRED_FILES)
+        problem = ""
+        if present:
+            try:
+                verify(dest)
+                return SKIPPED, "already installed, loads with {n} labels".format(n=src["labels"])
+            except model.ModelError as exc:
+                problem = str(exc)
+                self.log_line("installed model failed its check: " + problem)
+        if not (src["url"] and src["sha256"] and src["size"]):
+            raise StepError((problem + " " if problem else "") + "The model download source "
+                            "is not set yet, so the model cannot be installed.")
+        downloads = os.path.join(self.data, "downloads")
+        os.makedirs(downloads, exist_ok=True)
+        archive = os.path.join(downloads, src["url"].rsplit("/", 1)[-1])
+        self.say("   Downloading the model ({m} MB). An interrupted download resumes.".format(
+            m=src["size"] // (1024 * 1024)))
+        self.log_line("download " + src["url"])
+        model.download_resume(src["url"], archive, src["size"])
+        if os.path.getsize(archive) != src["size"] or sha256_file(archive) != src["sha256"]:
+            os.unlink(archive)
+            raise StepError("The model download did not match its published size and "
+                            "SHA-256, so it was thrown away.")
+        parent = os.path.dirname(dest)
+        os.makedirs(parent, exist_ok=True)
+        holder, extracted = model.safe_extract(archive, parent, src["folder"])
+        try:
+            self.say("   Checking the model loads and predicts. This takes a minute.")
+            verify(extracted)
+            model.swap_in(extracted, dest)
+        except model.ModelError as exc:
+            raise StepError(str(exc)) from None
+        finally:
+            shutil.rmtree(holder, ignore_errors=True)
+        os.unlink(archive)
+        attack_mapper.clear_cache()
+        return DONE, "installed and checked: {n} labels, one test prediction".format(
+            n=src["labels"])
+
     def steps(self):
         """[(title, callable)] in the order they run."""
         out = [("System packages", self.step_apt)]
@@ -463,6 +539,8 @@ class Installer:
                         lambda n=name: self.step_pip_tool(n)))
         out.append(("Semgrep rules", self.step_semgrep_rules))
         out.append(("nuclei templates", self.step_templates))
+        out.append(("ATT&CK mapper packages", self.step_mapper_packages))
+        out.append(("SciBERT Run 3 model", self.step_model))
         return out
 
     def install(self):
@@ -477,7 +555,7 @@ class Installer:
             self.say("{i}/{n} {t}".format(i=index, n=len(steps), t=title))
             try:
                 status, message = step()
-            except StepError as exc:
+            except (StepError, model.ModelError) as exc:
                 status, message = FAILED, str(exc)
             except Exception as exc:  # never crash halfway without a summary
                 status, message = FAILED, "unexpected error: {e}".format(e=exc)

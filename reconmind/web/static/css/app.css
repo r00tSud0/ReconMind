@@ -1118,18 +1118,13 @@ html:not(.scanning) .a1, html:not(.scanning) .a2, html:not(.scanning) .a3 { anim
 html:not(.scanning) .slab { animation: none; }
 
 /* ---- MORVAIN-X0, alive ------------------------------------------------------
- * The portrait is drawn by js/morvain_gl.js on a canvas as one surface that
- * bends, so the head, neck and chest move together. Motion, lights and steam
- * all happen in that canvas. Without WebGL, the lit portrait sits under the
- * powered down one, which fades out while the agent works. */
+ * Three animation loops rendered ahead of time (off, working, answering) are
+ * stacked here and js/morvain_loops.js cross fades between them. They are
+ * plain animated images, so they play in every browser and window. */
 .mx-stage{position:relative;width:100%;aspect-ratio:640/800;border-radius:16px;overflow:hidden;
   background:#050506;contain:paint}
-.mx-canvas,.mx-still{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;
-  user-select:none;-webkit-user-drag:none}
-.mx-still{object-fit:cover}
-.mx-still-off{opacity:1;transition:opacity 1.4s ease}
-.powered .mx-still-off{opacity:0;transition:opacity .6s ease}
-@media(prefers-reduced-motion:reduce){.mx-still-off{transition:none}}
+.mx-layer{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;
+  pointer-events:none;user-select:none;-webkit-user-drag:none}
 
 /* ---- Host lists (#/hosts, 06_Batch.html) ---------------------------------- */
 .hosts-page { display: flex; flex-direction: column; gap: 22px; }

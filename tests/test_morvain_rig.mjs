@@ -1,86 +1,82 @@
 /*
- * MORVAIN-X0, alive: one surface that bends (a WebGL mesh warp of the approved
- * portrait), so the head, neck and chest move together. Its lights are off
- * until the agent works, steam plays once and fades, the background stays.
+ * MORVAIN-X0, alive everywhere: three loops rendered ahead of time from the
+ * approved portrait (off, working, answering), played as animated images, so
+ * they move the same in every browser and window with no WebGL.
  */
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
 const path = (p) => new URL(p, import.meta.url);
 const read = (p) => readFileSync(path(p), 'utf8');
-const gl = read('../reconmind/web/static/js/morvain_gl.js');
+const player = read('../reconmind/web/static/js/morvain_loops.js');
 const agent = read('../reconmind/web/static/js/views/agent.js');
 const css = read('../reconmind/web/static/css/app.css');
-const html = read('../reconmind/web/static/index.html');
+const renderer = read('../docs/design/morvain-rig/render_loops.py');
 const IMG = '../reconmind/web/static/img/';
 
-// The approved portrait is the picture that moves; the maps are made from it.
+// The approved portrait and the maps the loops are rendered from.
 assert.ok(existsSync(path(IMG + 'morvain-x0.png')), 'Approved portrait kept');
-assert.ok(gl.includes("IMG + 'morvain-x0.png'"), 'The portrait itself is drawn');
-const maps = { 'morvain-off.webp': 'RIFF', 'morvain-masks.png': '\x89PNG', 'morvain-weights.png': '\x89PNG' };
-for (const [name, magic] of Object.entries(maps)) {
-  const file = IMG + 'morvain/' + name;
-  assert.ok(existsSync(path(file)) && statSync(path(file)).size > 1000, name + ' present');
-  assert.equal(readFileSync(path(file)).subarray(0, 4).toString('latin1'), magic, name + ' has the right format');
-  assert.ok(gl.includes("'morvain/" + name + "'"), name + ' used');
+for (const name of ['morvain-off.webp', 'morvain-masks.png', 'morvain-weights.png']) {
+  assert.ok(existsSync(path(IMG + 'morvain/' + name)), name + ' present');
+  assert.ok(renderer.includes(name), 'The renderer uses ' + name);
 }
-for (const old of ['bg', 'body-off', 'head-off', 'body-lit', 'head-lit', 'eyes-lit']) {
-  assert.ok(!existsSync(path(IMG + 'morvain/morvain-' + old + '.webp')), 'Old cut out layer ' + old + ' removed');
+
+// The three loops: real animated WebP files that repeat forever.
+for (const name of ['off', 'working', 'answering']) {
+  const file = path(IMG + 'morvain/loops/' + name + '.webp');
+  assert.ok(existsSync(file), name + ' loop present');
+  const bytes = readFileSync(file);
+  assert.equal(bytes.subarray(0, 4).toString('latin1'), 'RIFF', name + ' is a WebP file');
+  assert.ok(bytes.includes(Buffer.from('ANIM')) && bytes.includes(Buffer.from('ANMF')), name + ' is animated');
+  const anim = bytes.indexOf(Buffer.from('ANIM'));
+  assert.equal(bytes.readUInt16LE(anim + 8 + 4), 0, name + ' loops forever');
+  assert.ok(statSync(file).size > 200000 && statSync(file).size < 4000000, name + ' has a sane size');
+  assert.ok(existsSync(path(IMG + 'morvain/loops/' + name + '-still.webp')), name + ' still frame present');
+  assert.ok(player.includes("'" + name + "'"), 'The player knows the ' + name + ' loop');
 }
-assert.ok(agent.includes("import { createMorvain } from '../morvain_gl.js'"), 'The panel uses the warp');
 
-// One surface: the head, neck and breath move pixels by weight maps, never as separate pieces.
-assert.match(gl, /d \+= \(moved - p\) \* wh;/, 'Head motion is weighted per pixel (the neck eases)');
-assert.match(gl, /uBreath \* max\(wb, wh \* 0\.9\)/, 'The head rides on the breath');
-assert.match(gl, /const PIVOT = \[320, 512\];/, 'The head turns at the base of the neck');
-assert.ok(gl.includes('spring('), 'Motion is spring eased, not keyframed');
-assert.ok(!/\.mx-(head|body)\b/.test(css), 'No separately moving head or body layers');
+assert.ok(existsSync(path(IMG + 'morvain/loops/background.webp')) && player.includes("'background.webp'"),
+  'The still background is its own image under the loops');
+assert.ok(renderer.includes('alpha = cv2.dilate(differs, near) * 255'),
+  'Each loop frame keeps only what differs from the background, so the background never shimmers');
 
-// Only the robot moves: the frame never animates.
+// The renderer: one surface (weighted warp), clean background, seamless loops.
+assert.match(renderer, /dx \+= \(mx - X\) \* wh/, 'Head motion is weighted per pixel (the neck eases)');
+assert.match(renderer, /dy = -breath \* np\.maximum\(wb, wh \* 0\.9\)/, 'The head rides on the breath');
+assert.match(renderer, /PIVOT = \(320\.0, 512\.0\)/, 'The head turns at the base of the neck');
+assert.ok(renderer.includes('def clean_plate(') && renderer.includes("col = src[\"plate\"] * (1 - a) + robot * a"),
+  'The robot is laid over a clean background, so the background never moves');
+assert.ok(renderer.includes('% LOOP_SECONDS') && renderer.includes('% n_cycles'),
+  'Steam puffs and sparks wrap round the loop, so it has no seam');
+assert.match(renderer, /"working": dict\([^\n]*\n[^\n]*steam=True, sparks=False\)/, 'Working: steam, no sparks');
+assert.match(renderer, /"answering": dict\([^\n]*tint=1\.0[^\n]*\n[^\n]*steam=False, sparks=True\)/, 'Answering: yellow with sparks');
+assert.match(renderer, /"off": dict\(light=\(0, 0, 0\)[^\n]*\n[^\n]*steam=False, sparks=False\)/, 'Off: dark, no steam');
+assert.match(renderer, /"working": dict\(light=\(1, 1, 1\)/, 'Working lights are on (red)');
+
+// The player: every state maps to a loop; it never needs WebGL or a setting.
+for (const [state, loop] of [['ready', 'off'], ['finished', 'off'], ['stopped', 'off'],
+  ['thinking', 'working'], ['running', 'working'], ['awaiting', 'working'], ['done', 'working'],
+  ['error', 'working'], ['answering', 'answering']]) {
+  assert.match(player, new RegExp(state + ": '" + loop + "'"), state + ' plays the ' + loop + ' loop');
+}
+assert.ok(!/getContext|webgl|WebGL2/.test(player.replace(/no WebGL/g, '')), 'The player needs no WebGL');
+assert.ok(!player.includes('prefers-reduced-motion') && !player.includes('lite'), 'No setting can stop it');
+assert.ok(player.includes('requestAnimationFrame(step)') && player.includes('style.opacity'),
+  'Cross fades run in JavaScript, so CSS rules cannot switch them off');
+assert.ok(player.includes('Math.sin(local * 47)'), 'Powering on flickers the lights in');
+assert.ok(player.includes("console.warn('MORVAIN-X0: loop ") && player.includes('PORTRAIT'),
+  'A missing loop falls back to the still portrait');
+assert.ok(agent.includes("import { createMorvain } from '../morvain_loops.js'"), 'The panel uses the loops');
+assert.ok(agent.includes('body.setState(state);'), 'The panel passes every state, answering included');
+assert.match(css, /\.mx-layer\{position:absolute;inset:0;/, 'The loops are stacked in the frame');
+assert.ok(!existsSync(path('../reconmind/web/static/js/morvain_gl.js')), 'The old WebGL renderer is gone');
+
+// Only the loops move: the frame itself never animates.
 const rule = (sel) => (css.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\{[^}]*\\}', 'g')) || []).join(' ');
 for (const sel of ['.mx-stage', '.agent-corewrap']) {
   assert.ok(!/animation|transform/.test(rule(sel)), sel + ' does not move');
 }
-assert.ok(!html.includes('morvain-motion.css'), 'The earlier whole-picture motion sheet is not loaded');
-
-// Lights: off until powered, on while the agent works.
-assert.match(gl, /ready: +\{ light: \[0, 0, 0\]/, 'Ready (no scan) is powered down');
-assert.ok(!/POWERED = new Set\(\[[^\]]*'ready'/.test(gl + agent), 'Ready never counts as powered');
-for (const st of ['thinking', 'running', 'awaiting', 'answering', 'done', 'error']) {
-  assert.match(gl, new RegExp(st + ': +\\{ light: \\[1'), st + ' lights the eyes');
-}
-assert.match(css, /\.powered \.mx-still-off\{opacity:0;/, 'Fallback: lights still come on without WebGL');
-
-// Steam: each puff fades to nothing; while working it vents every few seconds; never when off.
-assert.match(gl, /const STEAM_SECONDS = [\d.]+;/, 'Each puff has a fixed length');
-assert.match(gl, /const PUFF_GAP = \[[\d.]+, [\d.]+\];/, 'Puffs repeat after a short gap');
-assert.match(gl, /const vents = \(\) => POWERED\.has\(state\) && \(POSES\[state\] \|\| POSES\.ready\)\.steam;/,
-  'It vents only while powered and working');
-assert.match(gl, /if \(venting && steamStart < 0 && nextPuff && t >= nextPuff\) \{ steamStart = t;/, 'Puffs keep coming while working');
-assert.match(gl, /if \(!vents\(\)\) nextPuff = 0;/, 'Powered down or answering: no more steam');
-assert.match(gl, /1\.0 - smoothstep\(0\.42, 1\.0, uSteam\)/, 'Steam fades out');
-assert.ok(agent.includes('body.steam()'), 'Steam is triggered by state changes');
-
-// Answering a question: yellow lights and sparks behind it, no steam, still breathing.
-assert.match(gl, /answering: \{ light: \[1[^}]*tint: 1, spark: 1, steam: false \}/, 'Answering is yellow with sparks');
-for (const st of ['thinking', 'running', 'awaiting']) {
-  assert.match(gl, new RegExp(st + ': +\\{[^}]*tint: 0, spark: 0, steam: true \\}'), st + ' is red with steam');
-}
-assert.ok(gl.includes('vec3 light = mix(diff, yellow, uTint);'), 'The shader turns the red lights yellow');
-assert.ok(gl.includes('if (uSpark > 0.001)'), 'The shader draws sparks');
-assert.ok(agent.includes("answering: ['Answering your question'") && agent.includes('body.setState(state);'),
-  'The panel puts MORVAIN-X0 in its answering pose while you ask');
-
-// It always moves: no reduce motion switch, and a 2D canvas when WebGL is missing.
-assert.ok(!gl.includes('prefers-reduced-motion') && !gl.includes('calm'), 'MORVAIN-X0 always animates');
-assert.match(gl, /const breath = breathAmp \* b \* 0\.8;/, 'It always breathes');
-assert.ok(gl.includes("use2d('no WebGL')") && gl.includes('function draw2d('), 'Without WebGL a 2D canvas animates it');
-assert.ok(!gl.includes('lite'), 'No Lite mode: MORVAIN animates on every computer');
-assert.match(gl, /const MAX_PIXELS = \d+;/, 'The canvas size is capped, so it is light on any computer');
-assert.ok(gl.includes('halfRate') && gl.includes('IntersectionObserver'),
-  'Slow computers draw every other frame, and nothing is drawn off screen');
-assert.ok(gl.includes('webglcontextlost') && gl.includes('stillFallback'), 'Falls back to a still portrait');
 for (const bad of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'eval(', 'new Function']) {
-  assert.ok(!agent.includes(bad) && !gl.includes(bad), 'must not use ' + bad);
+  assert.ok(!agent.includes(bad) && !player.includes(bad), 'must not use ' + bad);
 }
-console.log('MORVAIN-X0 warp contract: all assertions passed.');
+console.log('MORVAIN-X0 loops contract: all assertions passed.');

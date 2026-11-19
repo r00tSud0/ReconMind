@@ -21,8 +21,8 @@ for (const [name, code] of [['agent.js', agent], ['setup.js', setup], ['morvain.
 assert.ok(agent.includes("'/agent'"), 'Plan answers go to the agent route');
 assert.ok(agent.includes("'approve'") && agent.includes("'redirect'") && agent.includes("'finish'"),
   'Approve, redirect and finish are the only answers');
-const warp = src('../reconmind/web/static/js/morvain_gl.js');
-assert.ok(agent.includes("from '../morvain_gl.js'") && warp.includes("'morvain-x0.png'"),
+const loops = src('../reconmind/web/static/js/morvain_loops.js');
+assert.ok(agent.includes("from '../morvain_loops.js'") && loops.includes("'/static/img/morvain-x0.png'"),
   'Uses the approved portrait file');
 assert.ok(!agent.includes('<svg') && !agent.includes('ellipse'), 'No substitute SVG face');
 for (const level of ['off', 'ai']) {

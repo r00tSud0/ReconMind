@@ -1,7 +1,6 @@
 # MORVAIN-X0 animation maps
 
-These files let `js/morvain_gl.js` bring the approved portrait
-(`img/morvain-x0.png`) to life. The portrait is drawn as one surface that
+These files bring the approved portrait (`img/morvain-x0.png`) to life. The portrait is drawn as one surface that
 bends (a mesh warp, the same idea as Live2D or a puppet warp), so the head,
 neck and chest always move as one body. Nothing is cut out, and the
 background is never animated.
@@ -22,3 +21,19 @@ python docs/design/morvain-rig/build_rig.py SOURCE.png reconmind/web/static/img/
 `SOURCE.png` is the full size original of the approved portrait. The script
 needs `numpy`, `opencv-python`, `Pillow` and `rembg`. The head turns about a
 pivot at the base of the neck (x 50%, y 64%).
+
+## The loops the app plays
+
+`loops/off.webp`, `loops/working.webp` and `loops/answering.webp` are what
+`js/morvain_loops.js` shows. They are rendered ahead of time from the files
+above by `docs/design/morvain-rig/render_loops.py`, which does the mesh warp,
+the red or yellow lights, the steam and the sparks, and writes each state as a
+seamless 8 second animated WebP (plus a still first frame). Because they are
+plain animated images, MORVAIN-X0 moves the same in every browser and in the
+desktop window, with no WebGL or graphics card needed:
+
+```
+python docs/design/morvain-rig/render_loops.py reconmind/web/static/img
+```
+
+It needs `numpy`, `opencv-python`, `Pillow` and `ffmpeg` with libwebp.

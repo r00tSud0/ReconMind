@@ -17,7 +17,7 @@
  */
 import * as api from '../api.js';
 import { h, markdownNodes } from '../ui.js';
-import { createMorvain } from '../morvain_gl.js';
+import { createMorvain } from '../morvain_loops.js';
 
 const isObject = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
 const text = (x) => (typeof x === 'string' ? x : '');
@@ -33,7 +33,7 @@ const STATES = {
   finished: ['Finished', 'The session is over and its report is saved. Ask about it below, or use Open report.'],
   stopped: ['Stopped', 'The session was stopped. What it found is saved.'],
 };
-// The character: the approved portrait, alive (see ../morvain_gl.js).
+// The character: the approved portrait, alive (see ../morvain_loops.js).
 // States where the agent is working, so its lights are on: red while it
 // works (with steam), yellow with sparks while it answers a question.
 const POWERED = new Set(['thinking', 'running', 'awaiting', 'answering', 'done', 'error']);
@@ -75,9 +75,9 @@ export function createAgentPanel(jobId) {
   const after = [];            // questions about the saved report: {q, a, bad}
   let afterBusy = false;
   // ---- the character ----------------------------------------------------
-  // One surface that bends (a mesh warp), so the head, neck and chest move
-  // together like one body. Without WebGL it falls back to a still portrait
-  // whose lights fade on and off.
+  // Three animation loops rendered ahead of time from the portrait (off,
+  // working, answering), played as animated images, so it moves the same in
+  // every browser and in the desktop window, with no WebGL needed.
   const missing = h('div', { class: 'agent-portrait-missing', hidden: true },
     h('span', { text: 'MORVAIN-X0' }),
     h('span', { class: 'tag', text: 'Portrait file missing: static/img/morvain-x0.png' }));

@@ -24,9 +24,10 @@
  * Host list scans up to max_hosts lab machines one after another with the same
  * settings (kind "hosts"). The server checks every host against the gate
  * before anything starts; the page then follows the list at #/hosts/<list id>.
- * The AI agent works on one target, so a list offers Off or AI analysis.
- * Starting an AI agent scan opens the MORVAIN-X0 tab, where its conversation
- * and the plan approvals live; every other scan opens Live run.
+ * AI here is Off or AI analysis: you choose the ports and the checks, and AI
+ * analysis only reads the results afterwards. The AI agent, which chooses the
+ * checks itself and asks before each round, has its own tab (MORVAIN-X0), so
+ * the two ways of working never mix on one page.
  *
  * The Last scan card links to that run's report (#/report/<run id>).
  *
@@ -78,16 +79,14 @@ const MODE_HELP = {
 const AI_LEVEL_HELP = {
   off: 'Tools only. You pick the checks and no AI model is used.',
   ai: 'You pick the checks. They run exactly the same, then the AI reads the results and writes the summary, attack path and what to fix first.',
-  agent: 'MORVAIN-X0 maps the surface, then proposes the next checks with its reasons. Nothing more runs until you approve each plan, and it stays on this one target inside the authorization gate. Your ports setting still applies. The agent picks the checks.',
 };
-const AI_LEVELS = ['off', 'ai', 'agent'];
+const AI_LEVELS = ['off', 'ai'];
 
 const COPY = {
   badgeOpen: 'Your choice',
   aiNoteNetwork: 'Adds a written summary, the attack path and what to fix first. The checks run exactly the same either way, and every claim is checked against their results.',
   aiNoteCode: 'Explains why each finding is dangerous and how to fix it. Only the flagged lines are sent to the model, never whole files. The findings come from Semgrep and Bandit either way.',
   aiSentNetwork: ' The finished scan results are sent to the model. It reads them only and never runs a tool.',
-  aiSentAgent: ' The scan results are sent to the model so it can plan. It can only pick from the 8 checks for this target, and you approve each plan.',
   aiNoKeyStart: 'No API key is set, so AI analysis is off. ',
   aiNoKeyLink: 'Add a key in System',
   aiNoKeyEnd: ' to turn it on.',
@@ -100,7 +99,6 @@ const COPY = {
   needPath: 'Enter the path of a file or folder first.',
   needHosts: 'Enter at least one lab host, one address per line.',
   tooManyHosts: 'A host list holds up to {m} hosts.',
-  agentOneHost: 'The AI agent works on one target at a time. Choose Off or AI analysis for a host list.',
   serverDownTitle: 'The ReconMind server is not answering',
   serverDownText: 'Check that python3 -m reconmind.web is still running.',
   unreadable: 'The server sent an answer the page could not read. Try again.',
@@ -149,7 +147,7 @@ export function mountNewScan(view) {
     sel: [],           // ticked action ids, in /api/options order
     ports: 'top',      // top, all or custom (Specific ports)
     ai: false,         // AI analysis for a network scan
-    aiLevel: 'off',    // network scans: off, ai (AI analysis) or agent (MORVAIN-X0)
+    aiLevel: 'off',    // network scans: off or ai (AI analysis)
     explain: false,    // AI analysis for a code scan
     aiAvailable: false,
     aiSetup: null,     // the "ai" object from /api/options, or null
@@ -243,8 +241,6 @@ export function mountNewScan(view) {
       }
       if (state.ports === 'all') state.ports = 'top';
     }
-    // The agent works on one target: a list uses AI analysis instead.
-    if (mode === 'list' && state.aiLevel === 'agent') state.aiLevel = 'ai';
     clearProblems();
   }
 
@@ -378,8 +374,7 @@ export function mountNewScan(view) {
   function planSentence() {
     if (state.mode === 'malware') return 'Malware file analysis is a future component. Nothing runs in this version.';
     const level = state.mode === 'code' ? null : aiLevel();
-    const ai = level === 'agent' ? ' AI agent MORVAIN-X0 proposes the checks and you approve each plan.'
-      : (level === 'ai' || (level === null && aiOn()) ? ' AI analysis on.' : ' AI analysis off.');
+    const ai = level === 'ai' || (level === null && aiOn()) ? ' AI analysis on.' : ' AI analysis off.';
     if (state.mode === 'code') {
       const path = pathInput.value.trim();
       const what = path ? basename(path) : 'the code';
@@ -400,10 +395,6 @@ export function mountNewScan(view) {
     else if (state.ports === 'all') ports = 'all 65535 ports';
     else ports = customPorts() ? 'ports ' + customPorts() : 'the ports you list';
     const p = isCustom() ? null : preset(state.picked);
-    if (level === 'agent') {
-      return 'MORVAIN-X0 maps ' + who + ' on ' + ports + ' with Surface Map and Exploit Hunt, '
-        + 'then proposes the next checks. Nothing more runs until you approve each plan.';
-    }
     const deeper = p && p.vuln_mode === DEEP && state.sel.includes('vulns')
       ? ', with deeper web testing' : '';
     return 'Scan ' + who + ' on ' + ports + ' with ' + checksPhrase() + deeper + '.' + ai;
@@ -418,7 +409,6 @@ export function mountNewScan(view) {
       if (!n) return COPY.needHosts;
       const max = state.opts ? state.opts.max_hosts : 8;
       if (n > max) return COPY.tooManyHosts.replace('{m}', max);
-      if (aiLevel() === 'agent') return COPY.agentOneHost;
       if (!state.opts || !state.picked) return COPY.optionsLoading;
       if (state.ports === 'custom' && !customPorts()) return COPY.needPorts;
       return '';
@@ -454,7 +444,7 @@ export function mountNewScan(view) {
     if (state.aiAvailable) {
       const provider = PROVIDER_NAMES[ai.provider] || String(ai.provider || 'the configured provider');
       refs.aiInfo.textContent = 'Uses ' + provider + (ai.model ? ', ' + String(ai.model) : '') + '.'
-        + (isCode ? '' : (aiLevel() === 'agent' ? COPY.aiSentAgent : COPY.aiSentNetwork));
+        + (isCode ? '' : COPY.aiSentNetwork);
     } else if (ai) {
       refs.aiInfo.replaceChildren(
         COPY.aiNoKeyStart,
@@ -545,17 +535,17 @@ export function mountNewScan(view) {
     aiInput.disabled = !state.aiAvailable;
     aiInput.checked = state.aiAvailable && aiOn();
     refs.aiRow.classList.toggle('disabled', !state.aiAvailable);
-    // Network scans: one control with three settings. Code scans keep the switch.
+    // Network scans: one control with two settings. Code scans keep the switch.
     refs.aiSeg.hidden = isCode;
     refs.aiLevelHelp.hidden = isCode;
+    refs.agentHint.hidden = isCode;
     refs.aiRow.hidden = !isCode;
     const level = aiLevel();
     aiButtons.forEach((btn, i) => {
       const on = btn.dataset.ai === level;
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      btn.disabled = (btn.dataset.ai !== 'off' && !state.aiAvailable)
-        || (isList && btn.dataset.ai === 'agent');
+      btn.disabled = btn.dataset.ai !== 'off' && !state.aiAvailable;
       if (on) aiInd.style.transform = 'translateX(' + i * 100 + '%)';
     });
     refs.aiLevelHelp.textContent = AI_LEVEL_HELP[level];
@@ -684,7 +674,7 @@ export function mountNewScan(view) {
       return { kind: 'code', path: pathInput.value.trim(), explain: state.aiAvailable && state.explain };
     }
     const level = aiLevel();
-    const mode = level === 'agent' ? 'agent' : (level === 'ai' ? 'ai' : 'standard');
+    const mode = level === 'ai' ? 'ai' : 'standard';
     const who = state.mode === 'list' ? { kind: 'hosts', targets: hostLines() }
       : { kind: 'recon', target: targetInput.value.trim() };
     if (isCustom()) {
@@ -736,8 +726,7 @@ export function mountNewScan(view) {
       }
       if (started.status === 201 && isAnswer(started.data) && JOB_ID.test(String(started.data.job_id))) {
         markRunning();
-        // The agent's conversation and approvals live on its own tab.
-        location.hash = body.mode === 'agent' ? '#/agent' : '#/job/' + started.data.job_id;
+        location.hash = '#/job/' + started.data.job_id;
         return;
       }
       if (isAnswer(started.data) && started.data.reason) {

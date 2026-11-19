@@ -32,7 +32,11 @@ const job = src('../reconmind/web/static/js/views/job.js');
 const morvain = src('../reconmind/web/static/js/views/morvain.js');
 assert.ok(!job.includes('createAgentPanel'), 'Live run does not repeat the agent conversation');
 assert.ok(job.includes("href: '#/agent', text: 'Open MORVAIN-X0'"), 'Live run points agent scans to MORVAIN-X0');
-assert.ok(js['views/newscan.js'].includes("body.mode === 'agent' ? '#/agent'"), 'An agent scan from New scan opens MORVAIN-X0');
+assert.ok(morvain.includes("mode: 'agent'"), 'Agent scans start on the MORVAIN-X0 tab');
+const setupJs = src('../reconmind/web/static/js/views/setup.js');
+assert.ok(setupJs.includes('progressPanel.parentNode !== progress') && !/progress\.replaceChildren\(section\('Progress'/.test(setupJs),
+  'Setup progress is built once and updated in place, so it never flashes');
+assert.ok(setupJs.includes("'setup-bar'") && setupJs.includes('setup-step-bar'), 'Setup shows progress bars');
 assert.ok(job.includes('followList(') && job.includes("location.replace('#/job/' + next.job_id)"),
   'Live run moves on to the next host of a host list');
 assert.ok(app.includes("job.status === 'running'") && app.includes('No scan is running right now'),

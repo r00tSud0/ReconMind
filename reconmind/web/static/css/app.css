@@ -1288,3 +1288,24 @@ html:not(.scanning) .slab { animation: none; }
 .md-table { border-collapse: collapse; font-size: 14px; min-width: 100%; }
 .md-table th { text-align: left; font-weight: 650; color: var(--text-strong); padding: 7px 10px; border-bottom: 1px solid var(--line); }
 .md-table td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; color: var(--text); }
+
+/* ---- Setup progress: bars and status, updated in place (no flashing) ------ */
+.setup-panel { animation: none; }
+.setup-headline { font-size: 15px; color: var(--text-strong); margin: 0 0 12px; }
+.setup-bar-row { display: flex; align-items: center; gap: 14px; }
+.setup-bar { flex: 1; height: 10px; border-radius: 5px; background: rgba(255,255,255,.07); overflow: hidden; }
+.setup-bar i { display: block; height: 100%; width: 0; border-radius: 5px;
+  background: linear-gradient(90deg, #FF7A7F, #C2252D); transition: width .6s ease; }
+.setup-bar.done i { background: linear-gradient(90deg, #7fd38f, #3f9e55); }
+.setup-bar.bad i { background: var(--sev-high); }
+.setup-bar-text { flex: none; font-size: 13px; }
+.setup-now { margin: 10px 0 4px; font: 12.5px/1.5 "IBM Plex Mono", monospace; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.setup-step.waiting .sys-row-id strong, .setup-step.waiting .setup-step-n { color: var(--text-dim); }
+.setup-step.waiting .sys-status { color: var(--text-dim); }
+.setup-step-bar { display: block; position: relative; height: 4px; margin-top: 7px; border-radius: 2px;
+  background: rgba(255,255,255,.07); overflow: hidden; max-width: 320px; }
+.setup-step-bar i { position: absolute; top: 0; bottom: 0; width: 35%; border-radius: 2px;
+  background: var(--red-light); animation: indet 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .setup-step-bar i { animation: none; width: 100%; opacity: .5; } .setup-bar i { transition: none; } }
+.agent-hint { margin-top: 10px; }

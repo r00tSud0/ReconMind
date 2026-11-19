@@ -7,8 +7,9 @@
  * conversation with its plan cards, and the live progress panel. The scan
  * itself is a normal job (mode "agent"): Live run shows its tool steps and
  * points back here. The conversation and the approvals live only on this tab.
- * An agent scan can start here or on New scan (AI agent); either way it opens
- * here.
+ * Agent scans start only here: you give the target and the ports, MORVAIN-X0
+ * chooses from all 8 checks, reports what it found and its plan, and you
+ * approve, redirect or stop.
  *
  * Nothing from the server is parsed as HTML: every node is built with h().
  */
@@ -116,8 +117,7 @@ export function mountMorvain(view) {
         h('span', { class: 'label', text: 'Ports' }),
         h('div', { class: 'seg cols-2 agent-ports', role: 'group', 'aria-label': 'Ports' },
           ind, ...portButtons)),
-      h('div', { class: 'agent-start-actions' }, start,
-        h('a', { class: 'btn quiet', href: '#/new', text: 'More options on New scan' })),
+      h('div', { class: 'agent-start-actions' }, start),
       note);
   }
 

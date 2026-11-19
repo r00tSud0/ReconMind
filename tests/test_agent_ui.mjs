@@ -1,6 +1,6 @@
 /*
  * Contract checks for the MORVAIN-X0 and Setup screens: no HTML parsing of
- * server data, answers only go to the agent route, and the three AI settings.
+ * server data, answers only go to the agent route, and the AI settings.
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -25,10 +25,13 @@ const warp = src('../reconmind/web/static/js/morvain_gl.js');
 assert.ok(agent.includes("from '../morvain_gl.js'") && warp.includes("'morvain-x0.png'"),
   'Uses the approved portrait file');
 assert.ok(!agent.includes('<svg') && !agent.includes('ellipse'), 'No substitute SVG face');
-for (const level of ['off', 'ai', 'agent']) {
+for (const level of ['off', 'ai']) {
   assert.ok(html.includes('data-ai="' + level + '"'), 'AI setting ' + level + ' exists');
 }
-assert.ok(newscan.includes("level === 'agent' ? 'agent'"), 'Agent setting sends mode agent');
+// Agent scans start only on the MORVAIN-X0 tab; New scan points there.
+assert.ok(!html.includes('data-ai="agent"') && !newscan.includes("'agent'"), 'New scan has no agent setting');
+assert.ok(html.includes('<a href="#/agent">open MORVAIN-X0</a>'), 'New scan points to MORVAIN-X0 for the agent');
+assert.ok(!morvain.includes('More options on New scan'), 'MORVAIN-X0 does not send you to New scan');
 assert.ok(!setup.includes('apt install') && !setup.includes('pip install'),
   'Setup screen runs the installer, it never shows manual install commands');
 assert.ok(html.includes('href="#/agent" data-route="agent">MORVAIN-X0</a>'), 'MORVAIN-X0 has its own tab');

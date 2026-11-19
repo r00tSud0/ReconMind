@@ -32,6 +32,21 @@ that python3 -m reconmind.web serves on 127.0.0.1.
                                   evidence.json as a download (Raw evidence)
     GET  /api/reports/<run id>/report.md
                                   report.md as a download (Export .md)
+    POST /api/reports/<run id>/ask
+                                  {"question", "turns"}: an answer from that
+                                  report only (see ask.py); needs an LLM
+    GET  /api/lists, /api/lists/<list id>
+                                  host lists: up to 8 hosts scanned one after
+                                  another ("kind": "hosts" on /api/scans)
+    POST /api/lists/<list id>/stop
+                                  stop after the current host
+    GET  /api/workspace?folder=F  that target folder's notes and your reports
+    POST /api/workspace/notes[/<note id>]
+                                  add, edit or delete ("delete": true) a note
+    POST /api/analyst             start one of your reports, blank or from a run
+    GET|POST /api/analyst/<id>    read or save it ("delete": true deletes it)
+    GET  /api/analyst/<id>/report.md
+                                  your report as Markdown (Export .md)
 
 Run ids must look like the ones history.new_run_id makes, and every run file
 must resolve to exactly <report_dir>/<run id>/<name> (runs.run_file);
@@ -57,7 +72,7 @@ import re
 
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from reconmind.__main__ import is_ipv4
@@ -72,7 +87,9 @@ from reconmind.core.scan_plan import (
 from reconmind.web import runs, system, settings
 from reconmind.web.setup_runner import SetupBusy, SetupRunner
 from reconmind.web import setup_runner
-from reconmind.web.jobs import JOB_ID, Busy, JobManager
+from reconmind.web.jobs import JOB_ID, LIST_ID, Busy, JobManager, recon_label
+from reconmind.web import ask as ask_mod
+from reconmind.web.workspace import Workspace, WorkspaceError, report_markdown
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 MAX_HOSTS = 8
@@ -200,14 +217,50 @@ def _check_mode(body):
     return mode
 
 
+def _check_hosts(body):
+    """A list of ScanPlans, one per host, each through the gate. Raises Refused or Invalid."""
+    targets = body.get("targets")
+    if not isinstance(targets, list) or not all(isinstance(t, str) for t in targets):
+        raise Invalid("Hosts must be a list of IPv4 addresses.", "hosts")
+    targets = [t.strip() for t in targets if t.strip()]
+    if not targets:
+        raise Invalid("Enter at least one lab host, one address per line.", "hosts")
+    if len(targets) > MAX_HOSTS:
+        raise Invalid("A host list holds up to {m} hosts. This one has {n}.".format(
+            m=MAX_HOSTS, n=len(targets)), "hosts")
+    seen = set()
+    for t in targets:
+        if not is_ipv4(t):
+            raise Invalid("{t!r} is not an IPv4 address. Ranges like /24 are not accepted; "
+                          "put one address on each line.".format(t=t[:100]), "hosts")
+        if t in seen:
+            raise Invalid("{t} is in the list twice.".format(t=t), "hosts")
+        seen.add(t)
+    # The gate checks every host before anything starts. One refused host
+    # refuses the whole list, so nothing is ever sent to it.
+    for t in targets:
+        if not is_authorized(t):
+            raise Refused(refused_message(t) + " Remove it from the list to scan the others.")
+    if body.get("mode") == MODE_AGENT:
+        raise Invalid("The AI agent works on one target at a time. Choose Off or AI analysis "
+                      "for a host list.", "mode")
+    plans = []
+    for t in targets:
+        plans.append(_check_recon(dict(body, target=t)))
+    return plans
+
+
 def _check(body, cwd):
-    """("recon", plan) or ("code", (CodeInput, explain)). Raises Refused or Invalid."""
+    """("recon", plan), ("hosts", [plan, ...]) or ("code", (CodeInput, explain)).
+    Raises Refused or Invalid."""
     kind = body.get("kind")
     if kind == "recon":
         return kind, _check_recon(body)
+    if kind == "hosts":
+        return kind, _check_hosts(body)
     if kind == "code":
         return kind, _check_code(body, cwd)
-    raise Invalid("Kind must be \"recon\" or \"code\".", "kind")
+    raise Invalid("Kind must be \"recon\", \"hosts\" or \"code\".", "kind")
 
 
 def _input_dict(code_input):
@@ -256,6 +309,24 @@ def _host_ok(host, port):
     if port is None:
         return bool(_ANY_LOCAL_HOST.fullmatch(host))
     return host in ("{h}:{p}".format(h=h, p=port) for h in LOCAL_HOSTS)
+
+
+def ws_note_id(value):
+    from reconmind.web.workspace import NOTE_ID
+    return bool(NOTE_ID.fullmatch(value))
+
+
+def _with_findings(report_dir, data):
+    """Add each host's finding counts from the report history."""
+    try:
+        entries = {e.get("run_id"): e for e in history.read_index(report_dir) if isinstance(e, dict)}
+    except (OSError, ValueError):
+        entries = {}
+    for host in data.get("hosts", []):
+        entry = entries.get(host.get("run_id")) or {}
+        host["findings"] = entry.get("findings") if isinstance(entry.get("findings"), dict) else None
+        host["open_ports"] = entry.get("open_ports")
+    return data
 
 
 def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
@@ -377,6 +448,9 @@ def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
             return {"ok": False, "reason": "invalid", "message": str(exc), "field": exc.field}
         if kind == "recon":
             return {"ok": True, "plan": result.to_dict(), "describe": result.describe()}
+        if kind == "hosts":
+            return {"ok": True, "plan": result[0].to_dict(), "describe": result[0].describe(),
+                    "targets": [p.target for p in result]}
         return {"ok": True, "input": _input_dict(result[0]), "explain": result[1]}
 
     @app.post("/api/scans")
@@ -386,7 +460,7 @@ def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
             return _failure(403, "forbidden", "The request body must be a JSON object.")
         try:
             kind, result = _check(body, cwd)
-            mode = _check_mode(body) if kind == "recon" else None
+            mode = _check_mode(body) if kind in ("recon", "hosts") else None
         except Refused as exc:
             return _refused(exc)
         except Invalid as exc:
@@ -396,6 +470,13 @@ def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
         try:
             if kind == "recon":
                 job_id = jobs.start_recon(result, mode)
+            elif kind == "hosts":
+                label = "{n} hosts, {s}".format(n=len(result), s=recon_label(result[0]).split(",")[0])
+                list_id = jobs.start_list(result, mode, label)
+                data = jobs.get_list(list_id) or {}
+                first = (data.get("hosts") or [{}])[0].get("job_id")
+                return JSONResponse({"ok": True, "list_id": list_id, "job_id": first},
+                                    status_code=201)
             else:
                 code_input, explain = result
                 job_id = jobs.start_code(code_input.root, explain)
@@ -497,5 +578,133 @@ def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
             return _failure(404, "not_found", NO_REPORT)
         return FileResponse(path, media_type="text/markdown; charset=utf-8",
                             filename=run_id + ".md", headers={"Cache-Control": "no-store"})
+
+    # ---- host lists ----------------------------------------------------------
+
+    @app.get("/api/lists")
+    def get_lists():
+        return {"lists": [_with_findings(report_dir, l) for l in jobs.lists()]}
+
+    @app.get("/api/lists/{list_id}")
+    def get_list(list_id: str):
+        data = jobs.get_list(list_id) if LIST_ID.fullmatch(list_id) else None
+        if data is None:
+            return _failure(404, "not_found", "There is no host list with that id.")
+        return _with_findings(report_dir, data)
+
+    @app.post("/api/lists/{list_id}/stop")
+    async def stop_list(list_id: str, request: Request):
+        if await _json_body(request) is None:
+            return _failure(403, "forbidden", "The request body must be a JSON object.")
+        if not LIST_ID.fullmatch(list_id) or jobs.get_list(list_id) is None:
+            return _failure(404, "not_found", "There is no host list with that id.")
+        if not jobs.stop_list_after(list_id):
+            return _failure(409, "not_running", "This host list is not running any more.")
+        return {"ok": True}
+
+    # ---- the analyst's notes and reports ------------------------------------
+
+    workspace = Workspace(report_dir)
+
+    def _ws(fn, *args):
+        try:
+            return fn(*args)
+        except WorkspaceError as exc:
+            return _failure(400, "invalid", str(exc))
+        except OSError:
+            return _failure(500, "unwritable", "The workspace folder could not be written.")
+
+    @app.get("/api/workspace")
+    def get_workspace(request: Request):
+        folder = request.query_params.get("folder", "")
+        return _ws(lambda: {"notes": workspace.notes(folder), "reports": workspace.reports(folder)})
+
+    async def _ws_post(request, fn):
+        body = await _json_body(request)
+        if body is None:
+            return _failure(403, "forbidden", "The request body must be a JSON object.")
+        return await run_in_threadpool(_ws, fn, body)
+
+    @app.post("/api/workspace/notes")
+    async def add_note(request: Request):
+        return await _ws_post(request, lambda b: {"ok": True, "note": workspace.save_note(
+            b.get("folder"), b.get("text"), None)})
+
+    @app.post("/api/workspace/notes/{note_id}")
+    async def edit_note(note_id: str, request: Request):
+        def run(b):
+            if b.get("delete") is True:
+                workspace.delete_note(b.get("folder"), note_id)
+                return {"ok": True}
+            if not ws_note_id(note_id):
+                raise WorkspaceError("That note no longer exists.")
+            return {"ok": True, "note": workspace.save_note(b.get("folder"), b.get("text"), note_id)}
+        return await _ws_post(request, run)
+
+    @app.post("/api/analyst")
+    async def new_analyst_report(request: Request):
+        return await _ws_post(request, lambda b: {"ok": True, "report": workspace.create_report(
+            b.get("folder"), b.get("from_run"))})
+
+    @app.get("/api/analyst/{report_id}")
+    def get_analyst_report(report_id: str):
+        data = workspace.report(report_id)
+        if data is None:
+            return _failure(404, "not_found", "There is no report of yours with that id.")
+        return data
+
+    @app.post("/api/analyst/{report_id}")
+    async def save_analyst_report(report_id: str, request: Request):
+        def run(b):
+            if b.get("delete") is True:
+                workspace.delete_report(report_id)
+                return {"ok": True}
+            return {"ok": True, "report": workspace.save_report(report_id, b)}
+        return await _ws_post(request, run)
+
+    @app.get("/api/analyst/{report_id}/report.md")
+    def analyst_markdown(report_id: str):
+        data = workspace.report(report_id)
+        if data is None:
+            return _failure(404, "not_found", "There is no report of yours with that id.")
+        return Response(report_markdown(data), media_type="text/markdown; charset=utf-8",
+                        headers={"Cache-Control": "no-store",
+                                 "Content-Disposition": 'attachment; filename="report_'
+                                 + report_id + '.md"'})
+
+    # ---- ask about this report ----------------------------------------------
+
+    @app.post("/api/reports/{run_id}/ask")
+    async def ask_report(run_id: str, request: Request):
+        body = await _json_body(request)
+        if body is None:
+            return _failure(403, "forbidden", "The request body must be a JSON object.")
+        try:
+            question, turns = ask_mod.check(body.get("question"), body.get("turns"))
+        except ask_mod.AskError as exc:
+            return _failure(400, "invalid", str(exc))
+        try:
+            view = await run_in_threadpool(runs.report_view, report_dir, run_id)
+        except OSError:
+            return _failure(500, "unreadable", "This report could not be read.")
+        if view is None:
+            return _failure(404, "not_found", NO_REPORT)
+        from reconmind.agent.__main__ import ai_config
+        from reconmind.agent import llm
+        config, _ = ai_config()
+        if config is None:
+            return _failure(409, "no_ai", "Asking needs an LLM. Set a provider and key on the "
+                                          "System page.")
+        try:
+            client = llm.make_client(config)
+            text = await run_in_threadpool(ask_mod.answer, view, question, turns, client,
+                                           config.model)
+        except ask_mod.AskError as exc:
+            return _failure(502, "empty", str(exc))
+        except ImportError:
+            return _failure(500, "no_package", "The LLM package is not installed. Run Setup.")
+        except Exception as exc:  # the provider failed; the report is untouched
+            return _failure(502, "llm_failed", "The model could not answer: " + str(exc)[:300])
+        return {"ok": True, "answer": text, "model": config.model}
 
     return app

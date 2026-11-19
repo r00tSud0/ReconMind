@@ -305,6 +305,7 @@ const PRESET_TITLES = { quick: 'Quick scan', standard: 'Standard scan', full: 'F
 export function entryTitle(entry) {
   if (!entry || typeof entry !== 'object') return 'Scan';
   if (entry.kind === 'code') return 'Code scan';
+  if (entry.agent === true) return 'Agent scan';
   if (entry.customized === true) return 'Custom scan';
   return PRESET_TITLES[entry.preset] || 'Scan';
 }

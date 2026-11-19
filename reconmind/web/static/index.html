@@ -34,6 +34,7 @@
     <nav class="mainnav" aria-label="Main">
       <a class="nav" href="#/new" data-route="new">New scan</a>
       <a class="nav" href="#/live" data-route="live"><span class="livedot" id="live-dot" hidden></span>Live run</a>
+      <a class="nav" href="#/agent" data-route="agent">MORVAIN-X0</a>
       <a class="nav" href="#/targets" data-route="targets">Targets</a>
       <a class="nav" href="#/hosts" data-route="hosts">Host lists</a>
       <a class="nav" href="#/system" data-route="system">System</a>
@@ -61,7 +62,6 @@
         <div class="seg seg-mode" role="tablist" aria-label="What are you scanning" data-ref="modeSeg">
           <span class="ind" aria-hidden="true"></span>
           <button type="button" role="tab" data-mode="host">One host</button>
-          <!-- Host lists are not built yet: the mode stays visible, Start stays disabled. -->
           <button type="button" role="tab" data-mode="list">Host list</button>
           <button type="button" role="tab" data-mode="code">Source code</button>
         </div>
@@ -84,7 +84,8 @@
         </div>
         <div class="group" data-group="list" hidden>
           <label for="hosts" class="sr-only">Hosts, one IP per line</label>
-          <textarea id="hosts" class="field field-list" rows="4" spellcheck="false" placeholder="10.10.1.20&#10;10.10.2.15"></textarea>
+          <textarea id="hosts" class="field field-list" rows="4" spellcheck="false" placeholder="10.10.1.20&#10;10.10.2.15" aria-describedby="hosts-error"></textarea>
+          <p class="field-error" id="hosts-error" data-error="hosts" hidden></p>
           <span class="tag" data-ref="hostsNote">Up to 8 hosts. Ranges like /24 are not accepted.</span>
         </div>
         <div class="group" data-group="code" hidden>
@@ -177,7 +178,7 @@
       <div class="launch-text">
         <p class="plan" data-ref="plan"></p>
         <p class="help small">The authorization gate checks every target before a single packet is sent. No brute force, no DoS, no outside callbacks.</p>
-        <p class="start-note" data-ref="startNote" hidden><span class="notbuilt">Not built yet</span> Host lists will scan up to 8 lab machines one after another.</p>
+        <p class="start-note" data-ref="startNote" hidden>Each host gets its own report in its own target folder. Every host is checked against the allowlist before anything starts.</p>
       </div>
       <button type="button" class="btn primary btn-start" data-ref="start">
         <span class="spinner" data-ref="spinner" aria-hidden="true" hidden></span>
@@ -335,8 +336,8 @@
   <div class="page">
     <section class="glass later reveal">
       <h1 class="h2 later-title">Live run</h1>
-      <p class="help" data-ref="text">No scan is running. Start one on New scan.</p>
-      <div><a class="btn quiet" href="#/new">Go to New scan</a></div>
+      <p class="help" data-ref="text">No scan is running right now. Live run shows a scan while it runs. Start one on New scan.</p>
+      <div class="later-buttons" data-ref="actions"><a class="btn quiet" href="#/new">Start a scan</a></div>
     </section>
   </div>
 </template>
@@ -404,7 +405,7 @@
     <section class="glass folders reveal" aria-label="Target folders">
       <div class="folders-head">
         <h1 class="h2 folders-title">Targets</h1>
-        <button type="button" class="btn quiet btn-small" disabled title="Not built yet">New folder</button>
+        <p class="help small">One folder for each machine or code folder you have scanned. A folder appears with its first scan.</p>
       </div>
       <div class="folders-filter">
         <label for="filter" class="sr-only">Filter targets</label>
@@ -424,8 +425,8 @@
       </div>
       <div class="tabs" role="tablist" aria-label="Folder sections" data-ref="tabs">
         <button type="button" role="tab" class="tab" data-tab="scans">Scans</button>
-        <button type="button" role="tab" class="tab" data-tab="notes">Notes <span class="notbuilt">Not built yet</span></button>
-        <button type="button" role="tab" class="tab" data-tab="reports">Your reports <span class="notbuilt">Not built yet</span></button>
+        <button type="button" role="tab" class="tab" data-tab="notes">Notes</button>
+        <button type="button" role="tab" class="tab" data-tab="reports">Your reports</button>
         <span class="tabind" data-ref="tabInd" aria-hidden="true"></span>
       </div>
       <div class="tabpanel" role="tabpanel" data-ref="panel"></div>
@@ -447,15 +448,5 @@
   </div>
 </template>
 
-<!-- A screen or panel that is not built yet: its name, the badge and what it will do. -->
-<template id="tpl-later">
-  <div class="page">
-    <section class="glass later reveal">
-      <div class="later-head"><h1 class="h2 later-title" data-ref="title"></h1><span class="notbuilt">Not built yet</span></div>
-      <p class="help" data-ref="text"></p>
-      <div><a class="btn quiet" href="#/new">Back to New scan</a></div>
-    </section>
-  </div>
-</template>
 </body>
 </html>

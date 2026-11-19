@@ -17,6 +17,13 @@
  * last events read picks up the rest, the radar stops sweeping, and Open
  * report links to #/report/<run id>.
  *
+ * An agent scan (mode "agent") shows a short MORVAIN-X0 card here: what the
+ * agent is doing now and a button to its tab. The conversation and the plan
+ * approvals live only on the MORVAIN-X0 tab, so they are never in two places.
+ *
+ * A host of a host list links back to the list. When it ends and the list
+ * starts the next host, this page says so and moves to that host by itself.
+ *
  * Kept from step 2C: Stop asks first in an in page dialog, and the technical
  * log stays folded. Everything from the server or the target's tools is set
  * with textContent or through the CSSOM, never as markup. Every request is
@@ -25,7 +32,6 @@
  * timer or a click.
  */
 
-import { createAgentPanel } from './agent.js';
 import * as api from '../api.js';
 import { checkLive, markRunning } from '../live.js';
 import {
@@ -122,9 +128,14 @@ function portsPhrase(ports) {
   return (list.length === 1 ? 'port ' : 'ports ') + joinList(list);
 }
 
+/* Set when a host list moves this page on to its next host; shown once there. */
+let followNote = '';
+
 export function mountJob(view, jobId) {
   const { root, refs } = clone('tpl-job');
   view.append(root);
+  const arrived = followNote;
+  followNote = '';
 
   let alive = true;
   let pollTimer = null;
@@ -141,7 +152,9 @@ export function mountJob(view, jobId) {
   let stopping = false;
   let gone = false;
   let actionList = null; // [{id, name}] from /api/options, in run order
-  let agent = null;      // the MORVAIN-X0 panel, made when an agent event arrives
+  let agent = null;      // the short MORVAIN-X0 card, made when an agent event arrives
+  let agentState = '';   // the agent's latest state: thinking, running, awaiting...
+  let following = false; // already moving on to the next host of a host list
 
   // What the events have said so far.
   const ev = {
@@ -197,16 +210,39 @@ export function mountJob(view, jobId) {
 
   function ensureAgent() {
     if (agent) return;
-    agent = createAgentPanel(jobId);
+    const word = h('b', { class: 'agent-card-state' });
+    const line = h('span', { class: 'help' });
+    agent = { word, line, el: h('section', { class: 'glass agent-card reveal' },
+      h('span', { class: 'agent-av x', 'aria-hidden': 'true', text: 'X0' }),
+      h('div', { class: 'agent-card-text' }, h('span', {}, 'MORVAIN-X0 runs this scan. ', word), line),
+      h('a', { class: 'btn primary', href: '#/agent', text: 'Open MORVAIN-X0' })) };
     const mid = view.querySelector('.live-mid');
     if (mid && mid.parentNode) mid.parentNode.insertBefore(agent.el, mid);
     else view.append(agent.el);
   }
 
+  const AGENT_WORDS = {
+    thinking: ['Thinking.', 'It is working out the next checks. The plan and your approvals are on its tab.'],
+    running: ['Running an approved check.', 'The steps below show the tools as they run.'],
+    awaiting: ['Waiting for your approval.', 'Nothing more runs until you answer its plan on the MORVAIN-X0 tab.'],
+    error: ['A problem came up.', 'It explains what happened on its tab.'],
+    done: ['Writing the report.', 'The report link appears here when it is saved.'],
+  };
+
+  function renderAgent() {
+    if (!agent) return;
+    const live = running();
+    const [word, line] = live ? (AGENT_WORDS[agentState] || ['Mapping the surface.', 'The conversation and every plan approval are on its tab.'])
+      : ['Finished.', 'The conversation stays on the MORVAIN-X0 tab until you start a new agent scan.'];
+    agent.word.textContent = word;
+    agent.line.textContent = line;
+    agent.el.classList.toggle('hot', live && agentState === 'awaiting');
+  }
+
   function applyEvent(e) {
     if (!isObject(e)) return;
     if (e.kind === 'agent' || (e.kind === 'plan' && e.mode === 'agent')) ensureAgent();
-    if (agent) agent.apply(e);
+    if (e.kind === 'agent' && e.from === 'agent' && typeof e.state === 'string') agentState = e.state;
     const time = parseTime(e.time);
     switch (e.kind) {
       case 'plan':
@@ -516,6 +552,14 @@ export function mountJob(view, jobId) {
     refs.label.textContent = title;
     document.title = (target ? kind + ', ' + target : kind) + ' | ReconMind';
     refs.sub.textContent = subtitle();
+    // A host of a host list links back to the list.
+    if (job && typeof job.list === 'string' && /^[0-9a-f]{10}$/.test(job.list)) {
+      let back = refs.sub.parentNode.querySelector('.job-list-link');
+      if (!back) {
+        back = h('a', { class: 'btn quiet btn-small job-list-link', href: '#/hosts/' + job.list, text: 'Part of a host list: open it' });
+        refs.sub.after(back);
+      }
+    }
 
     const steps = list.filter((r) => r.id !== 'gate');
     const ended = steps.filter((r) => ['done', 'skip', 'error', 'notrun'].includes(r.state)).length;
@@ -660,10 +704,7 @@ export function mountJob(view, jobId) {
   }
 
   function render() {
-    if (agent) {
-      agent.setJob(job ? job.status : 'running');
-      agent.render();
-    }
+    renderAgent();
     const isRunning = running();
     renderStop(isRunning);
     // This page may show an older job while another one runs, so a job that
@@ -747,6 +788,28 @@ export function mountJob(view, jobId) {
     pollPending = false;
     // Keep polling while the job runs, and keep trying while an answer was missing.
     if (!usable || !eventsOk || job.status === 'running') schedulePoll();
+    else if (typeof job.list === 'string' && /^[0-9a-f]{10}$/.test(job.list)) followList(job.list, 0);
+  }
+
+  /* A host list moves on: when the next host starts, say so and go there. */
+  async function followList(listId, tries) {
+    if (!alive || following || tries > 20) return;
+    const res = await api.get('/api/lists/' + listId);
+    if (!alive || !res.ok || !isObject(res.data) || !Array.isArray(res.data.hosts)) return;
+    const hosts = res.data.hosts.filter(isObject);
+    const mine = hosts.findIndex((x) => x.job_id === jobId);
+    const next = hosts[mine + 1];
+    if (mine < 0) return;
+    if (next && JOB_ID.test(String(next.job_id || ''))) {
+      following = true;
+      followNote = 'Host ' + (mine + 1) + ' of ' + hosts.length + ' (' + (hosts[mine].target || '') + ') finished. '
+        + 'Now scanning host ' + (mine + 2) + ': ' + (next.target || '') + '.';
+      setTimeout(() => { if (alive) location.replace('#/job/' + next.job_id); }, 1500);
+      refs.problem.replaceChildren(notice('Moving on to the next host', followNote));
+      return;
+    }
+    // The next host has not started yet: ask again shortly, unless the list is over.
+    if (next && res.data.status === 'running') setTimeout(() => followList(listId, tries + 1), 1000);
   }
 
   // ---- stopping --------------------------------------------------------
@@ -822,6 +885,7 @@ export function mountJob(view, jobId) {
   }, 1000);
   // A link with an id no job can have is answered here, not sent to the server.
   if (JOB_ID.test(jobId)) {
+    if (arrived) refs.sub.after(h('p', { class: 'follow-note', role: 'status', text: arrived }));
     loadActions();
     poll();
   } else {

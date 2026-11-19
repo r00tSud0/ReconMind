@@ -936,7 +936,7 @@ class HistoryTests(InTempDir):
             # telnet risk flag high, nuclei high, testssl MEDIUM; "OK" is not counted
             "findings": {"critical": 0, "high": 2, "medium": 1, "low": 0},
             # No mode passed: recorded as "ai", like every run before modes.
-            "mode": "ai", "stopped": False,
+            "mode": "ai", "stopped": False, "agent": False,
         }])
 
     def test_index_entry_carries_customized(self):

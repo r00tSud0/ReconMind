@@ -88,7 +88,10 @@ SUMMARY_WARNING = "The AI summary was unavailable, so the report has the tool re
 PRESET_LABELS = {"quick": "Quick scan", "standard": "Standard scan", "full": "Full scan"}
 CUSTOM_LABEL = "Custom scan"
 META_KEYS = ("id", "kind", "label", "status", "exit_code", "started", "finished", "run_id",
-             "warning")
+             "warning", "list")
+LIST_ID = re.compile(r"[0-9a-f]{10}")
+LIST_SUFFIX = ".list.json"
+MAX_LIST = 8
 
 
 class Busy(RuntimeError):
@@ -160,10 +163,10 @@ def code_label(path):
 class _Job:
     """One job in memory: its metadata, its process and its recent lines."""
 
-    def __init__(self, job_id, kind, label):
+    def __init__(self, job_id, kind, label, host_list=None):
         self.meta = {"id": job_id, "kind": kind, "label": label, "status": RUNNING,
                      "exit_code": None, "started": _now(), "finished": None,
-                     "run_id": None, "warning": None}
+                     "run_id": None, "warning": None, "list": host_list}
         self.lines = deque(maxlen=MAX_LINES)
         self.proc = None
         self.thread = None
@@ -183,6 +186,7 @@ class JobManager:
         self._lock = threading.Lock()
         self._jobs = {}
         self._running_id = None
+        self._lists = {}
         self._mark_interrupted()
 
     # ---- saved jobs --------------------------------------------------------
@@ -249,15 +253,15 @@ class JobManager:
 
     # ---- starting ----------------------------------------------------------
 
-    def start_recon(self, plan, mode=None):
+    def start_recon(self, plan, mode=None, host_list=None):
         mode = mode or default_mode()
         label = ("Agent scan, " + plan.target) if mode == "agent" else recon_label(plan)
-        return self._start("recon", label, recon_command(plan, mode))
+        return self._start("recon", label, recon_command(plan, mode), host_list)
 
     def start_code(self, path, explain=False):
         return self._start("code", code_label(path), code_command(path, explain))
 
-    def _start(self, kind, label, argv):
+    def _start(self, kind, label, argv, host_list=None):
         with self._lock:
             if self._running_id is not None:
                 raise Busy(self._running_id)
@@ -265,7 +269,7 @@ class JobManager:
             while job_id in self._jobs or os.path.exists(self._meta_path(job_id)):
                 job_id = secrets.token_hex(6)
             os.makedirs(self.jobs_dir, exist_ok=True)
-            job = _Job(job_id, kind, label)
+            job = _Job(job_id, kind, label, host_list)
             env = dict(os.environ, PYTHONUNBUFFERED="1")
             env[EVENTS_ENV] = self.events_path(job_id)
             # Only an agent job reads approvals; the path is set for every job
@@ -295,6 +299,7 @@ class JobManager:
     def _follow(self, job):
         """Read the child's output until it ends, then record how it ended."""
         job_id = job.meta["id"]
+        list_id = None
         try:
             with open(self._log_path(job_id), "a", encoding="utf-8") as log:
                 for raw in job.proc.stdout:
@@ -332,6 +337,9 @@ class JobManager:
                 if self._running_id == job_id:
                     self._running_id = None
                 self._save(job)
+                list_id = job.meta.get("list")
+            if list_id:
+                self._list_next(list_id)
 
     # ---- reading -----------------------------------------------------------
 
@@ -430,6 +438,9 @@ class JobManager:
                 job.lines.append("Stopped from the web app.")
                 self._save(job)
                 stopping = True
+                lst = self._lists.get(job.meta.get("list"))
+                if lst is not None:
+                    lst["stop_after"] = True
         if stopping:
             self._signal(job.proc, signal.SIGTERM)
             try:
@@ -443,3 +454,126 @@ class JobManager:
             if job.thread is not None:
                 job.thread.join(timeout=2)
         return self.get(job_id)
+
+
+    # ---- host lists ----------------------------------------------------------
+    #
+    # A host list is up to MAX_LIST checked scan plans run one after another,
+    # each as an ordinary job (so each target passes the authorization gate
+    # again inside the CLI and gets its own report). The list is saved as
+    # <report_dir>/.jobs/<list id>.list.json. When a host's job ends, the next
+    # one starts, unless the list was told to stop after the current host or
+    # one of its hosts was stopped.
+
+    def _list_path(self, list_id):
+        return os.path.join(self.jobs_dir, list_id + LIST_SUFFIX)
+
+    def _save_list(self, lst):
+        record = {k: v for k, v in lst.items() if k != "plans"}
+        try:
+            write_json(self._list_path(lst["id"]), record)
+        except OSError:
+            pass
+
+    def start_list(self, plans, mode, label):
+        """Start the first host of a new list. Returns the list id. Raises Busy."""
+        if not 1 <= len(plans) <= MAX_LIST:
+            raise ValueError("A host list holds 1 to {m} hosts.".format(m=MAX_LIST))
+        with self._lock:
+            if self._running_id is not None:
+                raise Busy(self._running_id)
+            list_id = secrets.token_hex(5)
+            while os.path.exists(self._list_path(list_id)):
+                list_id = secrets.token_hex(5)
+            lst = {"id": list_id, "label": label, "mode": mode, "status": RUNNING,
+                   "started": _now(), "finished": None, "stop_after": False,
+                   "hosts": [{"target": p.target, "job_id": None} for p in plans],
+                   "plans": list(plans)}
+            self._lists[list_id] = lst
+            os.makedirs(self.jobs_dir, exist_ok=True)
+            self._save_list(lst)
+        self._list_next(list_id)
+        return list_id
+
+    def _list_next(self, list_id):
+        """Start the list's next host, or close the list when none is left."""
+        with self._lock:
+            lst = self._lists.get(list_id)
+            if lst is None or lst["status"] != RUNNING:
+                return
+            index = next((i for i, h in enumerate(lst["hosts"]) if h["job_id"] is None), None)
+            if index is None or lst["stop_after"]:
+                lst["status"] = DONE if index is None else STOPPED
+                lst["finished"] = _now()
+                self._save_list(lst)
+                return
+            plan = lst["plans"][index]
+            mode = lst["mode"]
+        try:
+            job_id = self.start_recon(plan, mode, host_list=list_id)
+        except Busy:
+            with self._lock:
+                lst["status"] = INTERRUPTED
+                lst["finished"] = _now()
+                lst["warning"] = "Another scan started first, so the list stopped at host {n}.".format(
+                    n=index + 1)
+                self._save_list(lst)
+            return
+        with self._lock:
+            lst["hosts"][index]["job_id"] = job_id
+            self._save_list(lst)
+
+    def stop_list_after(self, list_id):
+        """Let the current host finish, then start no more. False when not running."""
+        with self._lock:
+            lst = self._lists.get(list_id)
+            if lst is None or lst["status"] != RUNNING:
+                return False
+            lst["stop_after"] = True
+            self._save_list(lst)
+            return True
+
+    def _load_list(self, list_id):
+        try:
+            with open(self._list_path(list_id)) as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            return None
+        if not isinstance(data, dict) or not isinstance(data.get("hosts"), list):
+            return None
+        if data.get("status") == RUNNING:
+            data["status"] = INTERRUPTED   # saved by a server that stopped
+        return data
+
+    def get_list(self, list_id):
+        """The list with each host's job status and run id, or None."""
+        if not LIST_ID.fullmatch(str(list_id)):
+            return None
+        with self._lock:
+            lst = self._lists.get(list_id)
+            data = {k: v for k, v in lst.items() if k != "plans"} if lst else None
+            if data is not None:
+                data["hosts"] = [dict(h) for h in lst["hosts"]]
+        if data is None:
+            data = self._load_list(list_id)
+        if data is None:
+            return None
+        for host in data["hosts"]:
+            job = self.get(host.get("job_id"), max_lines=1) if host.get("job_id") else None
+            host["status"] = job["status"] if job else ("waiting" if data["status"] == RUNNING
+                                                        else "skipped")
+            host["run_id"] = job["run_id"] if job else None
+            host["warning"] = job["warning"] if job else None
+        return data
+
+    def lists(self):
+        """Every saved list, newest first."""
+        ids = set()
+        with self._lock:
+            ids.update(self._lists)
+        if os.path.isdir(self.jobs_dir):
+            for name in os.listdir(self.jobs_dir):
+                if name.endswith(LIST_SUFFIX) and LIST_ID.fullmatch(name[:-len(LIST_SUFFIX)]):
+                    ids.add(name[:-len(LIST_SUFFIX)])
+        found = [self.get_list(i) for i in ids]
+        return sorted((f for f in found if f), key=lambda f: str(f.get("started")), reverse=True)

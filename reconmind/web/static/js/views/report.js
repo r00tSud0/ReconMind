@@ -4,8 +4,12 @@
  * Reads GET /api/reports/<run id>: the index entry, report.md, scan.json and
  * what the server derives from them (the findings, the port spectrum and the
  * AI summary). evidence.json is never read here: Raw evidence and Export .md
- * are plain download links to their own routes. Export PDF and Write my own
- * report are not built yet, so they stay visible and disabled.
+ * are plain download links to their own routes. Export PDF builds a clean
+ * print document from the same data (js/print.js, 10_PdfReport.html) and
+ * opens the print dialog. Write your own report starts one of your reports
+ * from this scan (#/analyst/<id>); this report is never changed. Ask about
+ * this report sends a question to POST /api/reports/<run id>/ask, which
+ * answers from this report only.
  *
  * Problem states (09_States.html) show inside the page: a refused target, a
  * stopped scan, an AI summary that could not be written, NVD not answering,
@@ -18,10 +22,11 @@
 import * as api from '../api.js';
 import {
   basename, clone, countUp, entryTitle, formatDay, formatDayTime, formatDuration, h, heat,
-  isRunId, joinList, markdownNodes, notBuiltButton, parseTime, plural, SEVERITIES, SEVERITY_WORDS, severityKey,
+  isRunId, joinList, markdownNodes, parseTime, plural, SEVERITIES, SEVERITY_WORDS, severityKey,
   spectrum,
 } from '../ui.js';
-import { ACTION_COPY } from './newscan.js';
+import { ACTION_COPY, setPrefill } from './newscan.js';
+import { printDocument } from '../print.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CODE_SEVERITIES = ['high', 'medium', 'low'];
@@ -181,10 +186,165 @@ export function mountReport(view, runId) {
       }, 'Raw evidence'));
     }
     actions.push(h('a', { class: 'btn quiet', href: base + '/report.md', download: runId + '.md', text: 'Export .md' }));
-    actions.push(notBuiltButton('Export PDF'));
-    actions.push(notBuiltButton('Write my own report', 'primary'));
+    const pdf = h('button', { type: 'button', class: 'btn quiet', text: 'Export PDF',
+      title: 'Opens the print dialog. Choose Save as PDF, or Print to File in the ReconMind window.' });
+    pdf.addEventListener('click', () => printDocument(reportDocument(d, entry, results, target, title, isCode)));
+    actions.push(pdf);
+    const own = h('button', { type: 'button', class: 'btn primary', text: 'Write your own report' });
+    own.addEventListener('click', async () => {
+      own.disabled = true;
+      const res = await api.post('/api/analyst', { folder: target, from_run: runId });
+      if (!alive) return;
+      if (res.ok && isObject(res.data) && isObject(res.data.report)) {
+        location.hash = '#/analyst/' + res.data.report.id;
+        return;
+      }
+      own.disabled = false;
+      refs.problem.replaceChildren(alertBox('grey', 'Your report could not be started',
+        isObject(res.data) && typeof res.data.message === 'string' ? res.data.message : 'Try again.'));
+    });
+    actions.push(own);
     refs.actions.replaceChildren(...actions);
     return target;
+  }
+
+
+  // ---- scan again, ask and export ------------------------------------------
+
+  /* A button that opens New scan with this target (and ports) filled in. */
+  function scanAgain(target, ports, label) {
+    const btn = h('button', { type: 'button', class: 'btn quiet', text: label });
+    btn.addEventListener('click', () => {
+      const plan = asObject(asObject(current && current.scan).plan);
+      setPrefill({ target, preset: ports ? 'custom' : (words(plan.preset) || 'standard'), ports: ports || '' });
+      location.hash = '#/new';
+    });
+    return btn;
+  }
+
+  function askLink() {
+    const btn = h('button', { type: 'button', class: 'btn quiet', text: 'Ask about this report' });
+    btn.addEventListener('click', () => {
+      const field = root.querySelector('#ask-field');
+      if (field) { field.scrollIntoView({ block: 'center' }); field.focus(); }
+    });
+    return btn;
+  }
+
+  function renderAsk(isCode, refused) {
+    if (refused) return;
+    const turns = [];
+    const thread = h('div', { class: 'ask-thread', 'aria-live': 'polite' });
+    const field = h('textarea', { id: 'ask-field', class: 'field ask-field', rows: '2', maxlength: '1000',
+      placeholder: isCode ? 'Which finding should I fix first, and why?' : 'Which port is the biggest risk, and why?' });
+    const send = h('button', { type: 'button', class: 'btn primary', text: 'Ask' });
+    const note = h('p', { class: 'help small', text: 'Answers come only from this report. The model reads it and runs nothing. '
+      + 'Any CVE or ATT&CK ID that is not in the report is removed from the answer.' });
+    const section = h('section', { class: 'glass ask reveal' },
+      h('div', { class: 'head' }, h('h2', { class: 'h2', text: 'Ask about this report' }), note),
+      thread, h('div', { class: 'ask-row' }, h('label', { class: 'sr-only', for: 'ask-field', text: 'Your question' }), field, send));
+    refs.meaning.after(section);
+    api.options().then((res) => {
+      if (!alive) return;
+      const ai = res.ok && isObject(res.data) && isObject(res.data.ai) && res.data.ai.available === true;
+      if (!ai) {
+        field.disabled = true;
+        send.disabled = true;
+        note.replaceChildren('Asking needs an AI model. ', h('a', { href: '#/system', text: 'Add a key in System' }),
+          ' to turn it on. The report itself is complete without it.');
+      }
+    });
+    async function ask() {
+      const question = field.value.trim();
+      if (!question || send.disabled) return;
+      send.disabled = true;
+      field.disabled = true;
+      const q = h('div', { class: 'ask-q', text: question });
+      const a = h('div', { class: 'ask-a' }, h('p', { class: 'help', text: 'Reading the report.' }));
+      thread.append(q, a);
+      const res = await api.post('/api/reports/' + encodeURIComponent(runId) + '/ask',
+        { question, turns: turns.slice(-6) });
+      if (!alive) return;
+      send.disabled = false;
+      field.disabled = false;
+      if (res.ok && isObject(res.data) && typeof res.data.answer === 'string') {
+        turns.push({ q: question, a: res.data.answer });
+        a.replaceChildren(...markdownNodes(res.data.answer, { paragraph: 'meaning-text', heading: 'meaning-subhead', list: 'meaning-list' }));
+        field.value = '';
+      } else {
+        a.classList.add('bad');
+        a.replaceChildren(h('p', { text: isObject(res.data) && typeof res.data.message === 'string'
+          ? res.data.message : (res.status === 0 ? 'The ReconMind server is not answering.' : 'No answer came back. Try again.') }));
+      }
+      field.focus();
+    }
+    send.addEventListener('click', ask);
+    field.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
+    });
+  }
+
+  /* The print document (10_PdfReport.html) for this run. */
+  function reportDocument(d, entry, results, target, title, isCode) {
+    const findings = asList(d.findings).filter(isObject);
+    const levels = isCode ? CODE_SEVERITIES : SEVERITIES;
+    const counts = levels.map((s) => [s, findings.filter((f) => f.severity === s).length]);
+    const summary = asObject(d.summary);
+    const plan = asObject(asObject(d.scan).plan);
+    const chosen = asList(plan.actions).length ? asList(plan.actions) : asList(entry.actions);
+    const tools = chosen.map((a) => (ACTION_COPY[a] ? ACTION_NAMES[a] + ' (' + ACTION_COPY[a].tool + ')' : String(a)));
+    const started = formatDayTime(entry.started);
+    const sections = [];
+    const execBlocks = [];
+    if (summary.state === 'ok' && typeof summary.text === 'string') {
+      for (const para of summary.text.split(/\n\s*\n/)) {
+        const clean = para.replace(/^#+\s*/gm, '').replace(/\*\*/g, '').trim();
+        if (clean) execBlocks.push({ p: clean });
+      }
+      execBlocks.push({ p: 'This summary was written by AI from the tool results and checked against the findings below. Every finding comes from tool output.' });
+    } else if (isCode && asObject(results.explanation).status === 'ok') {
+      execBlocks.push({ p: String(asObject(results.explanation).text).replace(/\*\*/g, '') });
+    } else {
+      execBlocks.push({ p: 'AI analysis was off or unavailable for this scan, so there is no written summary. The findings below come straight from the tools.' });
+    }
+    execBlocks.push({ table: { head: ['Severity', 'Findings'], rows: counts.concat([['Total', findings.length]]), sev: 0 } });
+    sections.push({ title: 'Executive summary', blocks: execBlocks });
+    sections.push({ title: 'Scope and method', blocks: [{ kv: isCode ? [
+      ['In scope', 'The source code in ' + target + '. It was read, never run.'],
+      ['Tools', 'Semgrep, Bandit'],
+    ] : [
+      ['In scope', target + ', TCP ports: ' + (words(entry.ports_spec) || words(plan.ports) || 'as scanned') + '.'],
+      ['Out of scope', 'Every network outside the lab allowlist. Denial of service, password guessing and social engineering.'],
+      ['Checks', tools.join(', ')],
+      ['Limitations', 'TCP only. No authenticated testing. Results reflect the host on the scan date.'],
+      ['Authorization', 'Every target was checked against the lab allowlist before any packet was sent.'],
+    ] }] });
+    if (!isCode) {
+      const ports = asList(d.spectrum).filter(isObject);
+      sections.push({ title: 'Open ports', blocks: ports.length
+        ? [{ table: { head: ['Port', 'Service', 'Worst finding'], rows: ports.map((p) => [p.port, words(p.service), words(p.severity)]), sev: 2 } }]
+        : [{ p: 'No open ports were found.' }] });
+    }
+    const fid = (i) => 'F' + String(i + 1).padStart(2, '0');
+    sections.push({ title: 'Findings summary', blocks: findings.length ? [{ table: {
+      head: ['ID', 'Finding', 'Severity', isCode ? 'Where' : 'Port', 'IDs'],
+      rows: findings.map((f, i) => [fid(i), words(f.title), words(f.severity), words(f.where) || words(f.port), asList(f.ids).join(', ')]),
+      sev: 2 } }] : [{ p: 'No findings.' }] });
+    if (findings.length) {
+      sections.push({ title: 'Detailed findings', blocks: findings.map((f, i) => ({ finding: {
+        id: fid(i), title: words(f.title), severity: words(f.severity),
+        kv: [['Affected', words(f.where) || target], ['Source', words(f.source)], ['IDs', asList(f.ids).join(', ')]],
+        evidence: (Array.isArray(f.evidence) ? f.evidence.map(String).join('\n') : words(f.evidence)).slice(0, 4000),
+      } })) });
+    }
+    return {
+      label: 'CONFIDENTIAL',
+      title: (isCode ? 'Source code review of ' : 'Vulnerability assessment of ') + target,
+      subtitle: 'Prepared with ReconMind from a ' + title + (started ? ' on ' + started : '') + '.',
+      meta: [['Target', target], ['Scan', title + (started ? ', ' + started : '')], ['Report', runId]],
+      sections,
+      footer: 'ReconMind report ' + runId + '. Every finding comes from tool output.',
+    };
   }
 
   // ---- counts and spectrum ---------------------------------------------
@@ -253,7 +413,7 @@ export function mountReport(view, runId) {
         : 'The model output did not pass the checks against the tool results.';
       boxes.push(alertBox('amber', 'The AI summary could not be written',
         why + ' Every finding below comes straight from the tools and is complete. Only the written summary is missing.',
-        notBuiltButton('Write the summary again')));
+        askLink()));
     }
 
     const actions = asList(plan.actions);
@@ -264,7 +424,7 @@ export function mountReport(view, runId) {
       boxes.push(alertBox('amber',
         'CVEs were not checked' + (products ? ' for ' + plural(products, 'service', 'services') : ''),
         'NVD did not answer (' + words(nvd.status) + '). This does not mean those services have no CVEs. Exploit Hunt results are not affected.',
-        notBuiltButton('Check CVEs again')));
+        scanAgain(target, null, 'Scan again')));
     }
 
     const unconfirmed = asList(results.unconfirmed_ports)
@@ -274,7 +434,7 @@ export function mountReport(view, runId) {
         plural(unconfirmed.length, 'port', 'ports') + ' could not be confirmed',
         (unconfirmed.length === 1 ? 'Port ' : 'Ports ') + joinList(unconfirmed)
         + ' answered in the fast pass but not in the detail pass, usually because packets were dropped. They are not counted as findings.',
-        notBuiltButton('Rescan these ports')));
+        scanAgain(target, unconfirmed.join(','), 'Rescan these ports')));
     }
 
     const mapping = results.attack_map;
@@ -591,7 +751,10 @@ export function mountReport(view, runId) {
 
   // ---- all of it -------------------------------------------------------
 
+  let current = null;
+
   function render(d) {
+    current = d;
     const entry = asObject(d.entry);
     const scan = asObject(d.scan);
     const results = asObject(scan.results);
@@ -604,6 +767,7 @@ export function mountReport(view, runId) {
     renderCounts(d, results, isCode, refused);
     refs.notices.replaceChildren(...renderNotices(d, results, plan, target, refused, isCode));
     renderMeaning(d, isCode, refused);
+    renderAsk(isCode, refused);
     renderFindings(d, isCode, refused);
     if (!refused) {
       if (isCode) refs.attackPanel.hidden = true;

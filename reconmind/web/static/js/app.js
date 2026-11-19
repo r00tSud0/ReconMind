@@ -2,7 +2,9 @@
  * ReconMind web app entry: a hash router.
  *
  *   #/new              New scan (the default)
- *   #/live             the latest scan: the running job, otherwise the most
+ *   #/live             the scan running now; with none running, a short card
+ *                      about the last scan (its report and how it ran). It
+ *                      used to open the most
  *                      recently started one (the URL becomes #/job/<id>), or
  *                      a calm empty state when there is no scan at all
  *   #/job/<id>         Live run for one scan
@@ -11,7 +13,9 @@
  *   #/targets/<name>   Targets with that folder open
  *   #/system           System check and editable local AI and NVD settings
  *   #/setup            install or repair the scanning tools and the model
- *   #/hosts            not built yet: a placeholder screen
+ *   #/agent            MORVAIN-X0, the AI agent: start a session or follow the latest one
+ *   #/hosts            every host list; #/hosts/<list id> follows one list
+ *   #/analyst/<id>     one of your own reports (Your reports on Targets)
  *
  * Each view's mount function returns a cleanup function, called before the
  * next view mounts, so a view's timers never outlive it. The body carries
@@ -21,42 +25,42 @@
 
 import * as api from './api.js';
 import { checkLive } from './live.js';
-import { clone, isRunId, JOB_ID } from './ui.js';
+import { clone, formatDayTime, h, isRunId, JOB_ID } from './ui.js';
 import { mountNewScan } from './views/newscan.js';
 import { mountJob } from './views/job.js';
 import { mountReport } from './views/report.js';
 import { mountTargets } from './views/targets.js';
 import { mountSystem } from './views/system.js';
 import { mountSetup } from './views/setup.js';
-
-const LATER = {
-  hosts: {
-    name: 'Host lists',
-    text: 'Host lists will scan up to 8 lab machines one after another and show their results side by side on one page.',
-  },
-
-};
+import { mountMorvain } from './views/morvain.js';
+import { mountHosts } from './views/hosts.js';
+import { mountAnalyst } from './views/analyst.js';
+import * as visuals from './visuals.js';
 
 let cleanup = null;
 
-function mountLater(view, later) {
-  const { root, refs } = clone('tpl-later');
-  refs.title.textContent = later.name;
-  refs.text.textContent = later.text;
-  view.append(root);
-  return null;
-}
-
-/* #/live: open the latest job's page, or say there is none. */
+/* #/live: the running scan's page. With none running, say so, and point to the last one. */
 function mountLive(view) {
   let alive = true;
   checkLive().then(({ res, job }) => {
     if (!alive) return;
-    if (job && JOB_ID.test(String(job.id))) {
+    if (job && JOB_ID.test(String(job.id)) && job.status === 'running') {
       location.replace('#/job/' + job.id);
       return;
     }
     const { root, refs } = clone('tpl-live-empty');
+    if (job && JOB_ID.test(String(job.id))) {
+      const label = typeof job.label === 'string' && job.label ? job.label : 'The last scan';
+      const words = { done: 'finished', failed: 'failed', stopped: 'was stopped', refused: 'was refused by the gate',
+        interrupted: 'was interrupted' }[job.status] || 'ended';
+      const when = formatDayTime(job.finished || job.started);
+      refs.text.textContent = 'No scan is running right now. The last one, ' + label + ', ' + words
+        + (when ? ' on ' + when : '') + '.';
+      const links = [];
+      if (isRunId(job.run_id)) links.push(h('a', { class: 'btn primary', href: '#/report/' + encodeURIComponent(job.run_id), text: 'Open its report' }));
+      links.push(h('a', { class: 'btn quiet', href: '#/job/' + job.id, text: 'See how it ran' }));
+      refs.actions.prepend(...links);
+    }
     if (res.status === 0) {
       refs.text.textContent = 'The latest scan could not be loaded. The ReconMind server is not answering.';
     } else if (!res.ok) {
@@ -128,15 +132,24 @@ function route() {
     mount = () => mountSystem(view);
     navKey = 'system';
     title = 'System check';
+  } else if (parts.length === 1 && parts[0] === 'agent') {
+    mount = () => mountMorvain(view);
+    navKey = 'agent';
+    title = 'MORVAIN-X0';
   } else if (parts.length === 1 && parts[0] === 'setup') {
     mount = () => mountSetup(view);
     navKey = 'system';
     title = 'Setup';
-  } else if (parts.length === 1 && Object.prototype.hasOwnProperty.call(LATER, parts[0])) {
-    const later = LATER[parts[0]];
-    mount = () => mountLater(view, later);
-    navKey = parts[0];
-    title = later.name;
+  } else if (parts[0] === 'hosts' && parts.length <= 2) {
+    const listId = parts.length === 2 ? parts[1] : null;
+    mount = () => mountHosts(view, listId);
+    navKey = 'hosts';
+    title = 'Host lists';
+  } else if (parts.length === 2 && parts[0] === 'analyst') {
+    const reportId = /^[0-9a-f]{16}$/.test(parts[1]) ? parts[1] : '';
+    mount = () => mountAnalyst(view, reportId);
+    navKey = 'targets';
+    title = 'Your report';
   } else {
     location.replace('#/new');
     return;
@@ -159,6 +172,9 @@ async function loadScope() {
   document.getElementById('scope-text').textContent =
     'Scope locked to ' + n + (n === 1 ? ' lab network' : ' lab networks');
 }
+
+// Full or lite effects, before the first page draws.
+visuals.init();
 
 const openedOnLive = /^#\/live$/.test(location.hash);
 window.addEventListener('hashchange', route);

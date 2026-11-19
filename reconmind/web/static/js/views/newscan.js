@@ -21,9 +21,12 @@
  * AI analysis follows one rule for both scan types: it is on whenever an API
  * key is set up, and the user can turn it off for any scan.
  *
- * The Host list mode is visible but not built yet: picking it shows the hosts
- * field and a "Not built yet" badge, and Start stays disabled with "Not built
- * yet" as its title.
+ * Host list scans up to max_hosts lab machines one after another with the same
+ * settings (kind "hosts"). The server checks every host against the gate
+ * before anything starts; the page then follows the list at #/hosts/<list id>.
+ * The AI agent works on one target, so a list offers Off or AI analysis.
+ * Starting an AI agent scan opens the MORVAIN-X0 tab, where its conversation
+ * and the plan approvals live; every other scan opens Live run.
  *
  * The Last scan card links to that run's report (#/report/<run id>).
  *
@@ -94,7 +97,9 @@ const COPY = {
   needTarget: 'Enter a target IP address first.',
   needPorts: 'Enter the ports to scan first.',
   needPath: 'Enter the path of a file or folder first.',
-  needHosts: 'Not built yet',
+  needHosts: 'Enter at least one lab host, one address per line.',
+  tooManyHosts: 'A host list holds up to {m} hosts.',
+  agentOneHost: 'The AI agent works on one target at a time. Choose Off or AI analysis for a host list.',
   serverDownTitle: 'The ReconMind server is not answering',
   serverDownText: 'Check that python3 -m reconmind.web is still running.',
   unreadable: 'The server sent an answer the page could not read. Try again.',
@@ -106,10 +111,18 @@ const PROVIDER_NAMES = {
 const ALWAYS_ON = 'surface';
 const MODES = ['host', 'list', 'code'];
 const PORT_CHOICES = ['top', 'all', 'custom'];
-const FIELDS = ['target', 'ports', 'path', 'actions'];
+const FIELDS = ['target', 'ports', 'path', 'actions', 'hosts'];
 const RECON_SEVERITIES = ['critical', 'high', 'medium', 'low'];
 const CODE_SEVERITIES = ['high', 'medium', 'low'];
 const SEVERITY_WORDS = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
+
+/*
+ * "Scan again" on a report fills New scan in: the target, the preset, and
+ * for a rescan of some ports, Custom with those ports. Kept in memory only,
+ * read once by the next New scan page.
+ */
+let prefill = null;
+export function setPrefill(value) { prefill = value; }
 
 export function mountNewScan(view) {
   const { root, refs } = clone('tpl-newscan');
@@ -227,6 +240,8 @@ export function mountNewScan(view) {
       }
       if (state.ports === 'all') state.ports = 'top';
     }
+    // The agent works on one target: a list uses AI analysis instead.
+    if (mode === 'list' && state.aiLevel === 'agent') state.aiLevel = 'ai';
     clearProblems();
   }
 
@@ -393,7 +408,16 @@ export function mountNewScan(view) {
   /* Why Start cannot be pressed yet, or '' when it can. */
   function startBlocker() {
     if (state.optsFailed) return COPY.optionsFailed;
-    if (state.mode === 'list') return COPY.needHosts;
+    if (state.mode === 'list') {
+      const n = hostLines().length;
+      if (!n) return COPY.needHosts;
+      const max = state.opts ? state.opts.max_hosts : 8;
+      if (n > max) return COPY.tooManyHosts.replace('{m}', max);
+      if (aiLevel() === 'agent') return COPY.agentOneHost;
+      if (!state.opts || !state.picked) return COPY.optionsLoading;
+      if (state.ports === 'custom' && !customPorts()) return COPY.needPorts;
+      return '';
+    }
     if (state.mode === 'code') return pathInput.value.trim() ? '' : COPY.needPath;
     if (!state.opts || !state.picked) return COPY.optionsLoading;
     if (!targetInput.value.trim()) return COPY.needTarget;
@@ -521,7 +545,8 @@ export function mountNewScan(view) {
       const on = btn.dataset.ai === level;
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      btn.disabled = btn.dataset.ai !== 'off' && !state.aiAvailable;
+      btn.disabled = (btn.dataset.ai !== 'off' && !state.aiAvailable)
+        || (isList && btn.dataset.ai === 'agent');
       if (on) aiInd.style.transform = 'translateX(' + i * 100 + '%)';
     });
     refs.aiLevelHelp.textContent = AI_LEVEL_HELP[level];
@@ -554,7 +579,7 @@ export function mountNewScan(view) {
   // ---- problems: field errors and alerts -------------------------------
 
   function fieldInput(field) {
-    return { target: targetInput, ports: portsInput, path: pathInput }[field] || null;
+    return { target: targetInput, ports: portsInput, path: pathInput, hosts: hostsInput }[field] || null;
   }
 
   function clearFieldError(field) {
@@ -622,7 +647,10 @@ export function mountNewScan(view) {
 
   function handleFailure(data, body) {
     const message = typeof data.message === 'string' && data.message ? data.message : null;
-    if (data.reason === 'refused') {
+    if (data.reason === 'refused' && body.kind === 'hosts') {
+      showNotice('A host is not on the allowlist', message || 'The gate refused a host.');
+      hostsInput.focus();
+    } else if (data.reason === 'refused') {
       showRefused(String(body.target || 'The target'), data.networks);
     } else if (data.reason === 'invalid') {
       const field = typeof data.field === 'string' ? data.field : '';
@@ -648,18 +676,16 @@ export function mountNewScan(view) {
     }
     const level = aiLevel();
     const mode = level === 'agent' ? 'agent' : (level === 'ai' ? 'ai' : 'standard');
-    const target = targetInput.value.trim();
+    const who = state.mode === 'list' ? { kind: 'hosts', targets: hostLines() }
+      : { kind: 'recon', target: targetInput.value.trim() };
     if (isCustom()) {
-      return {
-        kind: 'recon', target, preset: CUSTOM_BASE, ports: portsValue(),
-        actions: state.sel.slice(), mode,
-      };
+      return Object.assign(who, {
+        preset: CUSTOM_BASE, ports: portsValue(), actions: state.sel.slice(), mode,
+      });
     }
     // A preset always sends its own ports and actions, straight from /api/options.
     const p = preset(state.picked);
-    return {
-      kind: 'recon', target, preset: p.id, ports: p.ports, actions: p.actions.slice(), mode,
-    };
+    return Object.assign(who, { preset: p.id, ports: p.ports, actions: p.actions.slice(), mode });
   }
 
   function setBusy(busy) {
@@ -694,9 +720,15 @@ export function mountNewScan(view) {
       }
       const started = await api.post('/api/scans', body);
       if (!alive) return;
+      if (started.status === 201 && isAnswer(started.data) && /^[0-9a-f]{10}$/.test(String(started.data.list_id))) {
+        markRunning();
+        location.hash = '#/hosts/' + started.data.list_id;
+        return;
+      }
       if (started.status === 201 && isAnswer(started.data) && JOB_ID.test(String(started.data.job_id))) {
         markRunning();
-        location.hash = '#/job/' + started.data.job_id;
+        // The agent's conversation and approvals live on its own tab.
+        location.hash = body.mode === 'agent' ? '#/agent' : '#/job/' + started.data.job_id;
         return;
       }
       if (isAnswer(started.data) && started.data.reason) {
@@ -848,7 +880,7 @@ export function mountNewScan(view) {
       }
     });
   }
-  hostsInput.addEventListener('input', render);
+  hostsInput.addEventListener('input', () => { clearFieldError('hosts'); render(); });
   refs.start.addEventListener('click', start);
 
   render();
@@ -869,6 +901,17 @@ export function mountNewScan(view) {
     if (!state.picked) {
       const fallback = listFallback();
       if (fallback) applyPreset(fallback);
+    }
+    const wanted = prefill;
+    prefill = null;
+    if (wanted && typeof wanted.target === 'string') {
+      targetInput.value = wanted.target;
+      if (wanted.preset === CUSTOM) {
+        pickCustom();
+        if (wanted.ports) { state.ports = 'custom'; portsInput.value = wanted.ports; }
+      } else if (preset(wanted.preset)) {
+        applyPreset(wanted.preset);
+      }
     }
     render();
     targetInput.focus({ preventScroll: true });

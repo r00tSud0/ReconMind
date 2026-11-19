@@ -9,9 +9,10 @@
  * spectrum on each scan row is read from that scan's report, a few at a
  * time, for the open folder only.
  *
- * The Notes and Your reports tabs are not built yet. They stay visible,
- * carry a "Not built yet" badge and say what they will do. New folder is
- * visible and disabled for the same reason.
+ * Notes keeps what the analyst notices about the target (GET /api/workspace,
+ * POST /api/workspace/notes). Your reports lists the reports the analyst
+ * writes (#/analyst/<id>), started from the latest scan or from a blank page.
+ * Both are saved apart from the tool reports, which never change.
  *
  * Every value from the server is set with textContent, attributes or the
  * CSSOM, never as markup.
@@ -19,7 +20,7 @@
 
 import * as api from '../api.js';
 import {
-  basename, clone, entryTitle, formatDay, formatDayTime, h, isRunId, notBuilt, notBuiltButton,
+  basename, clone, entryTitle, formatDay, formatDayTime, h, isRunId,
   plural, reducedMotion, SEVERITIES, spectrum,
 } from '../ui.js';
 
@@ -70,7 +71,7 @@ function metaFor(entry) {
   const checks = Array.isArray(entry.actions) ? entry.actions.length : 0;
   let text = head + plural(ports, 'open port', 'open ports');
   if (entry.ports_spec === 'all') text += ' on all 65535';
-  if (checks) text += ', ' + plural(checks, 'check', 'checks');
+  if (checks) text += ', ' + plural(checks, 'check', 'checks') + (entry.agent === true ? ' run by MORVAIN-X0' : '');
   text += '.';
   if (entry.stopped === true || entry.status === 'stopped') text += ' Stopped before it finished.';
   return text;
@@ -203,10 +204,127 @@ export function mountTargets(view, wanted) {
     }
   }
 
-  function laterPanel(text, buttons) {
-    return h('div', { class: 'panel-later' },
-      h('div', { class: 'later-line' }, notBuilt(), h('span', { class: 'help', text })),
-      h('div', { class: 'later-buttons' }, ...buttons));
+  // ---- notes and your reports -------------------------------------------
+
+  async function workspaceOf(folder) {
+    const res = await api.get('/api/workspace?folder=' + encodeURIComponent(folder.name));
+    return res.ok && isObject(res.data) ? res.data : null;
+  }
+
+  function problem(slot, res, fallback) {
+    const msg = res && isObject(res.data) && typeof res.data.message === 'string' ? res.data.message : fallback;
+    slot.textContent = msg;
+    slot.hidden = false;
+  }
+
+  function noteCard(folder, note, refresh) {
+    const body = h('p', { class: 'note-text', text: String(note.text || '') });
+    const when = h('span', { class: 'help small', text: formatDayTime(note.updated || note.created) || '' });
+    const edit = h('button', { type: 'button', class: 'btn quiet btn-small', text: 'Edit' });
+    const del = h('button', { type: 'button', class: 'btn quiet btn-small', text: 'Delete' });
+    const err = h('p', { class: 'field-error', hidden: true });
+    const card = h('div', { class: 'note-card' }, body, h('div', { class: 'note-foot' }, when,
+      h('span', { class: 'note-buttons' }, edit, del)), err);
+    edit.addEventListener('click', () => {
+      const area = h('textarea', { class: 'field note-field', rows: '4', maxlength: '5000' });
+      area.value = String(note.text || '');
+      const save = h('button', { type: 'button', class: 'btn primary btn-small', text: 'Save' });
+      const cancel = h('button', { type: 'button', class: 'btn quiet btn-small', text: 'Cancel' });
+      card.replaceChildren(area, h('div', { class: 'note-buttons' }, save, cancel), err);
+      area.focus();
+      cancel.addEventListener('click', refresh);
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        const res = await api.post('/api/workspace/notes/' + note.id, { folder: folder.name, text: area.value });
+        if (!alive) return;
+        if (res.ok) refresh();
+        else { save.disabled = false; problem(err, res, 'The note could not be saved.'); }
+      });
+    });
+    del.addEventListener('click', async () => {
+      del.disabled = true;
+      const res = await api.post('/api/workspace/notes/' + note.id, { folder: folder.name, delete: true });
+      if (!alive) return;
+      if (res.ok) refresh();
+      else { del.disabled = false; problem(err, res, 'The note could not be deleted.'); }
+    });
+    return card;
+  }
+
+  async function notesPanel(folder) {
+    const area = h('textarea', { class: 'field note-field', rows: '3', maxlength: '5000',
+      placeholder: 'What you noticed about ' + folder.name + '. Plain text, saved next to its scans.' });
+    const add = h('button', { type: 'button', class: 'btn primary', text: 'Add note' });
+    const err = h('p', { class: 'field-error', hidden: true });
+    const list = h('div', { class: 'note-list' }, h('p', { class: 'help', text: 'Loading notes.' }));
+    const panel = h('div', { class: 'panel-notes' },
+      h('label', { class: 'sr-only', text: 'New note' }), area,
+      h('div', { class: 'later-buttons' }, add), err, list);
+    const refresh = async () => {
+      const data = await workspaceOf(folder);
+      if (!alive || selected !== folder || tab !== 'notes') return;
+      const notes = data && Array.isArray(data.notes) ? data.notes.filter(isObject) : null;
+      if (!notes) list.replaceChildren(h('p', { class: 'help', text: 'The notes could not be loaded.' }));
+      else if (!notes.length) list.replaceChildren(h('p', { class: 'help', text: 'No notes yet.' }));
+      else list.replaceChildren(...notes.map((n) => noteCard(folder, n, refresh)));
+    };
+    add.addEventListener('click', async () => {
+      err.hidden = true;
+      if (!area.value.trim()) { problem(err, null, 'Write something in the note first.'); return; }
+      add.disabled = true;
+      const res = await api.post('/api/workspace/notes', { folder: folder.name, text: area.value });
+      if (!alive) return;
+      add.disabled = false;
+      if (res.ok) { area.value = ''; refresh(); } else problem(err, res, 'The note could not be saved.');
+    });
+    refresh();
+    return panel;
+  }
+
+  const STATUS_NAMES = { draft: 'Draft', review: 'In review', final: 'Final' };
+
+  async function reportsPanel(folder) {
+    const latest = folder.scans.find((e) => isRunId(e.run_id) && e.status !== 'refused');
+    const fromScan = h('button', { type: 'button', class: 'btn primary', text: 'Start from the latest scan' });
+    const blank = h('button', { type: 'button', class: 'btn quiet', text: 'Start blank' });
+    fromScan.disabled = !latest;
+    if (!latest) fromScan.title = 'This target has no finished scan yet';
+    const err = h('p', { class: 'field-error', hidden: true });
+    const list = h('div', { class: 'scan-list' }, h('p', { class: 'help', text: 'Loading your reports.' }));
+    async function create(fromRun) {
+      fromScan.disabled = true;
+      blank.disabled = true;
+      const res = await api.post('/api/analyst', fromRun ? { folder: folder.name, from_run: fromRun } : { folder: folder.name });
+      if (!alive) return;
+      if (res.ok && isObject(res.data) && isObject(res.data.report)) {
+        location.hash = '#/analyst/' + res.data.report.id;
+        return;
+      }
+      fromScan.disabled = !latest;
+      blank.disabled = false;
+      problem(err, res, 'The report could not be started.');
+    }
+    fromScan.addEventListener('click', () => create(latest.run_id));
+    blank.addEventListener('click', () => create(null));
+    const panel = h('div', { class: 'panel-later' },
+      h('p', { class: 'help', text: 'Write your own assessment of this target. It is saved next to the scans, '
+        + 'and the tool reports stay exactly as the tools wrote them.' }),
+      h('div', { class: 'later-buttons' }, fromScan, blank), err, list);
+    const data = await workspaceOf(folder);
+    if (!alive || selected !== folder || tab !== 'reports') return panel;
+    const reports = data && Array.isArray(data.reports) ? data.reports.filter(isObject) : null;
+    if (!reports) list.replaceChildren(h('p', { class: 'help', text: 'Your reports could not be loaded.' }));
+    else if (!reports.length) list.replaceChildren(h('p', { class: 'help', text: 'No reports of yours yet.' }));
+    else {
+      list.replaceChildren(...reports.map((r) => h('a', { class: 'scan', href: '#/analyst/' + r.id },
+        fileIcon(),
+        h('span', { class: 'scan-text' },
+          h('span', { class: 'scan-name', text: String(r.title || 'Untitled report') }),
+          h('span', { class: 'help', text: 'Last saved ' + (formatDayTime(r.updated) || 'just now') + '. '
+            + plural(Number(r.findings) || 0, 'finding', 'findings') + '.' })),
+        h('span', { class: 'scan-tag muted', text: STATUS_NAMES[r.status] || 'Draft' }))));
+    }
+    return panel;
   }
 
   function renderPanel() {
@@ -224,14 +342,11 @@ export function mountTargets(view, wanted) {
       loadSpectra(panel);
       return;
     }
-    if (tab === 'notes') {
-      panel = laterPanel('Notes will keep what you notice about this target, saved next to its scans and shown as plain text.',
-        [notBuiltButton('Add note', 'primary')]);
-    } else {
-      panel = laterPanel('Your reports will let you write your own assessment of this target, starting from a scan or from a blank page.',
-        [notBuiltButton('Start from the latest scan', 'primary'), notBuiltButton('Start blank')]);
-    }
-    refs.panel.replaceChildren(panel);
+    const want = tab;
+    refs.panel.replaceChildren(h('p', { class: 'help', text: 'Loading.' }));
+    (tab === 'notes' ? notesPanel(folder) : reportsPanel(folder)).then((node) => {
+      if (alive && selected === folder && tab === want) refs.panel.replaceChildren(node);
+    });
   }
 
   function select(folder, fromClick) {

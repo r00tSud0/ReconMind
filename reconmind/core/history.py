@@ -25,7 +25,8 @@ recon.
 
 Recon entries carry "customized": true when the plan's ports or actions
 differed from its preset. Older entries have no such key; entry_customized()
-reads them as not customized.
+reads them as not customized. "agent": true marks a run MORVAIN-X0 drove
+(older entries have no key and read as false).
 """
 
 import json
@@ -209,6 +210,8 @@ def save_run(scan, plan=None, started=None, finished=None, report_dir=None, mode
         "findings": finding_counts(scan, plan),
         "mode": mode if mode in report_mod.MODES else report_mod.MODE_AI,
         "stopped": scan.get("status") == report_mod.STATUS_STOPPED,
+        # MORVAIN-X0 ran it: the agent chose the checks with the operator.
+        "agent": isinstance(scan.get("agent"), dict),
     }
     index_path = os.path.join(report_dir, INDEX_NAME)
     entries = _entries_for_append(index_path, run_id)

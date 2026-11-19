@@ -46,7 +46,7 @@ assert.ok(!html.includes('morvain-motion.css'), 'The earlier whole-picture motio
 // Lights: off until powered, on while the agent works.
 assert.match(gl, /ready: +\{ light: \[0, 0, 0\]/, 'Ready (no scan) is powered down');
 assert.ok(!/POWERED = new Set\(\[[^\]]*'ready'/.test(gl + agent), 'Ready never counts as powered');
-for (const st of ['thinking', 'running', 'awaiting', 'done', 'error']) {
+for (const st of ['thinking', 'running', 'awaiting', 'answering', 'done', 'error']) {
   assert.match(gl, new RegExp(st + ': +\\{ light: \\[1'), st + ' lights the eyes');
 }
 assert.match(css, /\.powered \.mx-still-off\{opacity:0;/, 'Fallback: lights still come on without WebGL');
@@ -54,16 +54,27 @@ assert.match(css, /\.powered \.mx-still-off\{opacity:0;/, 'Fallback: lights stil
 // Steam: each puff fades to nothing; while working it vents every few seconds; never when off.
 assert.match(gl, /const STEAM_SECONDS = [\d.]+;/, 'Each puff has a fixed length');
 assert.match(gl, /const PUFF_GAP = \[[\d.]+, [\d.]+\];/, 'Puffs repeat after a short gap');
-assert.match(gl, /if \(POWERED\.has\(state\) && steamStart < 0 && nextPuff && t >= nextPuff\) \{ steamStart = t;/,
-  'It vents again only while powered');
-assert.match(gl, /if \(!POWERED\.has\(state\)\) nextPuff = 0;/, 'Powered down: no more steam');
+assert.match(gl, /const vents = \(\) => POWERED\.has\(state\) && \(POSES\[state\] \|\| POSES\.ready\)\.steam;/,
+  'It vents only while powered and working');
+assert.match(gl, /if \(venting && steamStart < 0 && nextPuff && t >= nextPuff\) \{ steamStart = t;/, 'Puffs keep coming while working');
+assert.match(gl, /if \(!vents\(\)\) nextPuff = 0;/, 'Powered down or answering: no more steam');
 assert.match(gl, /1\.0 - smoothstep\(0\.42, 1\.0, uSteam\)/, 'Steam fades out');
 assert.ok(agent.includes('body.steam()'), 'Steam is triggered by state changes');
 
-// Accessibility, speed and safety.
-assert.ok(gl.includes("prefers-reduced-motion: reduce"), 'Reduced motion is honoured');
-assert.match(gl, /const breath = calm \? 0/, 'No breathing with reduced motion');
-assert.match(gl, /steamStart >= 0 && !calm/, 'No steam with reduced motion');
+// Answering a question: yellow lights and sparks behind it, no steam, still breathing.
+assert.match(gl, /answering: \{ light: \[1[^}]*tint: 1, spark: 1, steam: false \}/, 'Answering is yellow with sparks');
+for (const st of ['thinking', 'running', 'awaiting']) {
+  assert.match(gl, new RegExp(st + ': +\\{[^}]*tint: 0, spark: 0, steam: true \\}'), st + ' is red with steam');
+}
+assert.ok(gl.includes('vec3 light = mix(diff, yellow, uTint);'), 'The shader turns the red lights yellow');
+assert.ok(gl.includes('if (uSpark > 0.001)'), 'The shader draws sparks');
+assert.ok(agent.includes("answering: ['Answering your question'") && agent.includes('body.setState(state);'),
+  'The panel puts MORVAIN-X0 in its answering pose while you ask');
+
+// It always moves: no reduce motion switch, and a 2D canvas when WebGL is missing.
+assert.ok(!gl.includes('prefers-reduced-motion') && !gl.includes('calm'), 'MORVAIN-X0 always animates');
+assert.match(gl, /const breath = breathAmp \* b \* 0\.8;/, 'It always breathes');
+assert.ok(gl.includes("use2d('no WebGL')") && gl.includes('function draw2d('), 'Without WebGL a 2D canvas animates it');
 assert.ok(!gl.includes('lite'), 'No Lite mode: MORVAIN animates on every computer');
 assert.match(gl, /const MAX_PIXELS = \d+;/, 'The canvas size is capped, so it is light on any computer');
 assert.ok(gl.includes('halfRate') && gl.includes('IntersectionObserver'),

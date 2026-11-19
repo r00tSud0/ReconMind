@@ -34,7 +34,8 @@ const STATES = {
   stopped: ['Stopped', 'The session was stopped. What it found is saved.'],
 };
 // The character: the approved portrait, alive (see ../morvain_gl.js).
-// States where the agent is working, so its red lights are on.
+// States where the agent is working, so its lights are on: red while it
+// works (with steam), yellow with sparks while it answers a question.
 const POWERED = new Set(['thinking', 'running', 'awaiting', 'answering', 'done', 'error']);
 const MD = { paragraph: 'agent-md', list: 'agent-md-list', heading: 'agent-md' };
 
@@ -404,8 +405,7 @@ export function createAgentPanel(jobId) {
     const agentLines = entries.filter((e) => e.from === 'agent').length;
     if (shownState === '' && jobState === 'running' && agentLines <= 1) shownState = 'ready';
     const wasPowered = POWERED.has(shownState);
-    character.className = 'glass agent-char state-' + (state === 'answering' ? 'thinking' : state)
-      + (powered ? ' powered' : '')
+    character.className = 'glass agent-char state-' + state + (powered ? ' powered' : '')
       + ' mx-mode-' + body.kind + (missing.hidden ? '' : ' no-portrait');
     // Powering up: the lights come on with a flicker and a puff of steam.
     // Finishing the work: one more puff as it cools down. Neither loops.
@@ -414,7 +414,7 @@ export function createAgentPanel(jobId) {
       if (powered && !wasPowered) body.steam();
       else if (state === 'done' && shownState !== 'done') body.steam();
     }
-    body.setState(state === 'answering' ? 'thinking' : state);
+    body.setState(state);
     shownState = state;
     statusText.textContent = STATES[state][0];
     subText.textContent = STATES[state][1];

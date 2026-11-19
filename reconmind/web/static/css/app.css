@@ -1344,3 +1344,6 @@ html:not(.scanning) .slab { animation: none; }
 .agent-md-list{margin:4px 0 6px;padding-left:18px}
 .agent-bad{color:var(--sev-medium)}
 @media (max-width:720px){.agent-step-line{flex-direction:column}.agent-dock{padding:14px 16px}}
+
+/* Answering a question: the status dot turns yellow like MORVAIN-X0's lights. */
+.agent-char.state-answering .agent-dot{background:#F7C948;box-shadow:0 0 10px #F7C948}

@@ -4,6 +4,22 @@
 
 ---
 
+## Install (Ubuntu, Debian or Kali, WSL included)
+
+```bash
+git clone -b frontend https://github.com/r00tSud0/ReconMind.git ~/ReconMind
+cd ~/ReconMind && ./install.sh
+```
+
+The installer asks once, then sets up ReconMind's own Python environment, the
+nine scanning tools (pinned versions, release downloads checked against their
+SHA-256), the fine tuned SciBERT Run 3 ATT&CK model from the `model-run3-v1`
+release, an app menu entry and a `reconmind` command. Open ReconMind from the
+app menu, or run `reconmind`. Running `./install.sh` again repairs anything
+missing; inside the app, System then Setup does the same. `./uninstall.sh`
+removes the menu entry, the command and `.venv`. Installing never scans
+anything and never changes the allowed lab networks.
+
 ## What ReconMind Does
 
 You hand ReconMind one of three things. It figures out what it was given, runs the right tools, and writes one report. There are three jobs it can do.

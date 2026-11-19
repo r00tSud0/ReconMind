@@ -84,6 +84,7 @@ from reconmind.core.history import save_run
 from reconmind.core.pipeline import (
     ANALYSIS_STEP, STOPPED, STOPPED_WHILE_RUNNING, StopRequested, mark_stopped, run_plan)
 from reconmind.core.report import MODE_AI, MODE_STANDARD, MODES
+from reconmind.agent.morvain import MODE_AGENT
 from reconmind.core.scan_plan import ACTION_IDS, PRESETS, PlanError, build_plan
 from reconmind.core.summary_check import NOT_MAPPED, check_summary, mark_not_mapped
 
@@ -93,6 +94,7 @@ NO_KEY_STANDARD = "No API key is set, so AI analysis is off for this scan."
 MODE_TEXT = {
     MODE_STANDARD: "AI analysis off (tools only)",
     MODE_AI: "AI analysis on (tools first, then a read only AI analyst)",
+    MODE_AGENT: "AI agent MORVAIN-X0 (you approve every plan; then a read only AI analyst)",
 }
 
 EXIT_OK = 0
@@ -135,10 +137,11 @@ def default_mode():
 def _parse_args(args):
     parser = argparse.ArgumentParser(prog="python3 -m reconmind.agent")
     parser.add_argument("target", help="IPv4 address of the authorized target")
-    parser.add_argument("--mode", choices=list(MODES),
-                        help="report mode: standard (tools only) or ai (tools, then a read "
-                             "only AI analyst). Default ai when an LLM is configured, "
-                             "otherwise standard")
+    parser.add_argument("--mode", choices=list(MODES) + [MODE_AGENT],
+                        help="report mode: standard (tools only), ai (tools, then a read "
+                             "only AI analyst) or agent (MORVAIN-X0 plans checks and the "
+                             "operator approves each plan). Default ai when an LLM is "
+                             "configured, otherwise standard")
     parser.add_argument("--provider", help="one of: " + ", ".join(sorted(llm.PROVIDERS)))
     parser.add_argument("--model", help="model id for this run")
     parser.add_argument("--preset", choices=list(PRESETS),
@@ -164,6 +167,9 @@ def _choose_mode(args):
     if args.mode == MODE_STANDARD:
         return MODE_STANDARD, None, None
     config, error = ai_config(provider=args.provider, model=args.model)
+    if args.mode == MODE_AGENT:
+        # The agent plans with the model and writes the report with it.
+        return (MODE_AGENT, config, None) if config is not None else (None, None, error)
     if config is not None:
         return MODE_AI, config, None
     # --provider or --model without --mode is a request for AI mode too.
@@ -415,10 +421,39 @@ def _finish_ai(target, plan, tools, config, client, started):
     return EXIT_OK
 
 
+def _run_agent(target, plan, config, client, started):
+    """MORVAIN-X0: surface, then plans the operator approves, then the AI
+    analysis. The report is saved as an AI analysis report with the agent's
+    conversation kept in scan["agent"]."""
+    from reconmind.agent.morvain import Session
+    session = Session(target, plan.ports, client=client, model=config.model)
+    try:
+        tools = session.run()
+    except StopRequested:
+        if session.toolbox is None:
+            from reconmind.agent.tools import ToolBox
+            session.toolbox = ToolBox(target, plan=plan)
+            session.toolbox.steps = []
+        tools = session._finish()
+        if tools.scan.get("status") != STOPPED:
+            mark_stopped(tools, tools.plan)
+        return _save_stopped(tools, tools.plan, MODE_AI, started)
+    if tools.scan.get("status") == STOPPED:
+        return _save_stopped(tools, tools.plan, MODE_AI, started)
+    try:
+        return _finish_ai(target, tools.plan, tools, config, client, started)
+    except StopRequested:
+        if tools.scan.get("status") != STOPPED:
+            mark_stopped(tools, tools.plan, not_run=[STOPPED_WHILE_RUNNING.format(l=ANALYSIS_STEP)])
+        return _save_stopped(tools, tools.plan, MODE_AI, started)
+
+
 def _run(target, plan, mode, config, client):
     """Run the plan, then the analyst in ai mode, and save the report. Returns the exit code."""
     started = datetime.now()
     tools = None
+    if mode == MODE_AGENT:
+        return _run_agent(target, plan, config, client, started)
     try:
         tools = run_plan(target, plan, mode=mode)
         if tools.scan.get("status") == STOPPED:
@@ -478,7 +513,7 @@ def main(argv):
         return EXIT_ERROR
 
     client = None
-    if mode == MODE_AI:
+    if mode in (MODE_AI, MODE_AGENT):
         try:
             client = llm.make_client(config)
         except ImportError:

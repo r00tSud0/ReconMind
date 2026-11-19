@@ -149,10 +149,17 @@
 
     <section class="glass panel reveal d5" data-ref="aiPanel">
       <div class="head">
-        <h2 class="h2">AI analysis</h2>
-        <p class="help">AI analysis is on whenever an API key is set up. You can turn it off for any scan.</p>
+        <h2 class="h2">AI</h2>
+        <p class="help">AI is on whenever an API key is set up. You can turn it off for any scan.</p>
       </div>
       <div class="body">
+        <div class="seg seg-ai" role="group" aria-label="AI setting" data-ref="aiSeg">
+          <span class="ind" aria-hidden="true"></span>
+          <button type="button" data-ai="off">Off</button>
+          <button type="button" data-ai="ai">AI analysis</button>
+          <button type="button" data-ai="agent">AI agent</button>
+        </div>
+        <p class="help small ai-level-help" data-ref="aiLevelHelp"></p>
         <label class="toggle-row plain" data-ref="aiRow">
           <span class="toggle-text">
             <span class="toggle-name">AI analysis</span>

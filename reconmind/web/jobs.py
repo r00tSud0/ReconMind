@@ -61,7 +61,9 @@ STOP_GRACE = 20  # seconds after SIGTERM, so the CLI can save its partial report
 STOP_WAIT = 5    # seconds after SIGKILL
 EVENTS_ENV = "RECONMIND_EVENTS"
 EVENTS_SUFFIX = ".events.jsonl"
-MODES = ("standard", "ai")
+MODES = ("standard", "ai", "agent")
+AGENT_SUFFIX = ".agent.json"
+AGENT_ENV = "RECONMIND_AGENT_INBOX"
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 JOB_ID = re.compile(r"[0-9a-f]{12}")
 RUN_ID_PREFIX = "run id:"
@@ -195,6 +197,23 @@ class JobManager:
         """Where the job's CLI writes its progress events."""
         return os.path.join(self.jobs_dir, job_id + EVENTS_SUFFIX)
 
+    def agent_inbox(self, job_id):
+        """Where the web app leaves the operator's plan decision for an agent job."""
+        return os.path.join(self.jobs_dir, job_id + AGENT_SUFFIX)
+
+    def decide(self, job_id, decision):
+        """Write an agent decision for the running job. Returns False when
+        job_id is not the running job. decision is already validated."""
+        with self._lock:
+            if self._running_id != job_id:
+                return False
+            path = self.agent_inbox(job_id)
+            tmp = path + ".part"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(decision, f)
+            os.replace(tmp, path)
+            return True
+
     def _mark_interrupted(self):
         """A job saved as running was cut off when its server stopped."""
         if not os.path.isdir(self.jobs_dir):
@@ -232,7 +251,8 @@ class JobManager:
 
     def start_recon(self, plan, mode=None):
         mode = mode or default_mode()
-        return self._start("recon", recon_label(plan), recon_command(plan, mode))
+        label = ("Agent scan, " + plan.target) if mode == "agent" else recon_label(plan)
+        return self._start("recon", label, recon_command(plan, mode))
 
     def start_code(self, path, explain=False):
         return self._start("code", code_label(path), code_command(path, explain))
@@ -248,6 +268,9 @@ class JobManager:
             job = _Job(job_id, kind, label)
             env = dict(os.environ, PYTHONUNBUFFERED="1")
             env[EVENTS_ENV] = self.events_path(job_id)
+            # Only an agent job reads approvals; the path is set for every job
+            # so the CLI never looks anywhere else.
+            env[AGENT_ENV] = self.agent_inbox(job_id)
             try:
                 # An argument list and no shell: nothing in it is ever parsed by a shell.
                 # A new session gives the job its own process group, so stop() reaches

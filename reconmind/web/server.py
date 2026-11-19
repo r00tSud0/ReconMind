@@ -66,9 +66,12 @@ from reconmind.core import config, history
 from reconmind.core import report as report_mod
 from reconmind.core.authorization import is_authorized
 from reconmind.core.report import MODE_AI, MODE_STANDARD, MODES
+from reconmind.agent.morvain import DECISIONS as AGENT_DECISIONS, FOLLOW_UP as AGENT_CHECKS, MODE_AGENT
 from reconmind.core.scan_plan import (
     ACTIONS, DEFAULT_PRESET, PRESETS, PlanError, PortsSpecError, build_plan)
 from reconmind.web import runs, system, settings
+from reconmind.web.setup_runner import SetupBusy, SetupRunner
+from reconmind.web import setup_runner
 from reconmind.web.jobs import JOB_ID, Busy, JobManager
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -188,11 +191,12 @@ def _check_mode(body):
     mode = body.get("mode")
     if mode is None:
         return MODE_AI if ai_options()["available"] else MODE_STANDARD
-    if mode not in MODES:
-        raise Invalid("Mode must be \"standard\" or \"ai\".", "mode")
-    if mode == MODE_AI and not ai_options()["available"]:
-        raise Invalid("AI analysis needs an LLM. Set an API key in .env, or turn AI "
-                      "analysis off.", "mode")
+    if mode not in MODES and mode != MODE_AGENT:
+        raise Invalid("Mode must be \"standard\", \"ai\" or \"agent\".", "mode")
+    if mode in (MODE_AI, MODE_AGENT) and not ai_options()["available"]:
+        raise Invalid(("The AI agent" if mode == MODE_AGENT else "AI analysis")
+                      + " needs an LLM. Set a provider and key on the System page, or turn "
+                      "AI off.", "mode")
     return mode
 
 
@@ -254,7 +258,7 @@ def _host_ok(host, port):
     return host in ("{h}:{p}".format(h=h, p=port) for h in LOCAL_HOSTS)
 
 
-def create_app(report_dir=None, runner=None, port=None):
+def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
     """
     The FastAPI app. report_dir defaults to reports/ in the current folder
     (the repo root, as for the CLI); jobs keep their files in its .jobs
@@ -269,6 +273,8 @@ def create_app(report_dir=None, runner=None, port=None):
     app = FastAPI(title="ReconMind", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.jobs = jobs
     app.state.report_dir = report_dir
+    setup = SetupRunner(cwd, popen=setup_popen)
+    app.state.setup = setup
 
     @app.middleware("http")
     async def guard(request, call_next):
@@ -313,6 +319,28 @@ def create_app(report_dir=None, runner=None, port=None):
     def system_check():
         # GET is read-only. A new request rechecks executable availability.
         return system.snapshot(report_dir)
+
+    @app.get("/api/setup")
+    async def setup_check():
+        # Read only: preflight, tools, model files and the install plan.
+        data = await run_in_threadpool(setup_runner.snapshot)
+        data["job"] = setup.status()
+        return data
+
+    @app.get("/api/setup/status")
+    def setup_status():
+        return setup.status()
+
+    @app.post("/api/setup/install")
+    async def setup_install(request: Request):
+        body = await _json_body(request)
+        if body is None:
+            return _failure(403, "forbidden", "The request body must be a JSON object.")
+        try:
+            setup.start(scan_running=bool(jobs.running_id))
+        except SetupBusy as exc:
+            return _failure(409, "busy", str(exc))
+        return JSONResponse({"ok": True, "status": setup.status()}, status_code=202)
 
     @app.post("/api/system/save")
     async def save_settings(request: Request):
@@ -363,6 +391,8 @@ def create_app(report_dir=None, runner=None, port=None):
             return _refused(exc)
         except Invalid as exc:
             return _invalid(exc)
+        if setup.running():
+            return _failure(409, "busy", "Setup is running. Scans can start when it finishes.")
         try:
             if kind == "recon":
                 job_id = jobs.start_recon(result, mode)
@@ -372,6 +402,32 @@ def create_app(report_dir=None, runner=None, port=None):
         except Busy as exc:
             return _failure(409, "busy", str(exc), job_id=exc.running_id)
         return JSONResponse({"ok": True, "job_id": job_id}, status_code=201)
+
+    @app.post("/api/scans/{job_id}/agent")
+    async def agent_decision(job_id: str, request: Request):
+        # The operator's answer to MORVAIN-X0's plan. It only says which of the
+        # proposed checks to run; the agent drops anything it did not propose,
+        # and every check still passes the gate inside the tools.
+        body = await _json_body(request)
+        if body is None:
+            return _failure(403, "forbidden", "The request body must be a JSON object.")
+        if not JOB_ID.fullmatch(job_id):
+            return _failure(404, "not_found", "No such scan.")
+        decision = body.get("decision")
+        round_number = body.get("round")
+        actions = body.get("actions", [])
+        message = body.get("message", "")
+        if (decision not in AGENT_DECISIONS or not isinstance(round_number, int)
+                or isinstance(round_number, bool) or not 1 <= round_number <= 99
+                or not isinstance(actions, list)
+                or not all(isinstance(a, str) and a in AGENT_CHECKS for a in actions)
+                or not isinstance(message, str) or len(message) > 500):
+            return _failure(400, "invalid", "That is not a valid answer to the plan.")
+        clean = {"round": round_number, "decision": decision, "actions": list(dict.fromkeys(actions)),
+                 "message": " ".join(message.split())}
+        if not await run_in_threadpool(jobs.decide, job_id, clean):
+            return _failure(409, "not_running", "This scan is not running any more.")
+        return {"ok": True}
 
     # Before /api/scans/{job_id}, so "latest" is never read as a job id.
     @app.get("/api/scans/latest")

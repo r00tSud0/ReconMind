@@ -71,11 +71,19 @@ const MODE_HELP = {
   code: 'Find vulnerabilities in a file or folder of code on this computer. The code is read, never run.',
 };
 
+const AI_LEVEL_HELP = {
+  off: 'Tools only. You pick the checks and no AI model is used.',
+  ai: 'You pick the checks. They run exactly the same, then the AI reads the results and writes the summary, attack path and what to fix first.',
+  agent: 'MORVAIN-X0 maps the surface, then proposes the next checks with its reasons. Nothing more runs until you approve each plan, and it stays on this one target inside the authorization gate. Your ports setting still applies. The agent picks the checks.',
+};
+const AI_LEVELS = ['off', 'ai', 'agent'];
+
 const COPY = {
   badgeOpen: 'Your choice',
   aiNoteNetwork: 'Adds a written summary, the attack path and what to fix first. The checks run exactly the same either way, and every claim is checked against their results.',
   aiNoteCode: 'Explains why each finding is dangerous and how to fix it. Only the flagged lines are sent to the model, never whole files. The findings come from Semgrep and Bandit either way.',
   aiSentNetwork: ' The finished scan results are sent to the model. It reads them only and never runs a tool.',
+  aiSentAgent: ' The scan results are sent to the model so it can plan. It can only pick from the 8 checks for this target, and you approve each plan.',
   aiNoKeyStart: 'No API key is set, so AI analysis is off. ',
   aiNoKeyLink: 'Add a key in System',
   aiNoKeyEnd: ' to turn it on.',
@@ -112,6 +120,8 @@ export function mountNewScan(view) {
   const pathInput = root.querySelector('#path');
   const portsInput = root.querySelector('#ports');
   const aiInput = root.querySelector('#ai');
+  const aiButtons = Array.from(root.querySelectorAll('[data-ai]'));
+  const aiInd = root.querySelector('.seg-ai .ind');
   const modeButtons = Array.from(root.querySelectorAll('[data-mode]'));
   const portButtons = Array.from(root.querySelectorAll('[data-ports]'));
   const modeInd = root.querySelector('.seg-mode .ind');
@@ -123,6 +133,7 @@ export function mountNewScan(view) {
     sel: [],           // ticked action ids, in /api/options order
     ports: 'top',      // top, all or custom (Specific ports)
     ai: false,         // AI analysis for a network scan
+    aiLevel: 'off',    // network scans: off, ai (AI analysis) or agent (MORVAIN-X0)
     explain: false,    // AI analysis for a code scan
     aiAvailable: false,
     aiSetup: null,     // the "ai" object from /api/options, or null
@@ -148,6 +159,7 @@ export function mountNewScan(view) {
   const presetAllowed = (p) => !(state.mode === 'list' && p.ports === 'all');
   const visibleModes = () => modeButtons.filter((btn) => !btn.hidden);
   const aiOn = () => (state.mode === 'code' ? state.explain : state.ai);
+  const aiLevel = () => (state.aiAvailable ? state.aiLevel : 'off');
 
   // "22, 80" and "22,80" mean the same; the server still checks the spec itself.
   function customPorts() {
@@ -314,6 +326,7 @@ export function mountNewScan(view) {
     state.aiAvailable = !!(ai && ai.available === true);
     // One rule for both scan types: on whenever an API key is set up.
     state.ai = state.aiAvailable;
+    state.aiLevel = state.aiAvailable ? 'ai' : 'off';
     state.explain = state.aiAvailable;
   }
 
@@ -328,6 +341,7 @@ export function mountNewScan(view) {
     state.aiSetup = null;
     state.aiAvailable = false;
     state.ai = false;
+    state.aiLevel = 'off';
     state.explain = false;
     refs.allowed.textContent = 'the allowlist could not be loaded';
     refs.presets.replaceChildren(optionsNotice());
@@ -344,7 +358,9 @@ export function mountNewScan(view) {
   }
 
   function planSentence() {
-    const ai = aiOn() ? ' AI analysis on.' : ' AI analysis off.';
+    const level = state.mode === 'code' ? null : aiLevel();
+    const ai = level === 'agent' ? ' AI agent MORVAIN-X0 proposes the checks and you approve each plan.'
+      : (level === 'ai' || (level === null && aiOn()) ? ' AI analysis on.' : ' AI analysis off.');
     if (state.mode === 'code') {
       const path = pathInput.value.trim();
       const what = path ? basename(path) : 'the code';
@@ -365,6 +381,10 @@ export function mountNewScan(view) {
     else if (state.ports === 'all') ports = 'all 65535 ports';
     else ports = customPorts() ? 'ports ' + customPorts() : 'the ports you list';
     const p = isCustom() ? null : preset(state.picked);
+    if (level === 'agent') {
+      return 'MORVAIN-X0 maps ' + who + ' on ' + ports + ' with Surface Map and Exploit Hunt, '
+        + 'then proposes the next checks. Nothing more runs until you approve each plan.';
+    }
     const deeper = p && p.vuln_mode === DEEP && state.sel.includes('vulns')
       ? ', with deeper web testing' : '';
     return 'Scan ' + who + ' on ' + ports + ' with ' + checksPhrase() + deeper + '.' + ai;
@@ -399,13 +419,13 @@ export function mountNewScan(view) {
   function renderAiInfo() {
     const isCode = state.mode === 'code';
     const ai = state.aiSetup;
-    const key = [state.optsFailed, !!state.opts, state.aiAvailable, isCode].join('|');
+    const key = [state.optsFailed, !!state.opts, state.aiAvailable, isCode, aiLevel()].join('|');
     if (key === lastAiInfo) return;
     lastAiInfo = key;
     if (state.aiAvailable) {
       const provider = PROVIDER_NAMES[ai.provider] || String(ai.provider || 'the configured provider');
       refs.aiInfo.textContent = 'Uses ' + provider + (ai.model ? ', ' + String(ai.model) : '') + '.'
-        + (isCode ? '' : COPY.aiSentNetwork);
+        + (isCode ? '' : (aiLevel() === 'agent' ? COPY.aiSentAgent : COPY.aiSentNetwork));
     } else if (ai) {
       refs.aiInfo.replaceChildren(
         COPY.aiNoKeyStart,
@@ -492,6 +512,19 @@ export function mountNewScan(view) {
     aiInput.disabled = !state.aiAvailable;
     aiInput.checked = state.aiAvailable && aiOn();
     refs.aiRow.classList.toggle('disabled', !state.aiAvailable);
+    // Network scans: one control with three settings. Code scans keep the switch.
+    refs.aiSeg.hidden = isCode;
+    refs.aiLevelHelp.hidden = isCode;
+    refs.aiRow.hidden = !isCode;
+    const level = aiLevel();
+    aiButtons.forEach((btn, i) => {
+      const on = btn.dataset.ai === level;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.disabled = btn.dataset.ai !== 'off' && !state.aiAvailable;
+      if (on) aiInd.style.transform = 'translateX(' + i * 100 + '%)';
+    });
+    refs.aiLevelHelp.textContent = AI_LEVEL_HELP[level];
     refs.aiNote.textContent = isCode ? COPY.aiNoteCode : COPY.aiNoteNetwork;
     renderAiInfo();
 
@@ -613,7 +646,8 @@ export function mountNewScan(view) {
     if (state.mode === 'code') {
       return { kind: 'code', path: pathInput.value.trim(), explain: state.aiAvailable && state.explain };
     }
-    const mode = state.aiAvailable && state.ai ? 'ai' : 'standard';
+    const level = aiLevel();
+    const mode = level === 'agent' ? 'agent' : (level === 'ai' ? 'ai' : 'standard');
     const target = targetInput.value.trim();
     if (isCustom()) {
       return {
@@ -793,10 +827,16 @@ export function mountNewScan(view) {
     render();
     if (state.ports === 'custom' && !portsInput.disabled) portsInput.focus();
   }));
+  aiButtons.forEach((btn) => btn.addEventListener('click', () => {
+    if (!AI_LEVELS.includes(btn.dataset.ai) || btn.disabled) return;
+    state.aiLevel = btn.dataset.ai;
+    state.ai = state.aiLevel !== 'off';
+    render();
+  }));
   aiInput.addEventListener('change', () => {
     const on = state.aiAvailable && aiInput.checked;
     if (state.mode === 'code') state.explain = on;
-    else state.ai = on;
+    else { state.ai = on; state.aiLevel = on ? 'ai' : 'off'; }
     render();
   });
   for (const [input, field] of [[targetInput, 'target'], [portsInput, 'ports'], [pathInput, 'path']]) {

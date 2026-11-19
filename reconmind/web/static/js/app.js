@@ -10,6 +10,7 @@
  *   #/targets          Targets, with the newest folder open
  *   #/targets/<name>   Targets with that folder open
  *   #/system           System check and editable local AI and NVD settings
+ *   #/setup            install or repair the scanning tools and the model
  *   #/hosts            not built yet: a placeholder screen
  *
  * Each view's mount function returns a cleanup function, called before the
@@ -26,6 +27,7 @@ import { mountJob } from './views/job.js';
 import { mountReport } from './views/report.js';
 import { mountTargets } from './views/targets.js';
 import { mountSystem } from './views/system.js';
+import { mountSetup } from './views/setup.js';
 
 const LATER = {
   hosts: {
@@ -126,6 +128,10 @@ function route() {
     mount = () => mountSystem(view);
     navKey = 'system';
     title = 'System check';
+  } else if (parts.length === 1 && parts[0] === 'setup') {
+    mount = () => mountSetup(view);
+    navKey = 'system';
+    title = 'Setup';
   } else if (parts.length === 1 && Object.prototype.hasOwnProperty.call(LATER, parts[0])) {
     const later = LATER[parts[0]];
     mount = () => mountLater(view, later);

@@ -36,6 +36,10 @@ MAX_DOWNLOAD = 300 * 1024 * 1024
 DONE, SKIPPED, FAILED = "done", "skipped", "failed"
 
 
+NEEDS_TERMINAL = ("System packages need your password. Open a terminal in the ReconMind "
+                  "folder and run: python3 -m reconmind.setup --install")
+
+
 class StepError(Exception):
     pass
 
@@ -177,7 +181,8 @@ def record_templates_version(config_path, folder, version):
 
 class Installer:
     def __init__(self, distro, arch, data_dir=None, python=None, root=None,
-                 run=None, fetch=download, log=print, rules_dir=None):
+                 run=None, fetch=download, log=print, rules_dir=None,
+                 interactive=True, on_event=None, env=None):
         self.distro = distro
         self.arch = arch
         self.data = data_dir or toolpath.DATA_DIR
@@ -191,6 +196,12 @@ class Installer:
         self.say = log
         self.rules_dir = rules_dir or semgrep_scan.rules_dir()
         self.marker_path = os.path.join(self.data, "installed.json")
+        # interactive: a terminal is attached, so sudo can ask for the password.
+        # Without one (the app's Setup screen) pkexec shows a password window
+        # on a desktop, or the step explains how to run setup in a terminal.
+        self.interactive = interactive
+        self.on_event = on_event or (lambda event: None)
+        self.env = os.environ if env is None else env
 
     # ---- helpers ----------------------------------------------------------
 
@@ -291,18 +302,50 @@ class Installer:
 
     # ---- steps ------------------------------------------------------------
 
+    def privilege(self):
+        """How to run apt-get as root: ("root"|"sudo"|"sudo-n"|"pkexec", prefix).
+        Raises StepError with what to do when there is no way without a terminal."""
+        if self.root:
+            return "root", []
+        if self.interactive:
+            if not shutil.which("sudo"):
+                raise StepError("sudo is missing, so system packages cannot be installed.")
+            return "sudo", ["sudo"]
+        if shutil.which("sudo"):
+            try:
+                ok = self._run(["sudo", "-n", "true"], check=False, capture_output=True,
+                               text=True, stdin=subprocess.DEVNULL, timeout=15).returncode == 0
+            except (OSError, subprocess.TimeoutExpired):
+                ok = False
+            if ok:
+                return "sudo-n", ["sudo", "-n"]
+        if shutil.which("pkexec") and (self.env.get("DISPLAY") or self.env.get("WAYLAND_DISPLAY")):
+            return "pkexec", ["pkexec"]
+        raise StepError(NEEDS_TERMINAL)
+
     def step_apt(self):
         missing = self.apt_missing()
         if not missing:
             return SKIPPED, "already installed"
-        prefix = [] if self.root else ["sudo"]
-        if not self.root and not shutil.which("sudo"):
-            raise StepError("sudo is missing, so these packages cannot be installed: "
-                            + " ".join(missing))
-        self.say("   Running: " + " ".join(prefix + ["apt-get", "install"] + missing))
-        self.run(prefix + ["apt-get", "update"], interactive=True)
-        self.run(prefix + ["apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y",
-                           "--no-install-recommends"] + missing, interactive=True)
+        how, prefix = self.privilege()
+        install_cmd = ["apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y",
+                       "--no-install-recommends"] + missing
+        self.say("   Installing system packages: " + " ".join(missing))
+        if how == "pkexec":
+            # One password window for both commands. The package names are
+            # fixed in the manifest, never user input.
+            script = "apt-get update && " + " ".join(shlex.quote(c) for c in install_cmd)
+            self.say("   A password window opens. Enter your password to continue.")
+            try:
+                self.run(["pkexec", "/bin/sh", "-c", script], timeout=3600)
+            except StepError as exc:
+                if "exit 126" in str(exc) or "exit 127" in str(exc):
+                    raise StepError("The password window was closed or is not available. "
+                                    + NEEDS_TERMINAL) from None
+                raise
+        else:
+            self.run(prefix + ["apt-get", "update"], interactive=self.interactive)
+            self.run(prefix + install_cmd, interactive=self.interactive)
         still = self.apt_missing()
         if still:
             raise StepError("These packages are still missing: " + " ".join(still))
@@ -474,17 +517,28 @@ class Installer:
             raise StepError("Run setup from ReconMind's own Python environment, so the model "
                             "packages are installed there and not into the system Python.")
         self.say("   Installing torch for the CPU. This is a large download.")
-        self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
-                  "torch", "--index-url", manifest.MAPPER_TORCH_INDEX], timeout=3600)
-        self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
-                  *manifest.MAPPER_PACKAGES[1:]], timeout=1800)
+        try:
+            self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
+                      "torch", "--index-url", manifest.MAPPER_TORCH_INDEX], timeout=3600)
+            self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
+                      *manifest.MAPPER_PACKAGES[1:]], timeout=1800)
+        except StepError:
+            # pip's own output is in setup.log; the screen gets one plain sentence.
+            raise StepError("torch or transformers could not be downloaded. Check the internet "
+                            "connection and run setup again. Details are in setup.log.") from None
         ok, _ = self._python_has("import torch, transformers, safetensors")
         if not ok:
             raise StepError("torch or transformers still cannot be imported.")
         return DONE, "torch, transformers and safetensors installed"
 
     def step_model(self, verify=None, model_dir=None):
+        real = verify is None
         verify = verify or (lambda d: model.verify(d, manifest.MODEL["labels"], python=self.python))
+        if real:
+            ready, _ = self._python_has("import torch, transformers, safetensors")
+            if not ready:
+                raise StepError("The model needs the ATT&CK mapper packages, which are not "
+                                "installed yet. Fix that step, then run setup again.")
         src = manifest.MODEL
         dest = model_dir or attack_mapper.model_dir()
         present = all(os.path.isfile(os.path.join(dest, n)) for n in attack_mapper.REQUIRED_FILES)
@@ -553,6 +607,8 @@ class Installer:
         steps = self.steps()
         for index, (title, step) in enumerate(steps, 1):
             self.say("{i}/{n} {t}".format(i=index, n=len(steps), t=title))
+            self.on_event({"type": "step", "index": index, "total": len(steps),
+                           "title": title, "state": "running"})
             try:
                 status, message = step()
             except (StepError, model.ModelError) as exc:
@@ -563,5 +619,7 @@ class Installer:
             self.say("   {s}: {m}".format(s={DONE: "Done", SKIPPED: "Already fine",
                                              FAILED: "FAILED"}[status], m=message))
             results.append((title, status, message))
+            self.on_event({"type": "step", "index": index, "total": len(steps),
+                           "title": title, "state": status, "message": message})
         toolpath.activate(bin_dir=self.bin)
         return results, detect.tools()

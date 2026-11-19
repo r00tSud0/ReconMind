@@ -215,6 +215,23 @@ class StepTests(unittest.TestCase):
             status, _ = self.worker.step_model(verify=lambda d: None, model_dir=self.dest)
         self.assertEqual(status, install.SKIPPED)
 
+    def test_model_step_stops_early_without_torch(self):
+        self.worker._run = lambda *a, **k: Proc(returncode=1)
+        with mock.patch.object(model, "download_resume",
+                               side_effect=AssertionError("must not download")):
+            with self.assertRaises(install.StepError) as err:
+                self.worker.step_model(model_dir=self.dest)
+        self.assertIn("mapper packages", str(err.exception))
+
+    def test_pip_noise_becomes_one_sentence(self):
+        answers = iter([Proc(returncode=1), Proc(stdout="True\n"),
+                        Proc(returncode=1, stderr="WARNING: Retrying ... ERROR: No matching")])
+        self.worker._run = lambda *a, **k: next(answers)
+        with self.assertRaises(install.StepError) as err:
+            self.worker.step_mapper_packages()
+        self.assertNotIn("WARNING", str(err.exception))
+        self.assertIn("setup.log", str(err.exception))
+
     def test_mapper_packages_refuse_system_python(self):
         answers = iter([Proc(returncode=1), Proc(stdout="False\n")])
         self.worker._run = lambda *a, **k: next(answers)

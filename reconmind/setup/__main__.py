@@ -4,11 +4,14 @@ ReconMind setup.
     python3 -m reconmind.setup --check     show what is ready and the install plan (changes nothing)
     python3 -m reconmind.setup --install   install or repair everything in the plan
     python3 -m reconmind.setup --install --yes   same, without the confirmation question
+    python3 -m reconmind.setup --install --yes --events   for the app's Setup screen:
+        one JSON object per line on stdout, no terminal prompts
 
 Exit codes: 0 all 9 tools ready, 1 some still missing, 2 preflight blocked, 3 cancelled.
 """
 
 import argparse
+import json
 import sys
 
 from reconmind import toolpath
@@ -51,7 +54,11 @@ def main(argv=None, inp=input):
     mode.add_argument("--check", action="store_true", help="show status and plan, change nothing")
     mode.add_argument("--install", action="store_true", help="install or repair")
     parser.add_argument("--yes", action="store_true", help="do not ask before installing")
+    parser.add_argument("--events", action="store_true",
+                        help="JSON lines for the app, no terminal prompts (needs --install --yes)")
     args = parser.parse_args(argv)
+    if args.events:
+        return _events_main(args)
 
     toolpath.activate()
     checks = preflight.run_checks()
@@ -108,6 +115,33 @@ def main(argv=None, inp=input):
         print("Setup finished with {m} of {n} tools missing.".format(
             m=len(tools) - ready, n=len(tools)))
     return 1
+
+
+def _emit(event):
+    print(json.dumps(event), flush=True)
+
+
+def _events_main(args):
+    """The app's Setup screen runs this. Every line on stdout is one JSON event."""
+    if not (args.install and args.yes):
+        _emit({"type": "error", "message": "--events needs --install --yes"})
+        return 2
+    toolpath.activate()
+    checks = preflight.run_checks()
+    blocked = preflight.blocking_failures(checks)
+    if blocked:
+        _emit({"type": "blocked", "checks": [c._asdict() for c in blocked]})
+        return 2
+    info = preflight.read_os_release()
+    worker = install.Installer(preflight.distro(info), preflight.arch(), interactive=False,
+                               log=lambda text: _emit({"type": "say", "text": str(text)}),
+                               on_event=_emit)
+    results, tools = worker.install()
+    failed = [r for r in results if r[1] == install.FAILED]
+    ready = sum(1 for t in tools if t["status"] == "ready")
+    _emit({"type": "result", "ready": ready, "total": len(tools),
+           "failed": [{"title": t, "message": m} for t, _, m in failed]})
+    return 0 if ready == len(tools) and not failed else 1
 
 
 if __name__ == "__main__":

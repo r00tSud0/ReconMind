@@ -25,6 +25,7 @@
  * timer or a click.
  */
 
+import { createAgentPanel } from './agent.js';
 import * as api from '../api.js';
 import { checkLive, markRunning } from '../live.js';
 import {
@@ -140,6 +141,7 @@ export function mountJob(view, jobId) {
   let stopping = false;
   let gone = false;
   let actionList = null; // [{id, name}] from /api/options, in run order
+  let agent = null;      // the MORVAIN-X0 panel, made when an agent event arrives
 
   // What the events have said so far.
   const ev = {
@@ -193,8 +195,18 @@ export function mountJob(view, jobId) {
 
   // ---- events ----------------------------------------------------------
 
+  function ensureAgent() {
+    if (agent) return;
+    agent = createAgentPanel(jobId);
+    const mid = view.querySelector('.live-mid');
+    if (mid && mid.parentNode) mid.parentNode.insertBefore(agent.el, mid);
+    else view.append(agent.el);
+  }
+
   function applyEvent(e) {
     if (!isObject(e)) return;
+    if (e.kind === 'agent' || (e.kind === 'plan' && e.mode === 'agent')) ensureAgent();
+    if (agent) agent.apply(e);
     const time = parseTime(e.time);
     switch (e.kind) {
       case 'plan':
@@ -490,6 +502,10 @@ export function mountJob(view, jobId) {
     const n = plan.actions.length;
     const checks = total && n === total ? 'all ' + total + ' checks'
       : (total ? n + ' of ' + total + ' checks' : plural(n, 'check', 'checks'));
+    if (plan.mode === 'agent') {
+      return 'Agent scan by MORVAIN-X0 on ' + ports + '. ' + checks.charAt(0).toUpperCase()
+        + checks.slice(1) + ' approved so far.';
+    }
     const ai = plan.mode === 'ai' ? ' AI analysis on.' : (plan.mode === 'standard' ? ' AI analysis off.' : '');
     return title + ' on ' + ports + ' with ' + checks + '.' + ai;
   }
@@ -644,6 +660,10 @@ export function mountJob(view, jobId) {
   }
 
   function render() {
+    if (agent) {
+      agent.setJob(job ? job.status : 'running');
+      agent.render();
+    }
     const isRunning = running();
     renderStop(isRunning);
     // This page may show an older job while another one runs, so a job that

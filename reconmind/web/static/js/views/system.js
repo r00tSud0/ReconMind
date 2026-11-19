@@ -200,8 +200,11 @@ export function mountSystem(view) {
   const title = h('h1', { class: 'title', text: 'System check' });
   const summary = h('p', { class: 'help', text: 'Checking the tools and settings ReconMind uses.' });
   const reload = h('button', { class: 'btn quiet', type: 'button', text: 'Check again' });
+  // Setup installs or repairs tools; System itself only reports.
+  const setupLink = h('a', { class: 'btn quiet', href: '#/setup', text: 'Setup' });
   const head = h('header', { class: 'sys-header' },
-    h('div', {}, title, summary), reload);
+    h('div', {}, title, summary),
+    h('div', { class: 'sys-setting-actions setup-actions' }, setupLink, reload));
   const body = h('div', { class: 'system-grid' });
   root.append(head, body);
   view.append(root);
@@ -225,6 +228,10 @@ export function mountSystem(view) {
     const ready = tools.filter((t) => t.status === 'ready').length;
     summary.textContent = ready + ' of ' + tools.length
       + ' security tools detected in this environment.';
+    const mapperReady = asObject(d.mapper).files_present && asObject(d.mapper).dependencies_present;
+    const needsRepair = ready < tools.length || !mapperReady;
+    setupLink.textContent = needsRepair ? 'Repair setup' : 'Setup';
+    setupLink.className = needsRepair ? 'btn primary' : 'btn quiet';
     const ai = asObject(d.ai);
     const mapper = asObject(d.mapper);
     const nvd = asObject(d.nvd);

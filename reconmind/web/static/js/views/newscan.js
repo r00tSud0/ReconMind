@@ -73,7 +73,7 @@ const MODE_HELP = {
   host: 'Scan one lab machine over the network.',
   list: 'Scan several lab machines over the network, one at a time.',
   code: 'Find vulnerabilities in a file or folder of code on this computer. The code is read, never run.',
-  malware: 'Future component: identify the malware family of a suspected file with a trained image classifier. Not part of this version.',
+  malware: 'Future component: check a suspicious file for malware. Not part of this version, nothing runs.',
 };
 
 const AI_LEVEL_HELP = {
@@ -481,7 +481,7 @@ export function mountNewScan(view) {
       group.hidden = group.dataset.group !== state.mode;
     }
     refs.targetHead.textContent = isFuture ? 'Malware file' : (isCode ? 'Source code' : (isList ? 'Hosts' : 'Target'));
-    refs.targetHelp.textContent = isFuture ? 'A planned part of ReconMind, shown so you can see where it fits.'
+    refs.targetHelp.textContent = isFuture ? 'Planned for a later version. Nothing here runs.'
       : isCode ? 'A file or folder on this computer.'
       : (isList ? 'One IP per line, up to ' + (state.opts ? state.opts.max_hosts : 8)
         + '. Each one is checked against the allowlist on its own.'
@@ -763,8 +763,10 @@ export function mountNewScan(view) {
       value);
   }
 
-  /* "Quick scan", or "Custom scan" when the run's ports or checks were changed. */
+  /* "Quick scan", "Custom scan" when the run's ports or checks were changed,
+     or "Agent scan" when MORVAIN-X0 drove it. */
   function scanTitle(entry) {
+    if (entry.agent === true) return 'Agent scan';
     if (entry.customized === true) return CUSTOM_TITLE;
     return PRESET_TITLES[entry.preset] || 'Scan';
   }

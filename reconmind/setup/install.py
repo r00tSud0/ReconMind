@@ -40,6 +40,21 @@ NEEDS_TERMINAL = ("System packages need your password. Open a terminal in the Re
                   "folder and run: python3 -m reconmind.setup --install")
 
 
+def pip_failure(text):
+    """One plain sentence for a failed pip install of the mapper packages."""
+    low = text.lower()
+    if "exit -9" in low or "killed" in low or "memoryerror" in low:
+        return ("pip ran out of memory while installing torch. Close other programs or give "
+                "WSL or the VM more memory, then run setup again. Details are in setup.log.")
+    if "no space left" in low:
+        return ("The disk is full. torch needs about 2 GB free. Free some space, then run "
+                "setup again. Details are in setup.log.")
+    if "no matching distribution" in low:
+        return ("pip found no torch build for this Python version. Details are in setup.log.")
+    return ("torch or transformers could not be downloaded. Check the internet connection "
+            "and run setup again. Details are in setup.log.")
+
+
 class StepError(Exception):
     pass
 
@@ -517,15 +532,16 @@ class Installer:
             raise StepError("Run setup from ReconMind's own Python environment, so the model "
                             "packages are installed there and not into the system Python.")
         self.say("   Installing torch for the CPU. This is a large download.")
+        # No cache: pip otherwise holds the whole torch wheel in memory to cache
+        # it, which gets it killed on small WSL or VM memory limits.
+        pip = [self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
+               "--no-cache-dir", "--timeout", "60", "--retries", "5"]
         try:
-            self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
-                      "torch", "--index-url", manifest.MAPPER_TORCH_INDEX], timeout=3600)
-            self.run([self.python, "-m", "pip", "install", "-q", "--disable-pip-version-check",
-                      *manifest.MAPPER_PACKAGES[1:]], timeout=1800)
-        except StepError:
+            self.run(pip + ["torch", "--index-url", manifest.MAPPER_TORCH_INDEX], timeout=3600)
+            self.run(pip + list(manifest.MAPPER_PACKAGES[1:]), timeout=1800)
+        except StepError as exc:
             # pip's own output is in setup.log; the screen gets one plain sentence.
-            raise StepError("torch or transformers could not be downloaded. Check the internet "
-                            "connection and run setup again. Details are in setup.log.") from None
+            raise StepError(pip_failure(str(exc))) from None
         ok, _ = self._python_has("import torch, transformers, safetensors")
         if not ok:
             raise StepError("torch or transformers still cannot be imported.")

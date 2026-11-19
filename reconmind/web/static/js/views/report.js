@@ -142,6 +142,7 @@ export function mountReport(view, runId) {
     const title = entryTitle(isCode ? { kind: 'code' } : Object.assign({}, entry, {
       preset: entry.preset || asObject(asObject(d.scan).plan).preset,
       customized: entry.customized === true || asObject(asObject(d.scan).plan).customized === true,
+      agent: entry.agent === true || isObject(asObject(d.scan).agent),
     }));
     refs.title.textContent = target;
     document.title = title + ', ' + target + ' | ReconMind';

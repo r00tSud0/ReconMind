@@ -49,7 +49,9 @@ assert.ok(js['views/report.js'].includes('Write your own report'), 'Your reports
 const ns = js['views/newscan.js'];
 assert.ok(html.includes('data-mode="malware"') && html.includes('Future component'), 'Malware file is shown as a future component');
 assert.ok(html.includes('id="malware-file"') && /id="malware-file"[^>]*disabled/.test(html), 'Its file field is locked');
-assert.ok(html.includes('Malimg'), 'It explains the planned Malimg image classifier');
+assert.ok(html.includes('EMBER2024') && html.includes('capa'), 'It explains the planned capa and EMBER2024 approach');
+assert.ok(!html.includes('Malimg'), 'The old image classifier plan is gone');
+for (const t of ['.exe', 'ELF', 'APK', 'PDF']) assert.ok(html.includes(t), 'It covers ' + t + ' files');
 assert.ok(ns.includes("if (FUTURE_MODES.has(state.mode)) return 'Malware file analysis is a future component."), 'Start stays disabled for it');
 assert.ok(!ns.includes("kind: 'malware'"), 'Nothing is ever sent to the server for it');
 const ui = src('../reconmind/web/static/js/ui.js');
@@ -57,4 +59,13 @@ assert.ok(ui.includes("h('table', { class: cls.table || 'md-table' }"), 'AI answ
 const agentJs = src('../reconmind/web/static/js/views/agent.js');
 assert.ok(agentJs.includes("' mx-mode-' + body.kind") && !agentJs.includes("' mx-' + body.kind"),
   'The character card never takes the portrait image class (it covered the page in Lite)');
+// MORVAIN-X0: questions at each checkpoint, Tell me more, the brief, and asking after.
+assert.ok(agentJs.includes("send(live, 'ask', [], q)"), 'The dock sends a question at the checkpoint');
+assert.ok(agentJs.includes("send(entry, 'ask', [action], '')"), 'Tell me more asks about one step');
+assert.ok(agentJs.includes("text: 'What I found so far'"), 'Each plan shows the findings brief');
+assert.ok(agentJs.includes("'/api/reports/' + encodeURIComponent(runId) + '/ask'"), 'After the session it asks about the saved report');
+assert.ok(agentJs.includes("res.ok && decision === 'ask'"), 'A question never closes the plan');
+assert.ok(!agentJs.toLowerCase().includes('autopilot'), 'There is no autopilot: every plan still needs approval');
+assert.ok(morvain.includes("panel.setReport("), 'The MORVAIN-X0 tab gives the panel the saved report');
+assert.ok(ns.includes("if (entry.agent === true) return 'Agent scan';"), 'The last scan card names agent runs');
 console.log('Finished app UI contract: all assertions passed.');

@@ -142,6 +142,61 @@ class SessionTests(unittest.TestCase):
         mine = [e for e in self.agent() if e.get("from") == "operator"]
         self.assertEqual(mine[0]["decision"], "redirect")
 
+    def test_questions_are_answered_and_the_plan_stays_open(self):
+        model = FakeModel([plan_json("web", "cves"),
+                           "Port 21 runs vsftpd 2.3.4 with a public exploit. CVE-1999-0001 too.",
+                           json.dumps({"plan": []})])
+        self.session(model, [
+            {"round": 1, "decision": "ask", "message": "Why is port 21 risky?"},
+            {"round": 1, "decision": "approve", "actions": ["web"]}]).run()
+        answers = self.agent("answer")
+        self.assertEqual(len(answers), 1)
+        self.assertIn("vsftpd", answers[0]["text"])
+        self.assertIn("[ID removed]", answers[0]["text"])   # never an invented ID
+        ask = model.requests[1]
+        self.assertIn("only answer questions about this scan", ask["system"])
+        self.assertIn("Why is port 21 risky?", ask["messages"][0]["content"])
+        self.assertIn("web_fingerprint", [n for n, _ in self.box.calls])  # the approval still ran
+        self.assertEqual(len(self.agent("awaiting")), 1)                   # no new plan for a question
+        mine = [e for e in self.agent() if e.get("from") == "operator"]
+        self.assertEqual([e["decision"] for e in mine], ["ask", "approve"])
+
+    def test_tell_me_more_without_a_model_uses_the_check_description(self):
+        model = FakeModel([plan_json("web"), RuntimeError("model down"), json.dumps({"plan": []})])
+        self.session(model, [
+            {"round": 1, "decision": "ask", "message": "", "actions": ["web"]},
+            {"round": 1, "decision": "finish"}]).run()
+        text = self.agent("answer")[0]["text"]
+        self.assertIn("httpx", text)
+        self.assertIn("Port 80 runs Apache", text)
+        self.assertEqual(self.box.calls, [])  # asking never runs anything
+
+    def test_question_limit_per_checkpoint(self):
+        model = FakeModel([plan_json("web")] + ["Answer."] * morvain.MAX_ASKS)
+        asks = [{"round": 1, "decision": "ask", "message": "q"}] * (morvain.MAX_ASKS + 1)
+        self.session(model, asks + [{"round": 1, "decision": "finish"}]).run()
+        answers = self.agent("answer")
+        self.assertEqual(len(answers), morvain.MAX_ASKS + 1)
+        self.assertIn("the limit", answers[-1]["text"])
+
+    def test_every_plan_comes_with_a_brief(self):
+        model = FakeModel([plan_json("web")])
+        self.session(model, [{"round": 1, "decision": "finish"}]).run()
+        items = self.agent("awaiting")[0]["brief"]["items"]
+        self.assertTrue(items)
+        self.assertIn("Port 21", items[0]["text"])
+        self.assertIn("exploit match", items[0]["text"])
+
+    def test_brief_orders_by_severity(self):
+        scan = {"ports": [
+            {"port": 23, "service": "telnet", "product": "Linux telnetd"},
+            {"port": 1524, "service": "bindshell", "product": "Metasploitable root shell"},
+            {"port": 22, "service": "ssh", "product": "OpenSSH", "version": "4.7p1"}]}
+        b = morvain.brief(scan)
+        self.assertEqual([i["severity"] for i in b["items"]], ["critical", "high"])
+        self.assertEqual(b["more"], 0)
+        self.assertEqual(morvain.brief({"ports": []}), {"items": [], "more": 0})
+
     def test_model_failure_falls_back_to_rules_and_says_so(self):
         model = FakeModel([RuntimeError("rate limited"), RuntimeError("down")])
         self.session(model, [{"round": 1, "decision": "finish"}]).run()

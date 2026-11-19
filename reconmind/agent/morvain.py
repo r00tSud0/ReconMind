@@ -12,7 +12,11 @@ The agent plans; the operator approves; the existing pipeline runs.
        is told so.
     3. Approval: nothing runs until the operator approves the plan (unticked
        steps are skipped), redirects it with a message, or finishes. Check ins
-       are per plan, never per tool.
+       are per plan, never per tool. Each plan comes with a short brief of the
+       riskiest things found so far, built from the tool results by fixed
+       rules. While it waits, the operator can also ask questions: answers
+       come from the results and the plan only, and asking never runs,
+       changes or approves anything.
     4. Run: approved checks go through the same pipeline steps and
        ToolBox.call as every scan, so the authorization gate inside each tool
        and the single target scope lock still apply. Approval never bypasses
@@ -35,6 +39,8 @@ from reconmind.core import config as scope
 from reconmind.core import events as events_mod
 from reconmind.core.pipeline import _Run, plan_steps, run_plan
 from reconmind.core.scan_plan import ACTIONS, ACTIONS_BY_ID, build_plan
+from reconmind.tools.nuclei_scan import severity_rank as nuclei_rank
+from reconmind.tools.risky_services import SEVERITY_ORDER, flag_ports
 from reconmind.tools.smb_enum import smb_ports
 from reconmind.tools.testssl_scan import is_tls_capable
 from reconmind.tools.web_common import is_web_service
@@ -47,10 +53,14 @@ FOLLOW_UP = ("web", "paths", "vulns", "crypto", "smb", "cves")
 MAX_ROUNDS = 4
 MAX_REDIRECTS = 3
 MAX_STEPS = 6
+MAX_ASKS = 10          # questions per checkpoint
+ANSWER_TOKENS = 2000   # room for free reasoning models
+ANSWER_CHARS = 1500
+BRIEF_ITEMS = 3
 POLL_SECONDS = 1.0
 PLAN_TOKENS = 1500
 
-DECISIONS = ("approve", "redirect", "finish")
+DECISIONS = ("approve", "redirect", "finish", "ask")
 _IDS = re.compile(r"\b(CVE-\d{4}-\d{4,7}|T\d{4}(?:\.\d{3})?)\b", re.IGNORECASE)
 
 PLANNER_SYSTEM = """You are MORVAIN-X0, the planning agent inside ReconMind, a security \
@@ -76,8 +86,82 @@ Answer with JSON only, no other text:
 {{"message": "one or two sentences to the operator", "plan": [{{"action": "<id>", "why": "<reason>"}}]}}"""
 
 
+ANSWER_SYSTEM = """You are MORVAIN-X0, the agent inside ReconMind, a security assessment \
+tool used only on an authorized lab target. The scan is paused at a checkpoint and the \
+operator is asking you a question before deciding on your plan.
+
+Rules:
+1. Answer only about this target, its results, the proposed checks and what they could \
+find, and how to read the findings. For anything else, say in one sentence that you only \
+answer questions about this scan.
+2. Use only facts in the results you are given. If they do not answer the question, say so \
+and name the check that would find out.
+3. Never write a CVE ID or a MITRE ATT&CK technique ID unless it appears in the results.
+4. Answering never runs, changes or approves anything. If the operator wants a different \
+plan, tell them to use Let me redirect, or Approve plan, or Finish.
+5. Plain text, at most 120 words. No tables and no headings. Short bullet points are fine."""
+
+
 class AgentError(Exception):
     pass
+
+
+def brief(scan, limit=BRIEF_ITEMS):
+    """The riskiest things found so far, from the tool results by fixed rules
+    (no model): risky services, public exploit matches, and critical or high
+    web findings. {"items": [{"severity", "text"}], "more": n}."""
+    ports = [p for p in scan.get("ports") or [] if isinstance(p, dict)]
+    flags = {p.get("port"): f for p, f in flag_ports(ports)}
+    items = []
+    for p in ports:
+        matches = len(p.get("exploits") or [])
+        flag = flags.get(p.get("port"))
+        if not flag and not matches:
+            continue
+        what = " ".join(str(x) for x in (p.get("product"), p.get("version")) if x) \
+            or str(p.get("service") or "unknown service")
+        parts = [" ".join(str(flag["reason"]).split())] if flag else []
+        if matches:
+            parts.append("{n} public exploit match{es}.".format(n=matches,
+                                                                es="" if matches == 1 else "es"))
+        severity = flag["severity"] if flag else ""
+        rank = SEVERITY_ORDER.get(severity, 1 if matches else 4)
+        items.append((rank, -matches, p.get("port") or 0, severity,
+                      "Port {n} ({w}): {t}".format(n=p.get("port"), w=what, t=" ".join(parts))))
+    for port, result in (scan.get("nuclei") or {}).items():
+        if not isinstance(result, dict):
+            continue
+        for f in result.get("findings") or []:
+            severity = str(f.get("severity") or "").lower()
+            if severity in ("critical", "high"):
+                items.append((nuclei_rank(severity), 0, int(port) if str(port).isdigit() else 0,
+                              severity, "Port {n}: {t}, a {s} web finding.".format(
+                                  n=port, t=f.get("name") or f.get("template_id") or "finding",
+                                  s=severity)))
+    items.sort(key=lambda x: x[:3])
+    return {"items": [{"severity": sev, "text": text} for _, _, _, sev, text in items[:limit]],
+            "more": max(0, len(items) - limit)}
+
+
+def model_answer(client, model, scan, steps, done, round_number, plan, question, history=()):
+    """Answer one operator question at a checkpoint, from the results only."""
+    content = ("Results so far:\n" + json.dumps(facts(scan, steps, done, round_number), indent=1)
+               + "\n\nRiskiest so far:\n" + json.dumps(brief(scan)["items"], indent=1)
+               + "\n\nYour proposed plan:\n" + json.dumps(
+                   [{"check": s.get("name"), "why": s.get("why")} for s in plan], indent=1))
+    if history:
+        content += "\n\nEarlier questions at this checkpoint:\n" + json.dumps(list(history), indent=1)
+    content += "\n\nOperator question:\n" + json.dumps(question[:500])
+    response = client.messages.create(
+        model=model, max_tokens=ANSWER_TOKENS, system=ANSWER_SYSTEM,
+        messages=[{"role": "user", "content": content}])
+    text = "\n".join(getattr(b, "text", "") for b in response.content
+                     if getattr(b, "type", "") == "text").strip()
+    if not text:
+        raise AgentError("the model returned no answer")
+    if len(text) > ANSWER_CHARS:
+        text = text[:ANSWER_CHARS].rsplit(" ", 1)[0] + "..."
+    return scrub_ids(text, scan)
 
 
 # ---- facts ---------------------------------------------------------------
@@ -265,6 +349,7 @@ class Session:
         self.done = set(SURFACE_ACTIONS)
         self.transcript = []
         self.toolbox = None
+        self.asks = {}
 
     def say(self, state, text, **extra):
         """One message from the agent. state: thinking, running, awaiting, error, done."""
@@ -381,8 +466,8 @@ class Session:
                 steps = [{"n": i, "action": s["action"], "name": ACTIONS_BY_ID[s["action"]].name,
                           "why": s["why"]} for i, s in enumerate(plan, 1)]
                 self.say("awaiting", message or "Here is my plan.", round=round_number,
-                         plan=steps, source=source)
-                decision = wait_decision(self.inbox, round_number, sleep=self.sleep)
+                         plan=steps, source=source, brief=brief(self.toolbox.scan))
+                decision = self.checkpoint(round_number, steps)
                 kind = decision["decision"]
                 if kind == "redirect":
                     instruction = " ".join(str(decision.get("message", "")).split())[:500]
@@ -410,6 +495,53 @@ class Session:
             self.run_checks(chosen)
         self.say("done", "That was the last planning round. Writing the report.")
         return self._finish()
+
+    def checkpoint(self, round_number, steps):
+        """Wait for the operator's decision on this plan. Questions are
+        answered here and the plan stays open; only approve, redirect or
+        finish moves the session on."""
+        while True:
+            decision = wait_decision(self.inbox, round_number, sleep=self.sleep)
+            if decision["decision"] != "ask":
+                return decision
+            self.answer(round_number, steps, decision)
+
+    def answer(self, round_number, steps, decision):
+        question = " ".join(str(decision.get("message", "")).split())[:500]
+        proposed = {s["action"]: s for s in steps}
+        step = next((proposed[a] for a in decision.get("actions") or [] if a in proposed), None)
+        if not question and step:
+            question = "Tell me more about " + step["name"] + "."
+        if not question:
+            return
+        self.operator(question, "ask", [step["action"]] if step else [])
+        self.asks[round_number] = asked = self.asks.get(round_number, 0) + 1
+        if asked > MAX_ASKS:
+            self.say("answer", "That is {n} questions at this checkpoint, the limit. Approve, "
+                     "redirect or finish to move on.".format(n=MAX_ASKS), round=round_number)
+            return
+        history = [{"q": e["text"], "a": n["text"]} for e, n in zip(self.transcript, self.transcript[1:])
+                   if e.get("decision") == "ask" and n.get("state") == "answer"
+                   and n.get("round") == round_number][-4:]
+        scan, done_steps = self.toolbox.scan, getattr(self.toolbox, "steps", [])
+        try:
+            if self.client is None:
+                raise AgentError("no AI model is configured")
+            text = model_answer(self.client, self.model, scan, done_steps, self.done,
+                                round_number, steps, question, history)
+        except BaseException as exc:
+            if not isinstance(exc, Exception):
+                raise  # a stop, never swallowed
+            if step:
+                action = ACTIONS_BY_ID[step["action"]]
+                text = ("{n}: {d} Why it is in the plan: {w} (The AI model could not answer, "
+                        "so this comes from the check's description.)".format(
+                            n=action.name, d=action.description.rstrip(".") + ".", w=step["why"]))
+            else:
+                text = ("I could not reach the AI model to answer that ({e}). The results and "
+                        "the plan are unchanged, so you can still approve, redirect or "
+                        "finish.".format(e=_short(exc)))
+        self.say("answer", text, round=round_number)
 
     def _finish(self):
         self.toolbox.plan = self.plan()

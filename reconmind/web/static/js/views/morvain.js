@@ -9,7 +9,8 @@
  * points back here. The conversation and the approvals live only on this tab.
  * Agent scans start only here: you give the target and the ports, MORVAIN-X0
  * chooses from all 8 checks, reports what it found and its plan, and you
- * approve, redirect or stop.
+ * approve, redirect or stop. You can ask it questions at every plan, and
+ * keep asking about the saved report once the session is over.
  *
  * Nothing from the server is parsed as HTML: every node is built with h().
  */
@@ -203,6 +204,7 @@ export function mountMorvain(view) {
     else if (wasRunning) checkLive();
     wasRunning = job.status === 'running';
     panel.setJob(job.status);
+    panel.setReport(job.status === 'running' ? '' : String(job.run_id || ''));
     panel.render();
     renderProgress();
     if (job.status === 'running' || (res.ok && res.data && res.data.more)) {

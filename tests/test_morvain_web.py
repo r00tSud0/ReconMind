@@ -54,13 +54,27 @@ class AgentRouteTests(WebTestCase):
                {"round": True, "decision": "approve"},
                {"round": 1, "decision": "approve", "actions": ["surface"]},
                {"round": 1, "decision": "approve", "actions": ["web; rm -rf /"]},
-               {"round": 1, "decision": "redirect", "message": "x" * 501}]
+               {"round": 1, "decision": "redirect", "message": "x" * 501},
+               {"round": 1, "decision": "ask", "message": "   "},
+               {"round": 1, "decision": "ask", "message": "", "actions": ["web", "smb"]}]
         for body in bad:
             with self.subTest(body=body):
                 self.assertEqual(self.client.post(url, json=body, headers=H).status_code, 400)
         self.assertFalse(os.path.exists(self.app.state.jobs.agent_inbox(job_id)))
         self.assertEqual(self.client.post(url, json={"round": 1, "decision": "finish"})
                          .status_code, 403)
+
+    def test_question_is_written_for_the_running_job(self):
+        job_id = self.start()
+        url = "/api/scans/{j}/agent".format(j=job_id)
+        res = self.client.post(url, headers=H, json={"round": 2, "decision": "ask",
+                                                      "message": " Why  port 21? "})
+        self.assertEqual(res.status_code, 200, res.text)
+        with open(self.app.state.jobs.agent_inbox(job_id)) as f:
+            self.assertEqual(json.load(f)["message"], "Why port 21?")
+        res = self.client.post(url, headers=H, json={"round": 2, "decision": "ask",
+                                                      "actions": ["web"]})
+        self.assertEqual(res.status_code, 200, res.text)
 
     def test_decision_for_a_job_that_is_not_running(self):
         res = self.client.post("/api/scans/0123456789ab/agent", headers=H,

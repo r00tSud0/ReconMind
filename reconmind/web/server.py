@@ -488,7 +488,8 @@ def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
     async def agent_decision(job_id: str, request: Request):
         # The operator's answer to MORVAIN-X0's plan. It only says which of the
         # proposed checks to run; the agent drops anything it did not propose,
-        # and every check still passes the gate inside the tools.
+        # and every check still passes the gate inside the tools. "ask" is a
+        # question at the checkpoint: it is answered and never runs anything.
         body = await _json_body(request)
         if body is None:
             return _failure(403, "forbidden", "The request body must be a JSON object.")
@@ -504,6 +505,8 @@ def create_app(report_dir=None, runner=None, port=None, setup_popen=None):
                 or not all(isinstance(a, str) and a in AGENT_CHECKS for a in actions)
                 or not isinstance(message, str) or len(message) > 500):
             return _failure(400, "invalid", "That is not a valid answer to the plan.")
+        if decision == "ask" and not message.strip() and len(actions) != 1:
+            return _failure(400, "invalid", "Type a question first.")
         clean = {"round": round_number, "decision": decision, "actions": list(dict.fromkeys(actions)),
                  "message": " ".join(message.split())}
         if not await run_in_threadpool(jobs.decide, job_id, clean):

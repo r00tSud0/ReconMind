@@ -232,6 +232,23 @@ class StepTests(unittest.TestCase):
         self.assertNotIn("WARNING", str(err.exception))
         self.assertIn("setup.log", str(err.exception))
 
+    def test_pip_failures_name_the_cause(self):
+        self.assertIn("memory", install.pip_failure("python failed (exit -9). Killed"))
+        self.assertIn("disk is full", install.pip_failure("OSError: No space left on device"))
+        self.assertIn("Python version", install.pip_failure("ERROR: No matching distribution"))
+        self.assertIn("internet", install.pip_failure("Read timed out"))
+
+    def test_torch_install_skips_the_pip_cache(self):
+        calls = []
+        answers = iter([Proc(returncode=1), Proc(stdout="True\n"), Proc(), Proc(), Proc()])
+        def fake(cmd, **k):
+            calls.append(cmd)
+            return next(answers)
+        self.worker._run = fake
+        self.worker.step_mapper_packages()
+        self.assertIn("--no-cache-dir", calls[2])
+        self.assertIn("--no-cache-dir", calls[3])
+
     def test_mapper_packages_refuse_system_python(self):
         answers = iter([Proc(returncode=1), Proc(stdout="False\n")])
         self.worker._run = lambda *a, **k: next(answers)

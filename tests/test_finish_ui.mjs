@@ -48,4 +48,7 @@ assert.ok(ns.includes("if (FUTURE_MODES.has(state.mode)) return 'Malware file an
 assert.ok(!ns.includes("kind: 'malware'"), 'Nothing is ever sent to the server for it');
 const ui = src('../reconmind/web/static/js/ui.js');
 assert.ok(ui.includes("h('table', { class: cls.table || 'md-table' }"), 'AI answers show Markdown tables as tables');
+const agentJs = src('../reconmind/web/static/js/views/agent.js');
+assert.ok(agentJs.includes("' mx-mode-' + body.kind") && !agentJs.includes("' mx-' + body.kind"),
+  'The character card never takes the portrait image class (it covered the page in Lite)');
 console.log('Finished app UI contract: all assertions passed.');

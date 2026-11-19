@@ -242,7 +242,7 @@ export function createAgentPanel(jobId) {
     if (shownState === '' && jobState === 'running' && agentLines <= 1) shownState = 'ready';
     const wasPowered = POWERED.has(shownState);
     character.className = 'glass agent-char state-' + state + (powered ? ' powered' : '')
-      + ' mx-' + body.kind + (missing.hidden ? '' : ' no-portrait');
+      + ' mx-mode-' + body.kind + (missing.hidden ? '' : ' no-portrait');
     // Powering up: the lights come on with a flicker and a puff of steam.
     // Finishing the work: one more puff as it cools down. Neither loops.
     // Opening the page partway through just shows the current state.

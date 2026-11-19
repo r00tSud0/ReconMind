@@ -28,8 +28,12 @@ from reconmind.core.authorization import is_authorized
 
 # Installed as "testssl" by the Kali package and as "testssl.sh" from git.
 BINARY_NAMES = ("testssl", "testssl.sh")
-TESTSSL_FLAGS = ["--quiet", "--color", "0", "--warnings", "off"]
-TESTSSL_TIMEOUT = 600
+# --connect-timeout and --openssl-timeout stop testssl.sh waiting minutes on
+# a service that never finishes its STARTTLS handshake (Metasploitable's
+# ProFTPD on 2121 does this); that port then fails in seconds, not minutes.
+TESTSSL_FLAGS = ["--quiet", "--color", "0", "--warnings", "off",
+                 "--connect-timeout", "10", "--openssl-timeout", "15"]
+TESTSSL_TIMEOUT = 300
 
 # nmap service name to testssl.sh --starttls protocol.
 STARTTLS_SERVICES = {

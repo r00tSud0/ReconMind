@@ -22,7 +22,8 @@ FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 with open(FIXTURE) as _fh:
     JSON_TEXT = _fh.read()
 
-EXPECTED_FLAGS = ["--quiet", "--color", "0", "--warnings", "off"]
+EXPECTED_FLAGS = ["--quiet", "--color", "0", "--warnings", "off",
+                  "--connect-timeout", "10", "--openssl-timeout", "15"]
 
 
 def json_path_of(cmd):
@@ -119,7 +120,7 @@ class CommandTests(Base):
         path = json_path_of(cmd)
         self.assertEqual(cmd, ["testssl"] + EXPECTED_FLAGS
                          + ["--jsonfile", path, "10.10.1.100:443"])
-        self.assertEqual(run.call_args.kwargs["timeout"], 600)
+        self.assertEqual(run.call_args.kwargs["timeout"], 300)
         self.assertEqual(result["command"], shlex.join(cmd))
         self.assertEqual(result["target"], TARGET)
         self.assertEqual(result["port"], 443)
@@ -138,8 +139,8 @@ class CommandTests(Base):
         run = fake_testssl(JSON_TEXT)
         self._run(run, port=25, starttls="smtp")
         options = [a for a in run.call_args.args[0] if a.startswith("-")]
-        self.assertEqual(options, ["--quiet", "--color", "--warnings", "--jsonfile",
-                                   "--starttls"])
+        self.assertEqual(options, ["--quiet", "--color", "--warnings", "--connect-timeout",
+                                   "--openssl-timeout", "--jsonfile", "--starttls"])
 
     def test_temp_json_is_deleted(self):
         run = fake_testssl(JSON_TEXT)

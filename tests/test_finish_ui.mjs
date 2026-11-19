@@ -46,4 +46,6 @@ assert.ok(html.includes('id="malware-file"') && /id="malware-file"[^>]*disabled/
 assert.ok(html.includes('Malimg'), 'It explains the planned Malimg image classifier');
 assert.ok(ns.includes("if (FUTURE_MODES.has(state.mode)) return 'Malware file analysis is a future component."), 'Start stays disabled for it');
 assert.ok(!ns.includes("kind: 'malware'"), 'Nothing is ever sent to the server for it');
+const ui = src('../reconmind/web/static/js/ui.js');
+assert.ok(ui.includes("h('table', { class: cls.table || 'md-table' }"), 'AI answers show Markdown tables as tables');
 console.log('Finished app UI contract: all assertions passed.');

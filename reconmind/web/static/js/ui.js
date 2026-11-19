@@ -108,12 +108,29 @@ export function markdownNodes(text, classes) {
     endPara();
     list = null;
   };
+  let table = null;
+  const cells = (line) => line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
   for (const raw of String(text === null || text === undefined ? '' : text).split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) {
       endPara();
+      table = null;
       continue;
     }
+    // A Markdown table: rows of | cells |; the | --- | line under the head is skipped.
+    if (line.startsWith('|') && line.endsWith('|') && line.length > 1) {
+      if (/^\|[\s:|-]+\|$/.test(line)) continue;
+      endBlock();
+      if (!table) {
+        const head = h('tr', {}, ...cells(line).map((c) => h('th', {}, markdownInline(c))));
+        table = { body: h('tbody') };
+        blocks.push(h('div', { class: 'md-table-wrap' }, h('table', { class: cls.table || 'md-table' }, h('thead', {}, head), table.body)));
+      } else {
+        table.body.append(h('tr', {}, ...cells(line).map((c) => h('td', {}, markdownInline(c)))));
+      }
+      continue;
+    }
+    table = null;
     if (MD_RULE.test(raw)) {
       endBlock();
       continue;

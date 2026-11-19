@@ -208,6 +208,19 @@ class AgentLabelTests(unittest.TestCase):
             self.assertIs(entries[plain.run_id]["agent"], False)
 
 
+class RepairBudgetTests(unittest.TestCase):
+
+    def test_a_cut_off_summary_gets_a_bigger_repair_budget(self):
+        from reconmind.agent import __main__ as runner
+        model = FakeModel("### Key findings\n- still cut off")
+        with mock.patch("builtins.print"):
+            text, refs = runner._final_summary(model, "m", ALLOWED, {"ports": []},
+                                               "### Key findings\n- cut off")
+        self.assertIsNone(text, "A summary that still fails is never published")
+        self.assertEqual(model.calls[0]["max_tokens"], runner.REPAIR_MAX_TOKENS)
+        self.assertGreaterEqual(runner.REPAIR_MAX_TOKENS, 16000)
+
+
 class FakeModel:
     def __init__(self, text):
         self.text = text

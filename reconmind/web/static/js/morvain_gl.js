@@ -19,7 +19,10 @@
  *
  * Without WebGL, a still fallback swaps the powered down and lit portraits.
  * With reduced motion requested, nothing moves and there is no steam; the
- * lights still switch on and off. Lite mode draws at 30 frames a second.
+ * lights still switch on and off. Lite mode (chosen on its own for virtual
+ * machines and software renderers, or picked on System, Display) uses the
+ * still fallback too: a virtual machine's graphics driver can freeze the
+ * whole screen under constant WebGL drawing.
  */
 
 const IMG = '/static/img/';
@@ -178,6 +181,7 @@ function stillFallback(stage, onMissing) {
 }
 
 export function createMorvain(stage, onMissing) {
+  if (lite()) return stillFallback(stage, onMissing);
   const canvas = document.createElement('canvas');
   canvas.className = 'mx-canvas';
   canvas.setAttribute('aria-hidden', 'true');
@@ -305,7 +309,6 @@ export function createMorvain(stage, onMissing) {
     if (!canvas.isConnected) { if (shown) api.destroy(); return; }
     shown = true;
     const calm = reducedMotion();
-    if (lite() && now - lastDraw < 32) return;          // Lite: about 30 frames a second
     const dt = Math.min(0.05, lastDraw ? (now - lastDraw) / 1000 : 0.016);
     lastDraw = now;
     const t = now / 1000;

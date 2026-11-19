@@ -64,7 +64,7 @@ assert.ok(agent.includes('body.steam()'), 'Steam is triggered by state changes')
 assert.ok(gl.includes("prefers-reduced-motion: reduce"), 'Reduced motion is honoured');
 assert.match(gl, /const breath = calm \? 0/, 'No breathing with reduced motion');
 assert.match(gl, /steamStart >= 0 && !calm/, 'No steam with reduced motion');
-assert.match(gl, /lite\(\) && now - lastDraw < 32/, 'Lite draws about 30 frames a second');
+assert.match(gl, /if \(lite\(\)\) return stillFallback\(stage, onMissing\);/, 'Lite (virtual machines) never starts WebGL');
 assert.ok(gl.includes('webglcontextlost') && gl.includes('stillFallback'), 'Falls back to a still portrait');
 for (const bad of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'eval(', 'new Function']) {
   assert.ok(!agent.includes(bad) && !gl.includes(bad), 'must not use ' + bad);

@@ -191,6 +191,13 @@ def _scan_facts(target, scan, plan=None):
     }, indent=1)
 
 
+# The repair call writes the whole summary again. Free reasoning models spend
+# much of their budget thinking, and a big scan (200 findings) makes a long
+# summary, so the repair gets four times the draft's budget. A draft that
+# was cut off (no END OF SUMMARY line) is the usual reason a repair is needed.
+REPAIR_MAX_TOKENS = 16000
+
+
 def _final_summary(client, model, target, scan, draft, plan=None):
     """
     Check the model's draft. If it fails, make ONE repair call (no tools) and
@@ -198,7 +205,6 @@ def _final_summary(client, model, target, scan, draft, plan=None):
     so the raw draft is never published. llm.RateLimited from the repair call
     is raised to the caller.
     """
-    from reconmind.agent.brain import MAX_TOKENS
     from reconmind.agent.prompts import REPAIR_SYSTEM_PROMPT, repair_message
 
     result = check_summary(draft, scan)
@@ -211,7 +217,7 @@ def _final_summary(client, model, target, scan, draft, plan=None):
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=MAX_TOKENS,
+            max_tokens=REPAIR_MAX_TOKENS,
             system=REPAIR_SYSTEM_PROMPT,
             messages=[{"role": "user",
                        "content": repair_message(_scan_facts(target, scan, plan), draft)}],

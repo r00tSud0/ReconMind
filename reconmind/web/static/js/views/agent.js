@@ -11,20 +11,24 @@
  */
 import * as api from '../api.js';
 import { h } from '../ui.js';
+import { createMorvain } from '../morvain_gl.js';
 
 const isObject = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
 const text = (x) => (typeof x === 'string' ? x : '');
 
 const STATES = {
+  ready: ['Ready', 'Give it one lab target and it maps the surface first.'],
   thinking: ['Thinking', 'Working out the next move from what it found.'],
   running: ['Running a check', 'Executing an approved step against the target.'],
   awaiting: ['Waiting for your approval', 'It will not act until you approve.'],
   error: ['A problem came up', 'It tells you what happened and offers a way on.'],
   done: ['Writing the report', 'The tools are done. The report comes next.'],
-  finished: ['Finished', 'The session is over. Open the report from the top of the page.'],
+  finished: ['Finished', 'The session is over. Its report is saved: Open report is in the progress panel.'],
   stopped: ['Stopped', 'The session was stopped. What it found is saved.'],
 };
-const PORTRAIT = '/static/img/morvain-x0.png';
+// The character: the approved portrait, alive (see ../morvain_gl.js).
+// States where the agent is working, so its red lights are on.
+const POWERED = new Set(['thinking', 'running', 'awaiting', 'done', 'error']);
 
 function warnIcon() {
   const ns = 'http://www.w3.org/2000/svg';
@@ -52,29 +56,30 @@ export function createAgentPanel(jobId) {
   let feedback = '';
   let lastKey = '';
   let shownCount = 0;
+  let intro = null;            // shown in the chat before a session starts
   let scrolledOnce = false;
 
   // ---- the character ----------------------------------------------------
-  const portrait = h('img', { class: 'agent-portrait-img', src: PORTRAIT,
-    alt: 'MORVAIN-X0, a black chrome robotic face with red optics', width: '640', height: '800' });
+  // One surface that bends (a mesh warp), so the head, neck and chest move
+  // together like one body. Without WebGL it falls back to a still portrait
+  // whose lights fade on and off.
   const missing = h('div', { class: 'agent-portrait-missing', hidden: true },
     h('span', { text: 'MORVAIN-X0' }),
     h('span', { class: 'tag', text: 'Portrait file missing: static/img/morvain-x0.png' }));
-  portrait.addEventListener('error', () => {
-    portrait.hidden = true;
+  const stage = h('div', { class: 'mx-stage', role: 'img',
+    'aria-label': 'MORVAIN-X0, a black chrome robotic face with red optics' });
+  const body = createMorvain(stage, () => {
+    stage.hidden = true;
     missing.hidden = false;
     character.classList.add('no-portrait');
   });
+  let shownState = '';
   const statusText = h('span', { text: '' });
   const subText = h('p', { class: 'tag agent-sub' });
   const character = h('section', { class: 'glass agent-char', 'aria-label': 'MORVAIN-X0 status' },
     h('span', { class: 'agent-badge', text: 'MORVAIN-X0' }),
     h('div', { class: 'agent-core' },
-      h('div', { class: 'agent-corewrap' }, portrait, missing,
-        // Glows placed over the portrait's own optics, so the state shows in its eyes.
-        h('span', { class: 'agent-eye l', 'aria-hidden': 'true' }),
-        h('span', { class: 'agent-eye r', 'aria-hidden': 'true' }),
-        h('span', { class: 'agent-scanline', 'aria-hidden': 'true' }))),
+      h('div', { class: 'agent-corewrap' }, stage, missing)),
     h('div', { class: 'agent-status', role: 'status', 'aria-live': 'polite' },
       h('span', { class: 'agent-dot', 'aria-hidden': 'true' }), statusText),
     subText,
@@ -214,6 +219,7 @@ export function createAgentPanel(jobId) {
   }
 
   function currentState() {
+    if (jobState === 'ready') return 'ready';
     if (jobState === 'stopped') return 'stopped';
     if (jobState !== 'running') return 'finished';
     const last = [...entries].reverse().find((e) => e.from === 'agent');
@@ -226,18 +232,38 @@ export function createAgentPanel(jobId) {
     const state = currentState();
     const live = pending();
     const key = [entries.length, state, live ? live.round : '', sending, redirectOpen, feedback,
-      target].join('|');
+      target, intro ? 1 : 0].join('|');
     if (key === lastKey) return;
     lastKey = key;
-    character.className = 'glass agent-char state-' + state;
+    const powered = POWERED.has(state);
+    // A session that has only just begun powers up from off, even when this
+    // panel is new (the MORVAIN-X0 tab swaps its idle panel for the session).
+    const agentLines = entries.filter((e) => e.from === 'agent').length;
+    if (shownState === '' && jobState === 'running' && agentLines <= 1) shownState = 'ready';
+    const wasPowered = POWERED.has(shownState);
+    character.className = 'glass agent-char state-' + state + (powered ? ' powered' : '')
+      + ' mx-' + body.kind + (missing.hidden ? '' : ' no-portrait');
+    // Powering up: the lights come on with a flicker and a puff of steam.
+    // Finishing the work: one more puff as it cools down. Neither loops.
+    // Opening the page partway through just shows the current state.
+    if (shownState !== '') {
+      if (powered && !wasPowered) body.steam();
+      else if (state === 'done' && shownState !== 'done') body.steam();
+    }
+    body.setState(state);
+    shownState = state;
     statusText.textContent = STATES[state][0];
     subText.textContent = STATES[state][1];
-    title.textContent = target ? 'Agent scan of ' + target : 'Agent scan';
+    if (!intro || entries.length) title.textContent = target ? 'Agent scan of ' + target : 'Agent scan';
     const keepField = redirectOpen ? thread.querySelector('#agent-redirect') : null;
     const draft = keepField ? keepField.value : '';
     const nearBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80;
     const grew = entries.length !== shownCount;
     shownCount = entries.length;
+    if (!entries.length && intro) {
+      thread.replaceChildren(intro);
+      return;
+    }
     thread.replaceChildren(...entries.map((e, i) => bubble(e, e === live,
       entries.slice(i + 1).find((x) => x.from === 'operator'))));
     // Follow the conversation, unless the operator scrolled up to read.
@@ -261,6 +287,11 @@ export function createAgentPanel(jobId) {
       });
     },
     setJob(status) { jobState = status || 'running'; },
+    setIntro(node) { intro = node; lastKey = ''; },
+    setTitle(text) { title.textContent = text; },
+    target: () => target,
+    character,
+    chat,
     render,
   };
 }

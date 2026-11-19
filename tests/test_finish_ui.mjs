@@ -33,6 +33,8 @@ const morvain = src('../reconmind/web/static/js/views/morvain.js');
 assert.ok(!job.includes('createAgentPanel'), 'Live run does not repeat the agent conversation');
 assert.ok(job.includes("href: '#/agent', text: 'Open MORVAIN-X0'"), 'Live run points agent scans to MORVAIN-X0');
 assert.ok(morvain.includes("mode: 'agent'"), 'Agent scans start on the MORVAIN-X0 tab');
+assert.ok(morvain.includes("['custom', 'Specific ports']") && morvain.includes("ports: ports === 'custom' ? spec : ports"),
+  'MORVAIN-X0 can scan specific ports');
 const setupJs = src('../reconmind/web/static/js/views/setup.js');
 assert.ok(setupJs.includes('progressPanel.parentNode !== progress') && !/progress\.replaceChildren\(section\('Progress'/.test(setupJs),
   'Setup progress is built once and updated in place, so it never flashes');

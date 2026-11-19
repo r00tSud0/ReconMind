@@ -1309,3 +1309,5 @@ html:not(.scanning) .slab { animation: none; }
   background: var(--red-light); animation: indet 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .setup-step-bar i { animation: none; width: 100%; opacity: .5; } .setup-bar i { transition: none; } }
 .agent-hint { margin-top: 10px; }
+.agent-ports { max-width: 440px; }
+.agent-ports-custom { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-width: 440px; }

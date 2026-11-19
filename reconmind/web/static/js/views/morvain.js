@@ -50,17 +50,25 @@ export function mountMorvain(view) {
     const target = h('input', { id: 'agent-target', class: 'field field-big', type: 'text',
       autocomplete: 'off', spellcheck: 'false', inputmode: 'decimal', placeholder: '10.10.1.20' });
     let ports = 'top';
-    const portButtons = [['top', 'Top 1000'], ['all', 'All 65535']].map(([id, text]) => {
+    const CHOICES = [['top', 'Top 1000'], ['all', 'All 65535'], ['custom', 'Specific ports']];
+    const portsField = h('input', { id: 'agent-ports-field', class: 'field field-mono', type: 'text',
+      autocomplete: 'off', spellcheck: 'false', placeholder: '21,22,80,443,8000-8100',
+      'aria-label': 'Specific ports' });
+    const portsBox = h('div', { class: 'agent-ports-custom', hidden: true }, portsField,
+      h('p', { class: 'tag', text: 'Numbers and ranges, like 21,22,80 or 8000-8100. MORVAIN-X0 scans only these.' }));
+    const portButtons = CHOICES.map(([id, text]) => {
       const b = h('button', { type: 'button', text, 'aria-pressed': id === ports ? 'true' : 'false',
         class: id === ports ? 'on' : '' });
       b.addEventListener('click', () => {
         ports = id;
         portButtons.forEach((x, i) => {
-          const on = ['top', 'all'][i] === ports;
+          const on = CHOICES[i][0] === ports;
           x.className = on ? 'on' : '';
           x.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
-        ind.style.transform = 'translateX(' + (ports === 'all' ? 100 : 0) + '%)';
+        ind.style.transform = 'translateX(' + CHOICES.findIndex((c) => c[0] === ports) * 100 + '%)';
+        portsBox.hidden = ports !== 'custom';
+        if (ports === 'custom') portsField.focus();
       });
       return b;
     });
@@ -82,10 +90,16 @@ export function mountMorvain(view) {
         target.focus();
         return;
       }
+      const spec = portsField.value.replace(/\s+/g, '');
+      if (ports === 'custom' && !spec) {
+        note.textContent = 'Type the ports to scan, like 21,22,80.';
+        portsField.focus();
+        return;
+      }
       start.disabled = true;
       note.textContent = 'Checking the target against the authorization gate.';
       const res = await api.post('/api/scans', { kind: 'recon', target: value, preset: 'standard',
-        ports, mode: 'agent' });
+        ports: ports === 'custom' ? spec : ports, mode: 'agent' });
       if (!alive) return;
       if (res.ok && isObject(res.data) && JOB_ID.test(String(res.data.job_id))) {
         job = { id: res.data.job_id, status: 'running', label: AGENT_LABEL + value };
@@ -102,6 +116,7 @@ export function mountMorvain(view) {
     }
     start.addEventListener('click', go);
     target.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    portsField.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
     return h('div', { class: 'agent-start' },
       h('div', { class: 'agent-msg' },
         h('span', { class: 'agent-av x', text: 'X0' }),
@@ -115,8 +130,8 @@ export function mountMorvain(view) {
         h('p', { class: 'tag', text: allowed.length ? 'Allowed: ' + allowed.join(', ') : '' })),
       h('div', { class: 'group' },
         h('span', { class: 'label', text: 'Ports' }),
-        h('div', { class: 'seg cols-2 agent-ports', role: 'group', 'aria-label': 'Ports' },
-          ind, ...portButtons)),
+        h('div', { class: 'seg agent-ports', role: 'group', 'aria-label': 'Ports' },
+          ind, ...portButtons), portsBox),
       h('div', { class: 'agent-start-actions' }, start),
       note);
   }
